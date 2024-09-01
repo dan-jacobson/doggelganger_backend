@@ -43,6 +43,7 @@ Deno.serve(async (req) => {
         const arrayBuffer = await imageFile.arrayBuffer();
         const data = new Uint8Array(arrayBuffer);
 
+        let embedding;
         await ImageMagick.read(data, async (img: IMagickImage) => {
             const width = img.width();
             const height = img.height();
@@ -63,15 +64,8 @@ Deno.serve(async (req) => {
             const output = await pipe(rawImage);
 
             // Get embedding
-            const embedding = Array.from(output.data);
-
-        // Find most similar dog in our db
-        // const { dog, error } = await supabase.rpc(
-        // "find_most_similar_dog",
-        // {
-        //   embedding,
-        // }
-        // );
+            embedding = Array.from(output.data);
+        });
 
         // Return the record
         return new Response(
