@@ -1,5 +1,13 @@
 import { env, pipeline, RawImage } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import {
+    ImageMagick,
+    IMagickImage,
+    initialize,
+    MagickFormat,
+  } from "https://deno.land/x/imagemagick_deno/mod.ts";
+
+await initialize();
 
 // Because the tutorial said to
 env.allowLocalModels = false;
@@ -31,6 +39,10 @@ Deno.serve(async (req) => {
         if (!imageFile || !(imageFile instanceof File)) {
             return new Response('No valid image file found in the request', { status: 400 });
         }
+        
+        const data: Uint8Array = await Deno.readFile("image.jpg");
+
+        await ImageMagick.read(data, async (img: IMagickImage) => {
         // Parse image file here
         // img = RawImage(Uin8Array, width, height, channels);
         
