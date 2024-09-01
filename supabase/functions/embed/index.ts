@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
         const imageBuffer = await imageFile.arrayBuffer();
 
         // Use sharp to process the image
-        const sharpImage = sharp(Buffer.from(imageBuffer));
+        const sharpImage = sharp(imageBuffer);
 
         // Create a RawImage using the new loadImageFunction
         const img = await loadImageFunction(sharpImage);
