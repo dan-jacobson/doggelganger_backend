@@ -1,5 +1,6 @@
 import { env, pipeline, RawImage } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { multiParser } from 'https://deno.land/x/multiparser@0.1.4/mod.ts'
 
 // Because the tutorial said to
 env.allowLocalModels = false;
@@ -23,11 +24,18 @@ Deno.serve(async (req) => {
     }
 
     try {
-        // Parse the request body
-        im = await req.blob();
-        img = RawImage.fromBlob(im)
+        // Parse the multipart form data
+        const form = await multiParser(req);
+        const imageFile = form.files['image'];
+
+        if (!imageFile) {
+            return new Response('No image file found in the request', { status: 400 });
+        }
+
+        // Create a RawImage from the file data
+        const img = RawImage.fromBlob(new Blob([imageFile.content]));
         
-        // Generate the selfie embedding directly from the ArrayBuffer
+        // Generate the embedding
         const output = await pipe(img);
 
         // Get embedding
@@ -52,5 +60,8 @@ Deno.serve(async (req) => {
     } catch (error) {
         console.error('Error processing request:', error);
         return new Response('Internal Server Error', { status: 500 });
+    } finally {
+        // Clean up temporary files created by multiParser
+        await form?.cleanup();
     }
 });
