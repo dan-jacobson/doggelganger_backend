@@ -32,42 +32,29 @@ Deno.serve(async (req) => {
     }
 
     try {
-        // Parse the multipart form data
         const formData = await req.formData();
         const imageFile = formData.get('image');
 
         if (!imageFile || !(imageFile instanceof File)) {
             return new Response('No valid image file found in the request', { status: 400 });
         }
-        
-        const arrayBuffer = await imageFile.arrayBuffer();
-        const data = new Uint8Array(arrayBuffer);
 
         let embedding;
-        await ImageMagick.read(data, async (img: IMagickImage) => {
-            const width = img.width();
-            const height = img.height();
-            const channels = img.channels();
-
-            // Convert image to RGBA format
+        await ImageMagick.read(await imageFile.arrayBuffer(), async (img: IMagickImage) => {
             img.convert(MagickFormat.Rgba);
             const pixelData = await img.export();
 
             const rawImage = new RawImage(
                 new Uint8Array(pixelData),
-                width,
-                height,
-                channels
+                img.width(),
+                img.height(),
+                img.channels()
             );
 
-            // Generate the embedding
             const output = await pipe(rawImage);
-
-            // Get embedding
             embedding = Array.from(output.data);
         });
 
-        // Return the record
         return new Response(
             JSON.stringify({ 
                 message: 'Image processed successfully',
