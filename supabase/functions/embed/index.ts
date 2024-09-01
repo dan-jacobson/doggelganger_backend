@@ -1,6 +1,6 @@
 import { env, pipeline, RawImage } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { multiParser } from 'https://deno.land/x/multiparser@0.1.4/mod.ts'
+import { multiParser } from 'https://deno.land/x/multiparser@v2.1.0/mod.ts'
 
 // Because the tutorial said to
 env.allowLocalModels = false;
