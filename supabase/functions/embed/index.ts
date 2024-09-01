@@ -5,9 +5,22 @@ import {
     IMagickImage,
     initialize,
     MagickFormat,
+    Magick,
   } from "https://deno.land/x/imagemagick_deno/mod.ts";
 
 await initialize();
+
+async function convertToPNG(inputBuffer: ArrayBuffer): Promise<Uint8Array> {
+    return new Promise((resolve, reject) => {
+        ImageMagick.read(inputBuffer, (image: IMagickImage) => {
+            image.write(MagickFormat.Png, (data) => {
+                resolve(data);
+            });
+        }, (error) => {
+            reject(error);
+        });
+    });
+}
 
 // Because the tutorial said to
 env.allowLocalModels = false;
@@ -40,30 +53,38 @@ Deno.serve(async (req) => {
         }
 
         let embedding;
-        await ImageMagick.read(await imageFile.arrayBuffer(), async (img: IMagickImage) => {
-            img.convert(MagickFormat.Rgba);
-            const pixelData = await img.export();
+        try {
+            const imageBuffer = await imageFile.arrayBuffer();
+            const pngBuffer = await convertToPNG(imageBuffer);
 
-            const rawImage = new RawImage(
-                new Uint8Array(pixelData),
-                img.width(),
-                img.height(),
-                img.channels()
+            await ImageMagick.read(pngBuffer, async (img: IMagickImage) => {
+                img.convert(MagickFormat.Rgba);
+                const pixelData = await img.export();
+
+                const rawImage = new RawImage(
+                    new Uint8Array(pixelData),
+                    img.width(),
+                    img.height(),
+                    img.channels()
+                );
+
+                const output = await pipe(rawImage);
+                embedding = Array.from(output.data);
+            });
+
+            return new Response(
+                JSON.stringify({ 
+                    message: 'Image processed successfully',
+                    embedding: embedding
+                }),
+                { headers: { 'Content-Type': 'application/json' } }
             );
-
-            const output = await pipe(rawImage);
-            embedding = Array.from(output.data);
-        });
-
-        return new Response(
-            JSON.stringify({ 
-                message: 'Image processed successfully',
-                embedding: embedding
-            }),
-            { headers: { 'Content-Type': 'application/json' } }
-        );
+        } catch (imageError) {
+            console.error('Error processing image:', imageError);
+            return new Response('Error processing image: ' + imageError.message, { status: 400 });
+        }
     } catch (error) {
         console.error('Error processing request:', error);
-        return new Response('Internal Server Error', { status: 500 });
+        return new Response('Internal Server Error: ' + error.message, { status: 500 });
     }
 });
