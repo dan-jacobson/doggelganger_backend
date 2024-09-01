@@ -40,17 +40,30 @@ Deno.serve(async (req) => {
             return new Response('No valid image file found in the request', { status: 400 });
         }
         
-        const data: Uint8Array = await Deno.readFile("image.jpg");
+        const arrayBuffer = await imageFile.arrayBuffer();
+        const data = new Uint8Array(arrayBuffer);
 
         await ImageMagick.read(data, async (img: IMagickImage) => {
-        // Parse image file here
-        // img = RawImage(Uin8Array, width, height, channels);
-        
-        // Generate the embedding
-        const output = await pipe(img);
+            const width = img.width();
+            const height = img.height();
+            const channels = img.channels();
 
-        // Get embedding
-        const embedding = Array.from(output.data);
+            // Convert image to RGBA format
+            img.convert(MagickFormat.Rgba);
+            const pixelData = await img.export();
+
+            const rawImage = new RawImage(
+                new Uint8Array(pixelData),
+                width,
+                height,
+                channels
+            );
+
+            // Generate the embedding
+            const output = await pipe(rawImage);
+
+            // Get embedding
+            const embedding = Array.from(output.data);
 
         // Find most similar dog in our db
         // const { dog, error } = await supabase.rpc(
