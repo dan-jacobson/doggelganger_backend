@@ -1,4 +1,4 @@
-import { env, pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2'
+import { env, pipeline, RawImage } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
 // Because the tutorial said to
@@ -23,15 +23,12 @@ Deno.serve(async (req) => {
     }
 
     try {
-        const imageBuffer = await req.arrayBuffer();
+        // Parse the request body
+        im = await req.blob();
+        img = RawImage.fromBlob(im)
         
         // Generate the selfie embedding directly from the ArrayBuffer
-        const output = await pipe(imageBuffer, {
-            resize: {
-                width: 224,
-                height: 224,
-            },
-        });
+        const output = await pipe(img);
 
         // Get embedding
         const embedding = Array.from(output.data);
