@@ -1,0 +1,18 @@
+# images
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# pickle files
+*.pkl 
+.aider*
+
+# compressed files
+*.zip
+
+# python files
+*__pycache__*
+
+# env vars
+.env
