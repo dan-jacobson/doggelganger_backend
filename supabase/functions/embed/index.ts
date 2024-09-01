@@ -1,5 +1,6 @@
 import { env, pipeline, RawImage } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import sharp from 'npm:sharp@0.32.6'
 
 // Because the tutorial said to
 env.allowLocalModels = false;
@@ -16,6 +17,21 @@ const pipe = await pipeline(
     'xenova/dinov2-small'
 )
 
+const loadImageFunction = async (/**@type {sharp.Sharp}*/img) => {
+    const metadata = await img.metadata();
+    const rawChannels = metadata.channels;
+
+    let { data, info } = await img.rotate().raw().toBuffer({ resolveWithObject: true });
+
+    const newImage = new RawImage(new Uint8ClampedArray(data), info.width, info.height, info.channels);
+    if (rawChannels !== undefined && rawChannels !== info.channels) {
+        // Make sure the new image has the same number of channels as the input image.
+        // This is necessary for grayscale images.
+        newImage.convert(rawChannels);
+    }
+    return newImage;
+}
+
 // Deno Handler
 Deno.serve(async (req) => {
     if (req.method !== 'POST') {
@@ -31,11 +47,14 @@ Deno.serve(async (req) => {
             return new Response('No valid image file found in the request', { status: 400 });
         }
 
-        // Convert the File to a Blob
-        const imageBlob = new Blob([await imageFile.arrayBuffer()], { type: imageFile.type });
+        // Convert the File to a Buffer
+        const imageBuffer = await imageFile.arrayBuffer();
 
-        // Create a RawImage from the Blob
-        const img = RawImage.fromBlob(imageBlob);
+        // Use sharp to process the image
+        const sharpImage = sharp(Buffer.from(imageBuffer));
+
+        // Create a RawImage using the new loadImageFunction
+        const img = await loadImageFunction(sharpImage);
         
         // Generate the embedding
         const output = await pipe(img);
