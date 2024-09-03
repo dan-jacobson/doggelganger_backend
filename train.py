@@ -4,19 +4,36 @@ from sklearn.metrics import mean_squared_error, r2_score
 import json
 import os
 import torch
-from transformers import CLIPProcessor, CLIPModel
+from transformers import AutoImageProcessor, AutoModel
 from tqdm import tqdm
+from dotenv import load_dotenv
+from PIL import Image
 
-from embeddings import get_embedding
+load_dotenv()
+HUGGINGFACE_MODEL = os.getenv("HUGGINGFACE_MODEL")
 
 
 def load_model():
-    model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
-    processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
-    device = "mps" if torch.backends.mps.is_available() else "cpu"
+    # device = "mps" if torch.backends.mps.is_available() else "cpu"
+    device = "cpu"
+    processor = AutoImageProcessor.from_pretrained(HUGGINGFACE_MODEL)
+    model = AutoModel.from_pretrained(HUGGINGFACE_MODEL)
+    torch.compile(model)
+
     model.to(device)
+
     return model, processor, device
 
+def get_embedding(img, processor, model, device):
+    try:
+        inputs = processor(images=img, return_tensors="pt")
+        inputs.to(device)
+        with torch.no_grad():
+            outputs = model(**inputs)
+        return outputs.pooler_output.cpu().numpy().flatten()
+    except Exception as e:
+        print(f"Error processing image {image_path}: {str(e)}")
+        return None
 
 def make_embeddings(data_dir):
     model, processor, device = load_model()
@@ -28,13 +45,15 @@ def make_embeddings(data_dir):
         if "H" in filename:
             selfie_path = os.path.join(data_dir, filename)
             dog_path = os.path.join(data_dir, filename.replace("H", "D"))
+            selfie = Image.open(selfie_path).convert("RGB")
+            dog = Image.open(dog_path).convert("RGB")
 
             if os.path.exists(dog_path):
                 selfie_embedding = get_embedding(
-                    selfie_path, model=model, processor=processor, device=device
+                    selfie_path, processor=processor, model=model, device=device
                 )
                 dog_embedding = get_embedding(
-                    dog_path, model=model, processor=processor, device=device
+                    selfie_path, processor=processor, model=model, device=device
                 )
 
                 if selfie_embedding is not None and dog_embedding is not None:
