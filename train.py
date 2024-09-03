@@ -24,13 +24,14 @@ def load_model():
 
     return model, processor, device
 
+
 def get_embedding(img, processor, model, device):
     try:
         if isinstance(img, str):
             img = Image.open(img).convert("RGB")
         elif not isinstance(img, Image.Image):
-            raise ValueError("Input must be either a file path or a PIL Image object")
-        
+            raise ValueError("Input must be either a file path or an Image object")
+
         inputs = processor(images=img, return_tensors="pt")
         inputs.to(device)
         with torch.no_grad():
@@ -39,6 +40,7 @@ def get_embedding(img, processor, model, device):
     except Exception as e:
         print(f"Error processing image: {str(e)}")
         return None
+
 
 def make_embeddings(data_dir):
     model, processor, device = load_model()
@@ -50,8 +52,6 @@ def make_embeddings(data_dir):
         if "H" in filename:
             selfie_path = os.path.join(data_dir, filename)
             dog_path = os.path.join(data_dir, filename.replace("H", "D"))
-            selfie = Image.open(selfie_path).convert("RGB")
-            dog = Image.open(dog_path).convert("RGB")
 
             if os.path.exists(dog_path):
                 selfie_embedding = get_embedding(
@@ -93,6 +93,7 @@ def align_dog_to_face_embeddings(face_embeddings, dog_embeddings, examples):
     model.fit(X, y)
     return model, X, y
 
+
 def align_embedding(embedding, coef, intercept):
     """
     Align a single embedding using the trained linear transformation.
@@ -103,6 +104,7 @@ def align_embedding(embedding, coef, intercept):
     :return: aligned embedding
     """
     return np.dot(embedding, coef.T) + intercept
+
 
 def print_model_stats(model, X, y):
     """
@@ -115,7 +117,7 @@ def print_model_stats(model, X, y):
     y_pred = model.predict(X)
     mse = mean_squared_error(y, y_pred)
     r2 = r2_score(y, y_pred)
-    
+
     print("\nModel Training Statistics:")
     print(f"Number of samples: {X.shape[0]}")
     print(f"Mean Squared Error: {mse:.4f}")
@@ -129,7 +131,9 @@ def main():
     face_embeddings, dog_embeddings, examples = make_embeddings("./data/train")
 
     # Align dog embeddings to face embeddings
-    alignment_model, X, y = align_dog_to_face_embeddings(face_embeddings, dog_embeddings, examples)
+    alignment_model, X, y = align_dog_to_face_embeddings(
+        face_embeddings, dog_embeddings, examples
+    )
 
     # Print model statistics
     print_model_stats(alignment_model, X, y)
