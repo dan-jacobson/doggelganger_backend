@@ -26,13 +26,18 @@ def load_model():
 
 def get_embedding(img, processor, model, device):
     try:
+        if isinstance(img, str):
+            img = Image.open(img).convert("RGB")
+        elif not isinstance(img, Image.Image):
+            raise ValueError("Input must be either a file path or a PIL Image object")
+        
         inputs = processor(images=img, return_tensors="pt")
         inputs.to(device)
         with torch.no_grad():
             outputs = model(**inputs)
         return outputs.pooler_output.cpu().numpy().flatten()
     except Exception as e:
-        print(f"Error processing image {image_path}: {str(e)}")
+        print(f"Error processing image: {str(e)}")
         return None
 
 def make_embeddings(data_dir):
