@@ -46,7 +46,7 @@ def process_images(data_dir, metadata_path, alignment_model_path):
         vx = vecs.create_client(DB_CONNECTION)
         dogs = vx.get_or_create_collection(
             name="dog_embeddings",
-            dimension=768,  # Adjust this to match your embedding dimension
+            dimension=model.config.hidden_size,
         )
 
         # Process images

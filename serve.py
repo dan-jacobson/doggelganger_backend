@@ -38,26 +38,28 @@ async def embed_image(image: UploadFile = File(...)):
         # Query similar images
         results = dogs.query(
             data=embedding,
-            limit=5,
+            limit=1,
             include_metadata=True,
-            include_value=True,
-            measure="cosine_similarity",
+            include_value=True, # score only comes back when include_value=True
         )
+
+        # TODO (drj): check if the links to the adoption page still work?
 
         # Format results
         formatted_results = [
             {
                 "id": id,
-                "similarity": 1 - score,  # only comes back when include_value=True
+                "similarity": 1 - score, # converts cosine distance to similarity
                 "metadata": metadata,
             }
             for (id, score, metadata) in results
         ]
+        
 
         return JSONResponse(
             content={
                 "message": "Image processed successfully",
-                "embedding": embedding,
+                "embedding": embedding.tolist(),
                 "similar_images": formatted_results,
             }
         )

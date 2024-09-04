@@ -1,26 +1,7 @@
 import { env, pipeline, RawImage } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import {
-    ImageMagick,
-    IMagickImage,
-    initialize,
-    MagickFormat,
-    Magick,
-  } from "https://deno.land/x/imagemagick_deno/mod.ts";
-
-await initialize();
-
-async function convertToPNG(inputBuffer: ArrayBuffer): Promise<Uint8Array> {
-    return new Promise((resolve, reject) => {
-        ImageMagick.read(inputBuffer, (image: IMagickImage) => {
-            image.write(MagickFormat.Png, (data) => {
-                resolve(data);
-            });
-        }, (error) => {
-            reject(error);
-        });
-    });
-}
+import { multiParser, Form, FormFile } from 'https://deno.land/x/multiparser@v2.1.0/mod.ts'
+import { decode } from "https://deno.land/x/imagescript@1.3.0/mod.ts";
 
 // Because the tutorial said to
 env.allowLocalModels = false;
@@ -39,14 +20,14 @@ const pipe = await pipeline(
 
 
 // Deno Handler
-Deno.serve(async (req) => {
-    if (req.method !== 'POST') {
+Deno.serve(async (request) => {
+    if (request.method !== 'POST') {
         return new Response('Method Not Allowed', { status: 405 });
     }
 
     try {
-        const formData = await req.formData();
-        const imageFile = formData.get('image');
+        const form = await request.formData();
+        const imageFile = await form.get("image");
 
         if (!imageFile || !(imageFile instanceof File)) {
             return new Response('No valid image file found in the request', { status: 400 });
@@ -54,24 +35,19 @@ Deno.serve(async (req) => {
 
         let embedding;
         try {
-            const imageBuffer = await imageFile.arrayBuffer();
-            const pngBuffer = await convertToPNG(imageBuffer);
+            const imageData = await Deno.readFile(imageFile); 
+            const image = await decode(imageData);
 
-            await ImageMagick.read(pngBuffer, async (img: IMagickImage) => {
-                img.convert(MagickFormat.Rgba);
-                const pixelData = await img.export();
-
-                const rawImage = new RawImage(
-                    new Uint8Array(pixelData),
-                    img.width(),
-                    img.height(),
-                    img.channels()
+            const rawImage = new RawImage(
+                    new Uint8Array(image.bitmap),
+                    image.width,
+                    image.height,
+                    image.channels as 1|2|3|4,
                 );
 
-                const output = await pipe(rawImage);
-                embedding = Array.from(output.data);
-            });
-
+            const output = await pipe(rawImage);
+            embedding = Array.from(output.data);
+            
             return new Response(
                 JSON.stringify({ 
                     message: 'Image processed successfully',
