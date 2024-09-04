@@ -40,10 +40,10 @@ Deno.serve(async (request) => {
             const image = await decode(uint8Array);
 
             const rawImage = new RawImage(
-                new Uint8Array(image.bitmap),
+                image.bitmap,
                 image.width,
                 image.height,
-                image.channels as 1|2|3|4
+                4 // Prettyyy sure `decode` returns in RGBA format
             );
 
             const output = await pipe(rawImage);
