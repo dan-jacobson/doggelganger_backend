@@ -38,8 +38,6 @@ Deno.serve(async (request) => {
             const arrayBuffer = await imageFile.arrayBuffer();
             const uint8Array = new Uint8Array(arrayBuffer);
             let image = await decode(uint8Array);
-
-            // Resize the image to 224x224
             image = await image.resize(224, 224);
 
             const rawImage = new RawImage(
