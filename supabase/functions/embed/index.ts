@@ -1,7 +1,7 @@
 import { env, pipeline, RawImage } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { multiParser, Form, FormFile } from 'https://deno.land/x/multiparser@v2.1.0/mod.ts'
-import { decode } from "https://deno.land/x/imagescript@1.3.0/mod.ts";
+import { decode, Image } from "https://deno.land/x/imagescript@1.3.0/mod.ts";
 
 // Because the tutorial said to
 env.allowLocalModels = false;
@@ -37,13 +37,16 @@ Deno.serve(async (request) => {
         try {
             const arrayBuffer = await imageFile.arrayBuffer();
             const uint8Array = new Uint8Array(arrayBuffer);
-            const image = await decode(uint8Array);
+            let image = await decode(uint8Array);
+
+            // Resize the image to 224x224
+            image = await image.resize(224, 224);
 
             const rawImage = new RawImage(
                 image.bitmap,
-                image.width,
-                image.height,
-                4 // Prettyyy sure `decode` returns in RGBA format
+                224,
+                224,
+                4 // ImageScript uses RGBA format
             );
 
             const output = await pipe(rawImage);
