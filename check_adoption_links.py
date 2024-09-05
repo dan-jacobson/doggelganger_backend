@@ -27,6 +27,7 @@ def main():
     failures = 0
     retry_successes = 0
     image_failures = 0
+    image_failure_examples = []
 
     # First pass: check all links
     with ThreadPoolExecutor(max_workers=10) as executor:
@@ -38,6 +39,8 @@ def main():
                 successes += 1
                 if image_success is False:
                     image_failures += 1
+                    if len(image_failure_examples) < 5:
+                        image_failure_examples.append(dog)
             else:
                 failures += 1
                 failed_dogs.append(dog)
@@ -60,6 +63,14 @@ def main():
     print(f"3. Number of initial failures that worked the second time: {retry_successes}")
     print(f"4. Number of successes whose 'image_url' didn't work: {image_failures}")
     print(f"5. Percent successes: {success_percent:.2f}%")
+
+    print("\n5 examples of successes whose 'image_url' didn't work:")
+    for i, dog in enumerate(image_failure_examples, 1):
+        print(f"Example {i}:")
+        print(f"  Name: {dog.get('name', 'N/A')}")
+        print(f"  Adoption Link: {dog.get('adoption_link', 'N/A')}")
+        print(f"  Image URL: {dog.get('image_url', 'N/A')}")
+        print()
 
 if __name__ == "__main__":
     main()
