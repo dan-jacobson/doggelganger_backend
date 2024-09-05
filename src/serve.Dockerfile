@@ -4,7 +4,7 @@ FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 # Set working directory
 WORKDIR /app
 
-# Enable bytecode compilation                                                                                                                             
+# Enable bytecode compilation
 ENV UV_COMPILE_BYTECODE=1
 
 # Copy requirements file
@@ -19,8 +19,8 @@ COPY weights/dinov2-small /app/weights/dinov2-small
 # Copy application files
 COPY src/serve.py src/utils.py ./
 
-# Override uv image enntrypoint
+# Override uv image entrypoint
 ENTRYPOINT []
 
-# Run the FastAPI application
-CMD ["fastapi", "run", "app/serve.py", "--port", "80"]
+# Run the Litestar application
+CMD ["uvicorn", "serve:app", "--host", "0.0.0.0", "--port", "80"]

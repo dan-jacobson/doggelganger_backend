@@ -1,5 +1,7 @@
-from fastapi import FastAPI, File, UploadFile
-from fastapi.responses import JSONResponse
+from litestar import Litestar, post, get
+from litestar.datastructures import UploadFile
+from litestar.response import Response
+from litestar.status_codes import HTTP_200_OK, HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR
 import io
 from PIL import Image
 import vecs
@@ -12,8 +14,6 @@ from train import load_model, get_embedding
 load_dotenv()  # Load environment variables from .env file
 DB_CONNECTION = os.getenv("SUPABASE_DB")
 
-app = FastAPI()
-
 # Initialize the image feature extraction pipeline
 model, processor, device = load_model()
 
@@ -24,7 +24,6 @@ dogs = vx.get_or_create_collection(
     dimension=768,  # TODO (drj): figure out how to keep these in sync
 )
 
-
 def is_valid_link(url):
     try:
         response = requests.head(url, timeout=5)
@@ -32,9 +31,8 @@ def is_valid_link(url):
     except requests.RequestException:
         return False
 
-
-@app.post("/embed")
-async def embed_image(image: UploadFile = File(...)):
+@post("/embed")
+async def embed_image(image: UploadFile) -> Response:
     try:
         # Read the image file
         contents = await image.read()
@@ -63,23 +61,25 @@ async def embed_image(image: UploadFile = File(...)):
                 break
 
         if valid_result is None:
-            return JSONResponse(
-                content={"error": "No valid adoption links found"}, status_code=404
+            return Response(
+                content={"error": "No valid adoption links found"},
+                status_code=HTTP_404_NOT_FOUND
             )
 
-        return JSONResponse(
+        return Response(
             content={
                 "message": "Image processed successfully",
                 "embedding": embedding.tolist(),
                 "similar_image": valid_result,
-            }
+            },
+            status_code=HTTP_200_OK
         )
 
     except Exception as e:
-        return JSONResponse(content={"error": str(e)}, status_code=500)
+        return Response(content={"error": str(e)}, status_code=HTTP_500_INTERNAL_SERVER_ERROR)
 
+app = Litestar([embed_image])
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=8000)
