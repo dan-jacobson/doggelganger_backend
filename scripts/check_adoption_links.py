@@ -3,14 +3,15 @@ import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
+
 def check_link(dog, is_retry=False):
-    url = dog['adoption_link']
+    url = dog["adoption_link"]
     try:
         response = requests.head(url, timeout=5)
         success = response.status_code == 200
         if success and not is_retry:
             # Check image_url if adoption_link is successful
-            image_url = dog.get('image_url')
+            image_url = dog.get("image_url")
             if image_url:
                 img_response = requests.head(image_url, timeout=5)
                 return success, img_response.status_code == 200, dog
@@ -18,9 +19,10 @@ def check_link(dog, is_retry=False):
     except requests.RequestException:
         return False, None, dog
 
+
 def main():
     # Load the JSON file
-    with open('data/petfinder/dog_metadata.json', 'r') as f:
+    with open("data/petfinder/dog_metadata.json", "r") as f:
         dogs = json.load(f)
 
     successes = 0
@@ -33,7 +35,9 @@ def main():
     with ThreadPoolExecutor(max_workers=10) as executor:
         future_to_dog = {executor.submit(check_link, dog): dog for dog in dogs}
         failed_dogs = []
-        for future in tqdm(as_completed(future_to_dog), total=len(dogs), desc="Checking adoption links"):
+        for future in tqdm(
+            as_completed(future_to_dog), total=len(dogs), desc="Checking adoption links"
+        ):
             is_success, image_success, dog = future.result()
             if is_success:
                 successes += 1
@@ -48,8 +52,15 @@ def main():
     # Second pass: retry failed links
     if failed_dogs:
         with ThreadPoolExecutor(max_workers=10) as executor:
-            retry_futures = {executor.submit(check_link, dog, is_retry=True): dog for dog in failed_dogs}
-            for future in tqdm(as_completed(retry_futures), total=len(failed_dogs), desc="Retrying failed links"):
+            retry_futures = {
+                executor.submit(check_link, dog, is_retry=True): dog
+                for dog in failed_dogs
+            }
+            for future in tqdm(
+                as_completed(retry_futures),
+                total=len(failed_dogs),
+                desc="Retrying failed links",
+            ):
                 is_success, _, _ = future.result()
                 if is_success:
                     retry_successes += 1
@@ -60,7 +71,9 @@ def main():
 
     print(f"1. Number of successes: {successes}")
     print(f"2. Number of failures: {failures}")
-    print(f"3. Number of initial failures that worked the second time: {retry_successes}")
+    print(
+        f"3. Number of initial failures that worked the second time: {retry_successes}"
+    )
     print(f"4. Number of successes whose 'image_url' didn't work: {image_failures}")
     print(f"5. Percent successes: {success_percent:.2f}%")
 
@@ -71,6 +84,7 @@ def main():
         print(f"  Adoption Link: {dog.get('adoption_link', 'N/A')}")
         print(f"  Image URL: {dog.get('image_url', 'N/A')}")
         print()
+
 
 if __name__ == "__main__":
     main()
