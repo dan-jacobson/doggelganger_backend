@@ -4,17 +4,23 @@ FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 # Set working directory
 WORKDIR /app
 
+# Enable bytecode compilation                                                                                                                             
+ENV UV_COMPILE_BYTECODE=1
+
 # Copy requirements file
-COPY requirements.txt .
+COPY src/requirements.txt .
 
 # Install dependencies using uv
-RUN uv pip install -r requirements.txt
+RUN uv pip install -r requirements.txt --no-cache-dir --system && rm requirements.txt
 
 # Copy model weights
 COPY weights/dinov2-small /app/weights/dinov2-small
 
 # Copy application files
-COPY serve.py utils.py ./
+COPY src/serve.py src/utils.py ./
+
+# Override uv image enntrypoint
+ENTRYPOINT []
 
 # Run the FastAPI application
-CMD ["uvicorn", "serve:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["fastapi", "run", "app/serve.py", "--port", "80"]
