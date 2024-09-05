@@ -29,7 +29,7 @@ def generate_id(metadata):
     return hashlib.md5(id_string.encode()).hexdigest()
 
 
-def process_images(data_dir, metadata_path, alignment_model_path):
+def process_dogs(data_dir, metadata_path, alignment_model_path):
     pipe = pipeline("image-feature-extraction", model=HUGGINGFACE_MODEL)
 
     # Load alignment model
@@ -48,55 +48,46 @@ def process_images(data_dir, metadata_path, alignment_model_path):
         vx = vecs.create_client(DB_CONNECTION)
         dogs = vx.get_or_create_collection(
             name="dog_embeddings",
-            dimension=model.config.hidden_size,
+            dimension=pipe.model.config.hidden_size,
         )
 
-        # Process images
-        for filename in tqdm(os.listdir(data_dir), desc="Processing images"):
-            if filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif")):
-                image_path = os.path.join(data_dir, filename)
-                total_processed += 1
+        # Process dogs
+        for dog in tqdm(metadata, desc="Processing dogs"):
+            total_processed += 1
 
-                try:
-                    # Get embedding
-                    embedding = pipeline(url)
+            try:
+                # Determine image source
+                if "local_image" in dog and dog["local_image"]:
+                    image_path = os.path.join(data_dir, dog["local_image"])
+                    embedding = pipe(image_path)
+                else:
+                    image_url = f"{dog['image_url']}?width=244"
+                    embedding = pipe(image_url)
 
-                    if embedding is not None:
-                        # Align embedding
-                        aligned_embedding = align_embedding(embedding, coef, intercept)
+                if embedding is not None:
+                    # Align embedding
+                    aligned_embedding = align_embedding(embedding[0], coef, intercept)
 
-                        # Find corresponding metadata
-                        dog_metadata = next(
-                            (
-                                item
-                                for item in metadata
-                                if item["local_image"] == filename
-                            ),
-                            None,
-                        )
+                    # Generate ID
+                    dog_id = generate_id(dog)
 
-                        if dog_metadata:
-                            # Generate ID
-                            dog_id = generate_id(dog_metadata)
+                    # Prepare data for Supabase
+                    record = (dog_id, aligned_embedding.tolist(), dog)
 
-                            # Prepare data for Supabase
-                            record = (dog_id, aligned_embedding.tolist(), dog_metadata)
+                    # Push to Supabase
+                    dogs.upsert([record])
+                    successfully_pushed += 1
+                else:
+                    logging.error(f"Failed to get embedding for dog: {dog['name']}")
+            except Exception as e:
+                logging.error(f"Error processing dog {dog['name']}: {str(e)}")
 
-                            # Push to Supabase
-                            dogs.upsert([record])
-                            successfully_pushed += 1
-                        else:
-                            logging.warning(f"No metadata found for {filename}")
-                    else:
-                        logging.error(f"Failed to get embedding for {filename}")
-                except Exception as e:
-                    logging.error(f"Error processing {filename}: {str(e)}")
         dogs.create_index()
 
     except Exception as e:
         logging.error(f"Error initializing Supabase client or collection: {str(e)}")
 
-    logging.info(f"Total images processed: {total_processed}")
+    logging.info(f"Total dogs processed: {total_processed}")
     logging.info(f"Successfully pushed to Supabase: {successfully_pushed}")
 
 
@@ -108,9 +99,9 @@ def main():
 
     data_dir = "./data/petfinder"
     metadata_path = "./data/petfinder/dog_metadata.json"
-    alignment_model_path = "./alignment_model.json"
+    alignment_model_path = "./weights/alignment_model.json"
 
-    process_images(data_dir, metadata_path, alignment_model_path)
+    process_dogs(data_dir, metadata_path, alignment_model_path)
     logging.info("Embeddings processing completed.")
 
 
