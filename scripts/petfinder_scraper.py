@@ -1,6 +1,7 @@
 import json
 import os
 import time
+import argparse
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -17,14 +18,33 @@ def sanitize_name(name):
         name = name.replace(phrase, "").strip()
 
     if name.endswith("."):
-        name.rstrip(".")
+        name = name.rstrip(".")
     return name
 
 
-def sanatize_image_url(url):
+def sanitize_image_url(url):
     if "?" in url:
         url = url.split("?")[0]
     return url
+
+
+def parse_name(full_name):
+    parts = full_name.split(',')
+    name = parts[0].strip()
+    details = parts[1].strip().split()
+    age = details[0]
+    sex = details[1]
+    breed = " ".join(details[2:])
+    distance = parts[2].strip().replace(".", "") if len(parts) > 2 else ""
+    
+    return {
+        "name": name,
+        "full_name": full_name,
+        "age": age,
+        "sex": sex,
+        "breed": breed,
+        "distance": distance
+    }
 
 
 def get_dog_data(driver, url, city):
@@ -64,26 +84,27 @@ def get_dog_data(driver, url, city):
                 full_name = name_element.find_elements(By.TAG_NAME, "span")[
                     1
                 ].text.strip()
-                sanitized_name = sanitize_name(full_name)
+                sanitized_full_name = sanitize_name(full_name)
+                parsed_name = parse_name(sanitized_full_name)
+                
                 image_url = dog_element.find_element(By.TAG_NAME, "img").get_attribute(
                     "src"
                 )
-                sanatized_image_url = sanatize_image_url(image_url)
+                sanitized_image_url = sanitize_image_url(image_url)
 
                 adoption_link = dog_element.find_element(
                     By.CLASS_NAME, "petCard-link"
                 ).get_attribute("href")
 
-                if sanitized_name and sanatized_image_url and adoption_link:
-                    dogs.append(
-                        {
-                            "name": sanitized_name,
-                            "location": city,
-                            "image_url": sanatized_image_url,
-                            "adoption_link": adoption_link,
-                        }
-                    )
-                    print(f"Processed dog: {sanitized_name} in {city}")
+                if parsed_name["name"] and sanitized_image_url and adoption_link:
+                    dog_data = {
+                        **parsed_name,
+                        "location": city,
+                        "image_url": sanitized_image_url,
+                        "adoption_link": adoption_link,
+                    }
+                    dogs.append(dog_data)
+                    print(f"Processed dog: {parsed_name['name']} in {city}")
                 else:
                     print("Skipped a dog due to missing information")
             except Exception as e:
@@ -129,6 +150,10 @@ def load_metadata(output_folder):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Scrape dog data from Petfinder")
+    parser.add_argument("--download", action="store_true", help="Download dog images")
+    args = parser.parse_args()
+
     cities = {
         "Brooklyn": "https://www.petfinder.com/search/dogs-for-adoption/us/ny/brooklyn/",
         "Manhattan": "https://www.petfinder.com/search/dogs-for-adoption/us/ny/manhattan/",
@@ -168,14 +193,15 @@ def main():
                         if city_dogs >= 1000:
                             break
                         if (dog["name"], dog["location"]) not in existing_dogs:
-                            filename = f"{dog['name']}_{city.replace(' ', '_')}.jpg"
-                            if download_image(
-                                dog["image_url"], output_folder, filename
-                            ):
-                                dog["local_image"] = filename
-                                all_dogs.append(dog)
-                                existing_dogs.add((dog["name"], dog["location"]))
-                                city_dogs += 1
+                            if args.download:
+                                filename = f"{dog['name']}_{city.replace(' ', '_')}.jpg"
+                                if download_image(
+                                    dog["image_url"], output_folder, filename
+                                ):
+                                    dog["local_image"] = filename
+                            all_dogs.append(dog)
+                            existing_dogs.add((dog["name"], dog["location"]))
+                            city_dogs += 1
                         else:
                             print(
                                 f"Skipping {dog['name']} in {dog['location']} (already in metadata)"
