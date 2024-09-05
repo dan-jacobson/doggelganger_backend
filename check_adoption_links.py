@@ -1,6 +1,7 @@
 import json
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from tqdm import tqdm
 
 def check_link(dog):
     url = dog['adoption_link']
@@ -22,7 +23,7 @@ def main():
     # Use ThreadPoolExecutor for concurrent requests
     with ThreadPoolExecutor(max_workers=10) as executor:
         future_to_dog = {executor.submit(check_link, dog): dog for dog in dogs}
-        for future in as_completed(future_to_dog):
+        for future in tqdm(as_completed(future_to_dog), total=len(dogs), desc="Checking adoption links"):
             is_success, dog = future.result()
             if is_success:
                 successes += 1
