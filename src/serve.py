@@ -1,4 +1,4 @@
-from litestar import Litestar, post, get
+from litestar import Litestar, post
 from litestar.datastructures import UploadFile
 from litestar.response import Response
 from litestar.status_codes import HTTP_200_OK, HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR
@@ -21,7 +21,7 @@ model, processor, device = load_model()
 vx = vecs.create_client(DB_CONNECTION)
 dogs = vx.get_or_create_collection(
     name="dog_embeddings",
-    dimension=768,  # TODO (drj): figure out how to keep these in sync
+    dimension=model.config.hidden_size
 )
 
 def is_valid_link(url):
