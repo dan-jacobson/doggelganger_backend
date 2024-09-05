@@ -180,7 +180,7 @@ def main():
             max_empty_pages = 3
             city_dogs = 0
 
-            while empty_pages < max_empty_pages and city_dogs < 500:
+            while empty_pages < max_empty_pages and city_dogs < args.N:
                 print(f"Scraping page {page}...")
                 url = f"{base_url}?page={page}"
 
@@ -191,7 +191,7 @@ def main():
                 else:
                     empty_pages = 0  # Reset empty pages counter
                     for dog in dogs:
-                        if city_dogs >= 1000:
+                        if city_dogs >= args.N:
                             break
                         if (dog["name"], dog["location"]) not in existing_dogs:
                             if args.download:
