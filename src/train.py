@@ -109,7 +109,7 @@ def main():
         "coef": alignment_model.coef_.tolist(),
         "intercept": alignment_model.intercept_.tolist(),
     }
-    with open("alignment_model.json", "w") as f:
+    with open("weights/alignment_model.json", "w") as f:
         json.dump(model_params, f)
 
     print(f"\nAlignment model trained and saved. Used {len(examples)} image pairs.")
