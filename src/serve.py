@@ -11,7 +11,6 @@ from train import load_model, get_embedding
 
 load_dotenv()  # Load environment variables from .env file
 DB_CONNECTION = os.getenv("SUPABASE_DB")
-HUGGINGFACE_MODEL = os.getenv("HUGGINGFACE_MODEL")
 
 app = FastAPI()
 
@@ -24,6 +23,7 @@ dogs = vx.get_or_create_collection(
     name="dog_embeddings",
     dimension=768,  # TODO (drj): figure out how to keep these in sync
 )
+
 
 def is_valid_link(url):
     try:
@@ -54,7 +54,7 @@ async def embed_image(image: UploadFile = File(...)):
         # Find the first result with a valid adoption link
         valid_result = None
         for id, score, metadata in results:
-            if is_valid_link(metadata.get('adoption_link', '')):
+            if is_valid_link(metadata.get("adoption_link", "")):
                 valid_result = {
                     "id": id,
                     "similarity": 1 - score,  # converts cosine distance to similarity
@@ -64,8 +64,7 @@ async def embed_image(image: UploadFile = File(...)):
 
         if valid_result is None:
             return JSONResponse(
-                content={"error": "No valid adoption links found"},
-                status_code=404
+                content={"error": "No valid adoption links found"}, status_code=404
             )
 
         return JSONResponse(

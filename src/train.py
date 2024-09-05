@@ -3,43 +3,9 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
 import json
 import os
-import torch
-from transformers import AutoImageProcessor, AutoModel
 from tqdm import tqdm
-from dotenv import load_dotenv
-from PIL import Image
 
-load_dotenv()
-HUGGINGFACE_MODEL = os.getenv("HUGGINGFACE_MODEL")
-
-
-def load_model():
-    # device = "mps" if torch.backends.mps.is_available() else "cpu"
-    device = "cpu"
-    processor = AutoImageProcessor.from_pretrained(HUGGINGFACE_MODEL)
-    model = AutoModel.from_pretrained(HUGGINGFACE_MODEL)
-    torch.compile(model)
-
-    model.to(device)
-
-    return model, processor, device
-
-
-def get_embedding(img, processor, model, device):
-    try:
-        if isinstance(img, str):
-            img = Image.open(img).convert("RGB")
-        elif not isinstance(img, Image.Image):
-            raise ValueError("Input must be either a file path or an Image object")
-
-        inputs = processor(images=img, return_tensors="pt")
-        inputs.to(device)
-        with torch.no_grad():
-            outputs = model(**inputs)
-        return outputs.pooler_output.cpu().numpy().flatten()
-    except Exception as e:
-        print(f"Error processing image: {str(e)}")
-        return None
+from utils import load_model, get_embedding
 
 
 def make_embeddings(data_dir):

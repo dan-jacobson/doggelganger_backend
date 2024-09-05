@@ -4,9 +4,11 @@ import logging
 import numpy as np
 from tqdm import tqdm
 import vecs
-from train import load_model, get_embedding, align_embedding
 import hashlib
 from dotenv import load_dotenv
+
+from src.utils import load_model, get_embedding
+from src.train import align_embedding
 
 load_dotenv()
 
