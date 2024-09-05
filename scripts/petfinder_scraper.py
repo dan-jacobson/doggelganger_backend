@@ -170,7 +170,7 @@ def main():
     driver = webdriver.Chrome(service=service)
 
     all_dogs = load_metadata(output_folder)
-    existing_dogs = {(dog["name"], dog["location"]) for dog in all_dogs}
+    existing_dogs = {dog["adoption_link"] for dog in all_dogs}
 
     try:
         for city, base_url in cities.items():
@@ -193,7 +193,7 @@ def main():
                     for dog in dogs:
                         if city_dogs >= args.N:
                             break
-                        if (dog["name"], dog["location"]) not in existing_dogs:
+                        if dog["adoption_link"] not in existing_dogs:
                             if args.download:
                                 filename = f"{dog['name']}_{city.replace(' ', '_')}.jpg"
                                 if download_image(
@@ -201,11 +201,11 @@ def main():
                                 ):
                                     dog["local_image"] = filename
                             all_dogs.append(dog)
-                            existing_dogs.add((dog["name"], dog["location"]))
+                            existing_dogs.add(dog["adoption_link"])
                             city_dogs += 1
                         else:
                             print(
-                                f"Skipping {dog['name']} in {dog['location']} (already in metadata)"
+                                f"Skipping dog with adoption link {dog['adoption_link']} (already in metadata)"
                             )
 
                     # Save metadata incrementally after each page
