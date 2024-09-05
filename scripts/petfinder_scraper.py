@@ -152,6 +152,7 @@ def load_metadata(output_folder):
 def main():
     parser = argparse.ArgumentParser(description="Scrape dog data from Petfinder")
     parser.add_argument("--download", action="store_true", help="Download dog images")
+    parser.add_argument("--N", type=int, default=1000, help="Number of dogs to scrape")
     args = parser.parse_args()
 
     cities = {
