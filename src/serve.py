@@ -1,4 +1,5 @@
 from typing import Annotated
+import logging
 
 from litestar import Litestar, post
 from litestar.datastructures import UploadFile
@@ -14,6 +15,10 @@ import requests
 from dotenv import load_dotenv
 
 from utils import load_model, get_embedding
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 DB_CONNECTION = os.getenv("SUPABASE_DB")
@@ -38,12 +43,12 @@ def is_valid_link(url):
 @post("/embed")
 async def embed_image(data: Annotated[UploadFile, Body(media_type=RequestEncodingType.MULTI_PART)],) -> Response:
     try:
-        print(f"Received file: {data.filename}")
+        logger.debug(f"Received file: {data.filename}")
         # Read the image file
         contents = await data.read()
-        print(f"File size: {len(contents)} bytes")
+        logger.debug(f"File size: {len(contents)} bytes")
         img = Image.open(io.BytesIO(contents))
-        print(f"Image size: {img.size}")
+        logger.debug(f"Image size: {img.size}")
 
         # Extract features
         embedding = get_embedding(img, model=model, processor=processor, device=device)
