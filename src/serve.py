@@ -34,9 +34,12 @@ def is_valid_link(url):
 @post("/embed")
 async def embed_image(image: UploadFile) -> Response:
     try:
+        print(f"Received file: {image.filename}")
         # Read the image file
         contents = await image.read()
+        print(f"File size: {len(contents)} bytes")
         img = Image.open(io.BytesIO(contents))
+        print(f"Image size: {img.size}")
 
         # Extract features
         embedding = get_embedding(img, model=model, processor=processor, device=device)
