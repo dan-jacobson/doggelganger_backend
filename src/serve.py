@@ -31,10 +31,8 @@ def is_valid_link(url):
     except requests.RequestException:
         return False
 
-from litestar.params import UploadedFile
-
 @post("/embed")
-async def embed_image(image: UploadedFile) -> Response:
+async def embed_image(image: UploadFile) -> Response:
     try:
         # Read the image file
         contents = await image.read()
