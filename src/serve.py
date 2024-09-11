@@ -6,12 +6,12 @@ import io
 from PIL import Image
 import vecs
 import os
-from dotenv import load_dotenv
 import requests
+from dotenv import load_dotenv
 
-from train import load_model, get_embedding
+from utils import load_model, get_embedding
 
-load_dotenv()  # Load environment variables from .env file
+load_dotenv()
 DB_CONNECTION = os.getenv("SUPABASE_DB")
 
 # Initialize the image feature extraction pipeline
