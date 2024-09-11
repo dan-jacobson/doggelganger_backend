@@ -1,5 +1,9 @@
+from typing import Annotated
+
 from litestar import Litestar, post
 from litestar.datastructures import UploadFile
+from litestar.enums import RequestEncodingType
+from litestar.params import Body
 from litestar.response import Response
 from litestar.status_codes import HTTP_200_OK, HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR
 import io
@@ -32,11 +36,11 @@ def is_valid_link(url):
         return False
 
 @post("/embed")
-async def embed_image(image: UploadFile) -> Response:
+async def embed_image(data: Annotated[UploadFile, Body(media_type=RequestEncodingType.MULTI_PART)],) -> Response:
     try:
-        print(f"Received file: {image.filename}")
+        print(f"Received file: {data.filename}")
         # Read the image file
-        contents = await image.read()
+        contents = await data.read()
         print(f"File size: {len(contents)} bytes")
         img = Image.open(io.BytesIO(contents))
         print(f"Image size: {img.size}")
