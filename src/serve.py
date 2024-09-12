@@ -1,7 +1,7 @@
 from typing import Annotated
 import logging
 
-from litestar import Litestar, post
+from litestar import Litestar, get, post
 from litestar.datastructures import UploadFile
 from litestar.enums import RequestEncodingType
 from litestar.params import Body
@@ -24,13 +24,13 @@ load_dotenv()
 DB_CONNECTION = os.getenv("SUPABASE_DB")
 
 # Initialize the image feature extraction pipeline
-model, processor, device = load_model()
+pipe = load_model()
 
 # Initialize vecs client
 vx = vecs.create_client(DB_CONNECTION)
 dogs = vx.get_or_create_collection(
     name="dog_embeddings",
-    dimension=model.config.hidden_size
+    dimension=pipe.model.config.hidden_size
 )
 
 def is_valid_link(url):
@@ -39,6 +39,10 @@ def is_valid_link(url):
         return response.status_code == 200
     except requests.RequestException:
         return False
+
+@get(path="/health-check")
+async def health_check() -> str:
+    return "healthy"
 
 @post("/embed")
 async def embed_image(data: Annotated[UploadFile, Body(media_type=RequestEncodingType.MULTI_PART)],) -> Response:
@@ -51,7 +55,7 @@ async def embed_image(data: Annotated[UploadFile, Body(media_type=RequestEncodin
         logger.debug(f"Image size: {img.size}")
 
         # Extract features
-        embedding = get_embedding(img, model=model, processor=processor, device=device)
+        embedding = get_embedding(img, pipe=pipe)
 
         # Query similar images
         results = dogs.query(
@@ -81,7 +85,7 @@ async def embed_image(data: Annotated[UploadFile, Body(media_type=RequestEncodin
         return Response(
             content={
                 "message": "Image processed successfully",
-                "embedding": embedding.tolist(),
+                "embedding": embedding,
                 "similar_image": valid_result,
             },
             status_code=HTTP_200_OK
@@ -90,8 +94,13 @@ async def embed_image(data: Annotated[UploadFile, Body(media_type=RequestEncodin
     except Exception as e:
         return Response(content={"error": str(e)}, status_code=HTTP_500_INTERNAL_SERVER_ERROR)
 
-app = Litestar([embed_image])
+app = Litestar([embed_image, health_check])
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+# test via something like
+# curl -i -X POST \
+#   http://0.0.0.0:8000/embed \
+#   -F "image=@/path/to/your/image.jpg"
