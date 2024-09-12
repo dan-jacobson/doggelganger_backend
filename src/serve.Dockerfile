@@ -15,8 +15,8 @@ COPY src/requirements.txt .
 RUN uv pip install -r requirements.txt --no-cache-dir --system && rm requirements.txt
 
 # Copy files
-COPY weights/dinov2-small /app/weights/dinov2-small
 COPY src/serve.py src/utils.py ./
+RUN "python from utils import get_model; get_model()"
 
 # Override uv image entrypoint
 ENTRYPOINT []
