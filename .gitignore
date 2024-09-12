@@ -13,6 +13,13 @@
 
 # python files
 *__pycache__*
+.venv
+.ipynb_checkpoints
+*.pyc
+*.pyo
+*.pyd
+*.ruff_cache
+
 
 # env vars
 .env
