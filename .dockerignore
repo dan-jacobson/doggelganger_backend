@@ -1,0 +1,23 @@
+# python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# git
+**/.git/
+
+# dotfiles
+.venv/
+.vscode/
+.aider*
+.env
+.ruff_cache
+
+# data
+data/
+archive/
+
+# non-source files
+notebooks/
+scripts/
