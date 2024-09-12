@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import json
 import logging
 import numpy as np
@@ -6,10 +7,9 @@ from tqdm import tqdm
 import vecs
 import hashlib
 from dotenv import load_dotenv
-from transformers import pipeline
 
-from src.utils import HUGGINGFACE_MODEL
-from src.train import align_embedding
+from utils import load_model, get_embedding
+from train import align_embedding
 
 load_dotenv()
 
@@ -30,7 +30,7 @@ def generate_id(metadata):
 
 
 def process_dogs(data_dir, metadata_path, alignment_model_path):
-    pipe = pipeline("image-feature-extraction", model=HUGGINGFACE_MODEL)
+    pipe = load_model()
 
     # Load alignment model
     coef, intercept = load_alignment_model(alignment_model_path)
@@ -58,15 +58,14 @@ def process_dogs(data_dir, metadata_path, alignment_model_path):
             try:
                 # Determine image source
                 if "local_image" in dog and dog["local_image"]:
-                    image_path = os.path.join(data_dir, dog["local_image"])
-                    embedding = pipe(image_path)
+                    image_path = Path(data_dir, dog["local_image"])
+                    embedding = get_embedding(image_path, pipe)
                 else:
-                    image_url = f"{dog['image_url']}?width=244"
-                    embedding = pipe(image_url)
+                    embedding = get_embedding(dog["image_url"], pipe)
 
                 if embedding is not None:
                     # Align embedding
-                    aligned_embedding = align_embedding(embedding[0], coef, intercept)
+                    aligned_embedding = align_embedding(embedding, coef, intercept)
 
                     # Generate ID
                     dog_id = generate_id(dog)
