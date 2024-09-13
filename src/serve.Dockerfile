@@ -16,7 +16,7 @@ RUN uv pip install -r requirements.txt --no-cache-dir --system && rm requirement
 
 # Copy files
 COPY src/serve.py src/utils.py ./
-RUN "python from utils import get_model; get_model()"
+RUN python -c "from utils import get_model; get_model()"
 
 # Override uv image entrypoint
 ENTRYPOINT []
