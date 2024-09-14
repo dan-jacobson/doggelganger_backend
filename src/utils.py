@@ -9,7 +9,7 @@ HUGGINGFACE_MODEL = "facebook/dinov2-small"
 def get_model():
     snapshot_download(
     repo_id=HUGGINGFACE_MODEL,
-    local_dir=".",
+    local_dir=HUGGINGFACE_MODEL,
     allow_patterns=["*.safetensors", "*.json", "README.md"],
 )
 
