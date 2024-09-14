@@ -64,9 +64,9 @@ jobs:
       - id: docker-push-tagged
         name: Tag Docker image and push to Google Artifact Registry
         uses: docker/build-push-action@v6
-          with:
-            file: src/serve.Dockerfile
-            push: true
-            tags: |
-              us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
-              us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:latest
+        with:
+          file: src/serve.Dockerfile
+          push: true
+          tags: |
+            us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
+            us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:latest
