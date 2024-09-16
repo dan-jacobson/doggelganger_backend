@@ -3,4 +3,4 @@ pillow==10.4.0
 python-dotenv==1.0.1
 transformers==4.44.2
 vecs==0.4.4
-torch==2.4.1+cpu
+torch==2.4.1
