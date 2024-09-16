@@ -61,7 +61,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: src/serve.Dockerfile
+          file: doggelganger/serve.Dockerfile
           load: true
           # necessary for Google Artifact Registry; otherwise looks like three images
           provenance: false
