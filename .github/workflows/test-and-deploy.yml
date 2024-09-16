@@ -62,14 +62,13 @@ jobs:
         with:
           context: .
           file: src/serve.Dockerfile
-          push: true
+          push: false
           # necessary for Google Artifact Registry; otherwise looks like three images
           provenance: false
           tags: |
             us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          push: false
 
       # Slim it!
       - 
