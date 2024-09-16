@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Enable bytecode compilation
 ENV UV_COMPILE_BYTECODE=1
-ENV PORT 8000
+ENV PORT=8000
 
 # Copy requirements file
 COPY src/requirements.txt .

@@ -60,8 +60,11 @@ jobs:
         name: Tag Docker image and push to Google Artifact Registry
         uses: docker/build-push-action@v6
         with:
+          context: .
           file: src/serve.Dockerfile
           push: true
-          useLatest: true
+          # necessary for Google Artifact Registry; otherwise looks like three images
+          provenance: false
           tags: |
             us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
+            us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:latest
