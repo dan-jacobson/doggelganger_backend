@@ -66,7 +66,7 @@ jobs:
           # necessary for Google Artifact Registry; otherwise looks like three images
           provenance: false
           tags: |
-            temp-image:${{ github.ref_name }}
+            us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -76,9 +76,9 @@ jobs:
         env:
           DSLIM_HTTP_PROBE: false
         with:
-          target: temp-image:${{ github.ref_name }}
-          tag: us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
-      
+          target: us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
+          overwrite: true
+
       # Dump the report
       - 
         run: echo "${REPORT}"
