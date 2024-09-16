@@ -40,7 +40,7 @@ def is_valid_link(url):
     except requests.RequestException:
         return False
 
-@get(path="/health-check")
+@get(path="/")
 async def health_check() -> str:
     return "healthy"
 

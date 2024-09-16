@@ -21,7 +21,9 @@ RUN uv pip install -r requirements.txt --no-cache-dir --system && rm requirement
 COPY doggelganger/serve.py doggelganger/utils.py ./
 RUN python -c "from utils import get_model; get_model()"
 
-# Override uv image entrypoint
+EXPOSE $PORT
+
+# Override base image entrypoint
 ENTRYPOINT []
 
 # Run the Litestar application

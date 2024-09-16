@@ -32,8 +32,8 @@ jobs:
 
     steps:
       -
-        name: Checkout
-        uses: actions/checkout@v4
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - id: auth
         name: Authenticate with Google Cloud
@@ -43,10 +43,6 @@ jobs:
           workload_identity_provider: projects/371619654395/locations/global/workloadIdentityPools/doggelganger-production/providers/doggelganger-github
           service_account: doggelganger-service@doggelganger.iam.gserviceaccount.com
           access_token_lifetime: 600s
-
-      -
-        name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
 
       - 
         name: Login to Artifact Registry
@@ -62,29 +58,10 @@ jobs:
         with:
           context: .
           file: doggelganger/serve.Dockerfile
-          load: true
+          push: true
           # necessary for Google Artifact Registry; otherwise looks like three images
           provenance: false
           tags: |
             us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      # Slim it!
-      - 
-        uses: kitabisa/docker-slim-action@v1
-        env:
-          DSLIM_HTTP_PROBE: false
-        with:
-          target: us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
-          overwrite: true
-
-      # Dump the report
-      - 
-        run: echo "${REPORT}"
-        env:
-          REPORT: ${{ steps.slim.outputs.report }}
-
-      # Push to the registry
-      -
-        run: docker image push us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
