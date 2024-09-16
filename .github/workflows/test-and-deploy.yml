@@ -42,7 +42,7 @@ jobs:
           token_format: access_token
           workload_identity_provider: projects/371619654395/locations/global/workloadIdentityPools/doggelganger-production/providers/doggelganger-github
           service_account: doggelganger-service@doggelganger.iam.gserviceaccount.com
-          access_token_lifetime: 300s
+          access_token_lifetime: 600s
 
       -
         name: Set up Docker Buildx
