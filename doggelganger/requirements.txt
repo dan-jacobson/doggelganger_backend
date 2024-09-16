@@ -3,7 +3,4 @@ pillow==10.4.0
 python-dotenv==1.0.1
 transformers==4.44.2
 vecs==0.4.4
-
-# this is for amd64 builds, so that we don't install a bunch of nvidia junk
---extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.4.1+cpu
