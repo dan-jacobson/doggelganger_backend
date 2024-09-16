@@ -68,3 +68,5 @@ jobs:
           tags: |
             us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
             us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
