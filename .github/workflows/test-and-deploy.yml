@@ -56,17 +56,12 @@ jobs:
           username: oauth2accesstoken
           password: ${{ steps.auth.outputs.access_token }}
 
-      - 
-        name: Get tag
-        id: get-tag
-        run: echo "short_ref=${GITHUB_REF#refs/*/}" >> "$GITHUB_OUTPUT"
-
       - id: docker-push-tagged
         name: Tag Docker image and push to Google Artifact Registry
         uses: docker/build-push-action@v6
         with:
           file: src/serve.Dockerfile
           push: true
+          useLatest: true
           tags: |
             us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
-            us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:latest
