@@ -62,11 +62,11 @@ jobs:
         with:
           context: .
           file: src/serve.Dockerfile
-          push: false
+          load: true
           # necessary for Google Artifact Registry; otherwise looks like three images
           provenance: false
           tags: |
-            ${{ github.responsitory }}:${{ github.ref_name }}
+            temp-image:${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -76,8 +76,15 @@ jobs:
         env:
           DSLIM_HTTP_PROBE: false
         with:
-          target: ${{ github.responsitory }}:${{ github.ref_name }}
+          target: temp-image:${{ github.ref_name }}
           tag: us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
+      
+      # Dump the report
+      - 
+        run: echo "${REPORT}"
+        env:
+          REPORT: ${{ steps.slim.outputs.report }}
 
       # Push to the registry
-      - run: docker image push us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
+      -
+        run: docker image push us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
