@@ -67,6 +67,18 @@ jobs:
           provenance: false
           tags: |
             us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
-            us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          push: false
+
+      # Slim it!
+      - 
+        uses: kitabisa/docker-slim-action@v1
+        env:
+          DSLIM_HTTP_PROBE: false
+        with:
+          target: us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
+          overwrite: true
+
+      # Push to the registry
+      - run: docker image push us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
