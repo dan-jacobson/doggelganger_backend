@@ -1,1 +1,0 @@
-from utils import HUGGINGFACE_MODEL

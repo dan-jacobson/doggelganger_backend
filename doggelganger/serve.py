@@ -6,7 +6,11 @@ from litestar.datastructures import UploadFile
 from litestar.enums import RequestEncodingType
 from litestar.params import Body
 from litestar.response import Response
-from litestar.status_codes import HTTP_200_OK, HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR
+from litestar.status_codes import (
+    HTTP_200_OK,
+    HTTP_404_NOT_FOUND,
+    HTTP_500_INTERNAL_SERVER_ERROR,
+)
 import io
 from PIL import Image
 import vecs
@@ -29,9 +33,9 @@ pipe = load_model()
 # Initialize vecs client
 vx = vecs.create_client(DB_CONNECTION)
 dogs = vx.get_or_create_collection(
-    name="dog_embeddings",
-    dimension=pipe.model.config.hidden_size
+    name="dog_embeddings", dimension=pipe.model.config.hidden_size
 )
+
 
 def is_valid_link(url):
     try:
@@ -40,12 +44,16 @@ def is_valid_link(url):
     except requests.RequestException:
         return False
 
+
 @get(path="/")
 async def health_check() -> str:
     return "healthy"
 
+
 @post("/embed")
-async def embed_image(data: Annotated[UploadFile, Body(media_type=RequestEncodingType.MULTI_PART)],) -> Response:
+async def embed_image(
+    data: Annotated[UploadFile, Body(media_type=RequestEncodingType.MULTI_PART)],
+) -> Response:
     try:
         logger.debug(f"Received file: {data.filename}")
         # Read the image file
@@ -79,7 +87,7 @@ async def embed_image(data: Annotated[UploadFile, Body(media_type=RequestEncodin
         if valid_result is None:
             return Response(
                 content={"error": "No valid adoption links found"},
-                status_code=HTTP_404_NOT_FOUND
+                status_code=HTTP_404_NOT_FOUND,
             )
 
         return Response(
@@ -88,16 +96,20 @@ async def embed_image(data: Annotated[UploadFile, Body(media_type=RequestEncodin
                 "embedding": embedding,
                 "similar_image": valid_result,
             },
-            status_code=HTTP_200_OK
+            status_code=HTTP_200_OK,
         )
 
     except Exception as e:
-        return Response(content={"error": str(e)}, status_code=HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            content={"error": str(e)}, status_code=HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
 
 app = Litestar([embed_image, health_check])
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 # test via something like

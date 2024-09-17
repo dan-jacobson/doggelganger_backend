@@ -3,7 +3,6 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
 import json
 import os
-from PIL import Image
 from pathlib import Path
 from tqdm import tqdm
 

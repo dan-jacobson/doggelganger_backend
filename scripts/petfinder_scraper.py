@@ -29,21 +29,21 @@ def sanitize_image_url(url):
 
 
 def parse_name(full_name):
-    parts = full_name.split(',')
+    parts = full_name.split(",")
     name = parts[0].strip()
     details = parts[1].strip().split()
     age = details[0]
     sex = details[1]
     breed = " ".join(details[2:])
     distance = parts[2].strip().replace(".", "") if len(parts) > 2 else ""
-    
+
     return {
         "name": name,
         "full_name": full_name,
         "age": age,
         "sex": sex,
         "breed": breed,
-        "distance": distance
+        "distance": distance,
     }
 
 
@@ -86,7 +86,7 @@ def get_dog_data(driver, url, city):
                 ].text.strip()
                 sanitized_full_name = sanitize_name(full_name)
                 parsed_name = parse_name(sanitized_full_name)
-                
+
                 image_url = dog_element.find_element(By.TAG_NAME, "img").get_attribute(
                     "src"
                 )
