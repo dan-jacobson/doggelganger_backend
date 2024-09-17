@@ -1,12 +1,12 @@
 import pytest
 import numpy as np
 from pathlib import Path
-from src.train import (
+from ..src.train import (
     make_embeddings,
     align_animal_to_human_embeddings,
     align_embedding,
 )
-from src.utils import load_model, get_embedding
+from ..src.utils import load_model, get_embedding
 
 @pytest.fixture
 def mock_data_dir(tmp_path):
