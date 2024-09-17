@@ -28,7 +28,10 @@ def make_embeddings(data_dir):
             if human_embedding is not None and animal_embedding is not None:
                 human_embeddings[filename] = human_embedding
                 animal_embeddings[filename] = animal_embedding
+            else:
+                print(f"Skipping {filename} due to embedding generation failure")
 
+    print(f"Processed {len(human_embeddings)} valid image pairs")
     return human_embeddings, animal_embeddings
 
 
@@ -47,6 +50,9 @@ def align_animal_to_human_embeddings(human_embeddings, animal_embeddings):
         if filename in animal_embeddings.keys():
             X.append(animal_embeddings[filename])
             y.append(human_embeddings[filename])
+
+    if not X or not y:
+        raise ValueError("No matching embeddings found between human and animal datasets")
 
     X = np.array(X)
     y = np.array(y)
@@ -89,30 +95,29 @@ def print_model_stats(model, X, y):
 
 
 def main():
-    # Load embeddings from /data/train
-    human_embeddings, animal_embeddings = make_embeddings("data/train")
+    try:
+        # Load embeddings from /data/train
+        human_embeddings, animal_embeddings = make_embeddings("data/train")
 
-    # Align animal embeddings to human embeddings
-    alignment_model, X, y = align_animal_to_human_embeddings(
-        human_embeddings, animal_embeddings
-    )
+        # Align animal embeddings to human embeddings
+        alignment_model, X, y = align_animal_to_human_embeddings(
+            human_embeddings, animal_embeddings
+        )
 
-    # Print model statistics
-    print_model_stats(alignment_model, X, y)
+        # Print model statistics
+        print_model_stats(alignment_model, X, y)
 
-    # Save the alignment model
-    model_params = {
-        "coef": alignment_model.coef_.tolist(),
-        "intercept": alignment_model.intercept_.tolist(),
-    }
-    with open("weights/alignment_model.json", "w") as f:
-        json.dump(model_params, f)
+        # Save the alignment model
+        model_params = {
+            "coef": alignment_model.coef_.tolist(),
+            "intercept": alignment_model.intercept_.tolist(),
+        }
+        with open("weights/alignment_model.json", "w") as f:
+            json.dump(model_params, f)
 
-    print(f"\nAlignment model trained and saved. Used {len(X)} image pairs.")
-
-if __name__ == "__main__":
-    main()
-
+        print(f"\nAlignment model trained and saved. Used {len(X)} image pairs.")
+    except Exception as e:
+        print(f"An error occurred during the training process: {str(e)}")
 
 if __name__ == "__main__":
     main()

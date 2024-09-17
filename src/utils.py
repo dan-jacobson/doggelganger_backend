@@ -27,5 +27,5 @@ def get_embedding(img, pipe):
             img = Image.open(img)
         return pipe(img)[0]
     except Exception as e:
-        print(f"Error processing image: {str(e)}")
+        print(f"Error processing image {img}: {str(e)}")
         return None
