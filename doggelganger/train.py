@@ -110,6 +110,9 @@ def main():
 
     print(f"\nAlignment model trained and saved. Used {len(X)} image pairs.")
 
+if __name__ == "__main__":
+    main()
+
 
 if __name__ == "__main__":
     main()
