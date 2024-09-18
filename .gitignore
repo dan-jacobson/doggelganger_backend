@@ -12,7 +12,7 @@
 *.zip
 
 # python files
-*__pycache__*
+__pycache__/
 .venv
 .ipynb_checkpoints
 *.pyc
@@ -26,4 +26,4 @@
 .env
 
 # weights dir
-weights/*
+weights/
