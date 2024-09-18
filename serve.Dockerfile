@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen
 
 RUN uv pip list | grep doggelganger
-RUN ["python", "-c", "from doggelganger.utils import download_model_weights; download_model_weights()"]
+RUN python -c "from doggelganger.utils import download_model_weights; download_model_weights()"
 
 EXPOSE $PORT
 
