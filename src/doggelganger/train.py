@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from tqdm import tqdm
 
-from utils import load_model, get_embedding
+from doggelganger.utils import load_model, get_embedding
 
 
 def make_embeddings(data_dir):
