@@ -19,6 +19,8 @@
 *.pyo
 *.pyd
 *.ruff_cache
+*.egg-info
+.pytest_cache
 
 # env vars
 .env
