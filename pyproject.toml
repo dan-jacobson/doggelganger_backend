@@ -5,9 +5,10 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "litestar>=2.11.0",
+    "litestar[standard]>=2.11.0",
     "pillow>=10.2.0",
-    "torch==2.4.1",
+    "torch==2.4.1 ; platform_machine == 'arm64'",
+    "torch==2.4.1+cpu ; platform_machine == 'amd64'",
     "transformers>=4.44.2",
     "vecs>=0.4.4",
 ]
@@ -18,8 +19,8 @@ train = [
 ]
 
 [project.scripts]
-train = "src:train"
-serve = "src:serve"
+train = "doggelganger.train:main"
+serve = "doggelganger.serve:main"
 
 [build-system]
 requires = ["hatchling"]

@@ -18,7 +18,7 @@ import os
 import requests
 from dotenv import load_dotenv
 
-from utils import load_model, get_embedding
+from doggelganger.utils import load_model, get_embedding
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -107,9 +107,12 @@ async def embed_image(
 
 app = Litestar([embed_image, health_check])
 
-if __name__ == "__main__":
+def main():
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+if __name__ == "__main__":
+    main()
 
 # test via something like
 # curl -i -X POST \
