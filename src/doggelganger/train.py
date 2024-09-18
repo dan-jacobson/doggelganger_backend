@@ -52,7 +52,9 @@ def align_animal_to_human_embeddings(human_embeddings, animal_embeddings):
             y.append(human_embeddings[filename])
 
     if not X or not y:
-        raise ValueError("No matching embeddings found between human and animal datasets")
+        raise ValueError(
+            "No matching embeddings found between human and animal datasets"
+        )
 
     X = np.array(X)
     y = np.array(y)
@@ -118,6 +120,7 @@ def main():
         print(f"\nAlignment model trained and saved. Used {len(X)} image pairs.")
     except Exception as e:
         print(f"An error occurred during the training process: {str(e)}")
+
 
 if __name__ == "__main__":
     main()

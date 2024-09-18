@@ -7,10 +7,9 @@ from huggingface_hub import snapshot_download
 HUGGINGFACE_MODEL = "facebook/dinov2-small"
 
 
-def get_model():
+def download_model_weights():
     snapshot_download(
         repo_id=HUGGINGFACE_MODEL,
-        local_dir=HUGGINGFACE_MODEL,
         allow_patterns=["*.safetensors", "*.json", "README.md"],
     )
 
