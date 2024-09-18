@@ -1,6 +1,6 @@
 # Pull python image, install uv
-FROM python:3.12-slim-bookworm
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+# COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
 # Set working directory
 WORKDIR /app
@@ -11,15 +11,19 @@ ENV UV_COMPILE_BYTECODE=1
 # Set port
 ENV PORT=8000
 
-# Copy requirements file
-COPY requirements.txt .
+# Install dependencies
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock,z \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml,z \
+    uv sync --frozen --no-install-project
 
-# Install dependencies using uv
-RUN uv pip install -r requirements.txt --no-cache-dir --system && rm requirements.txt
+# Copy files and build project
+ADD . /app
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen
 
-# Copy files
-COPY serve.py utils.py ./
-RUN python -c "from utils import get_model; get_model()"
+RUN uv pip list | grep doggelganger
+RUN ["python", "-c", "from doggelganger.utils import download_model_weights; download_model_weights()"]
 
 EXPOSE $PORT
 
