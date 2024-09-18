@@ -1,12 +1,12 @@
 import pytest
 import numpy as np
 from pathlib import Path
-from ..src.train import (
+from doggelganger.train import (
     make_embeddings,
     align_animal_to_human_embeddings,
     align_embedding,
 )
-from ..src.utils import load_model, get_embedding
+from doggelganger.utils import load_model, get_embedding
 
 @pytest.fixture
 def mock_data_dir(tmp_path):
@@ -37,7 +37,7 @@ def mock_embeddings():
     }
 
 def test_make_embeddings(mock_data_dir, mocker):
-    mock_get_embedding = mocker.patch("src.train.get_embedding")
+    mock_get_embedding = mocker.patch("doggelganger.utils.get_embedding")
     mock_get_embedding.side_effect = [
         np.array([0.1, 0.2, 0.3]),
         np.array([0.4, 0.5, 0.6]),
