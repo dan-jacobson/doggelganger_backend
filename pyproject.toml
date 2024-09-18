@@ -1,0 +1,35 @@
+[project]
+name = "doggelganger"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "litestar>=2.11.0",
+    "pillow>=10.2.0",
+    "torch==2.4.1",
+    "transformers>=4.44.2",
+    "vecs>=0.4.4",
+]
+
+[project.optional-dependencies]
+train = [
+    "scikit-learn>=1.5.2",
+]
+
+[project.scripts]
+train = "src:train"
+serve = "src:serve"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest-mock>=3.14.0",
+    "pytest>=8.3.3",
+    "python-dotenv>=1.0.1",
+    "ruff>=0.6.5",
+]
+extra-index-url = ["https://download.pytorch.org/whl/cpu"]
