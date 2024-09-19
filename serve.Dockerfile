@@ -32,4 +32,4 @@ EXPOSE $PORT
 ENTRYPOINT []
 
 # Run the Litestar application
-CMD uv run uvicorn doggelganger.serve:app --host 0.0.0.0 --port $PORT
+CMD ["sh", "-c", "uv run uvicorn doggelganger.serve:app --host 0.0.0.0 --port $PORT"]
