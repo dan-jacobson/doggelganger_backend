@@ -57,12 +57,10 @@ jobs:
         uses: redhat-actions/buildah-build@v2
         with:
           context: "{{defaultContext}}"
-          containerfile: serve.Dockerfile
+          containerfiles: serve.Dockerfile
           image: us-east4-docker.pkg.dev/doggelganger/doggelganger/serve
           tags: latest ${{ github.ref_name }}
-          platforms: linux/amd64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          platform: linux/amd64
 
       - id: push-to-registry
         name: Push to Google Artifact Registry
