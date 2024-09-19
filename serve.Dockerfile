@@ -1,15 +1,16 @@
 # Pull python image, install uv
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
-# COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+FROM python:3.12-slim-bookworm
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
 # Set working directory
 WORKDIR /app
 
 # Enable bytecode compilation
 ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+# Use the system Python environment
+ENV UV_PROJECT_ENVIRONMENT="/usr/local/"
 
-# Set port
-ENV PORT=8000
 
 # Install dependencies
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -22,13 +23,16 @@ ADD . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen
 
-RUN uv pip list | grep doggelganger
+# Set HF cache dir and download weights
+ENV HF_HOME=/app/.cache
 RUN python -c "from doggelganger.utils import download_model_weights; download_model_weights()"
 
+# Set port as env var, necessary for Cloud Run as I understand it
+ENV PORT=8000
 EXPOSE $PORT
 
 # Override base image entrypoint
 ENTRYPOINT []
 
 # Run the Litestar application
-CMD exec uvicorn serve:app --host 0.0.0.0 --port $PORT
+CMD exec uvicorn doggelganger.serve:app --host 0.0.0.0 --port $PORT

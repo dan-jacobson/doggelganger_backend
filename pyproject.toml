@@ -1,14 +1,13 @@
 [project]
 name = "doggelganger"
 version = "0.1.0"
-description = "Add your description here"
+description = "Find you canine look alike!"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "litestar[standard]>=2.11.0",
     "pillow>=10.2.0",
-    "torch==2.4.1 ; platform_machine == 'arm64'",
-    "torch==2.4.1+cpu ; platform_machine == 'amd64'",
+    "torch>=2.4.1",
     "transformers>=4.44.2",
     "vecs>=0.4.4",
 ]
@@ -33,4 +32,3 @@ dev-dependencies = [
     "python-dotenv>=1.0.1",
     "ruff>=0.6.5",
 ]
-extra-index-url = ["https://download.pytorch.org/whl/cpu"]
