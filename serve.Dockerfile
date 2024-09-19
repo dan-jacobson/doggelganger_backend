@@ -2,20 +2,19 @@
 FROM python:3.12-slim-bookworm
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
-# Set working directory
-WORKDIR /app
-
 # Enable bytecode compilation
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 # Use the system Python environment
 ENV UV_PROJECT_ENVIRONMENT="/usr/local/"
 
+# Set working directory
+WORKDIR /app
 
 # Install dependencies
-RUN --mount=type=cache,target=/root/.cache/uv,z \
-    --mount=type=bind,source=uv.lock,target=/app/uv.lock,z \
-    --mount=type=bind,source=pyproject.toml,target=/app/pyproject.toml,z \
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock,z \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml,z \
     uv sync --frozen --no-install-project
 
 # Copy files and build project
