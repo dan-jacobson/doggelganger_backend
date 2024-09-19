@@ -5,8 +5,6 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 # Enable bytecode compilation
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
-# Use the system Python environment
-ENV UV_PROJECT_ENVIRONMENT="/usr/local/"
 
 # Set working directory
 WORKDIR /app
@@ -23,8 +21,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen
 
 # Set HF cache dir and download weights
-ENV HF_HOME=/app/.cache
-RUN python -c "from doggelganger.utils import download_model_weights; download_model_weights()"
+ENV HF_HOME=.cache/huggingface
+RUN ["uv", "run", "python", "-c", "from doggelganger.utils import download_model_weights; download_model_weights()"]
 
 # Set port as env var, necessary for Cloud Run as I understand it
 ENV PORT=8000
@@ -34,4 +32,4 @@ EXPOSE $PORT
 ENTRYPOINT []
 
 # Run the Litestar application
-CMD exec uvicorn doggelganger.serve:app --host 0.0.0.0 --port $PORT
+CMD uv run uvicorn doggelganger.serve:app --host 0.0.0.0 --port $PORT
