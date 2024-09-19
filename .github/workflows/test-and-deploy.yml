@@ -32,8 +32,8 @@ jobs:
 
     steps:
       -
-        name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        name: Checkout
+        uses: actions/checkout@v4
 
       - id: auth
         name: Authenticate with Google Cloud
@@ -46,22 +46,27 @@ jobs:
 
       - 
         name: Login to Artifact Registry
-        uses: docker/login-action@v3
+        uses: redhat-actions/podman-login@v1.7
         with:
           registry: us-east4-docker.pkg.dev
           username: oauth2accesstoken
           password: ${{ steps.auth.outputs.access_token }}
-
-      - id: docker-push-tagged
-        name: Tag Docker image and push to Google Artifact Registry
-        uses: docker/build-push-action@v6
+      
+      - id: build-image
+        name: Buildah Build
+        uses: redhat-actions/buildah-build@v2
         with:
           context: "{{defaultContext}}"
-          file: serve.Dockerfile
-          push: true
-          # necessary for Google Artifact Registry; otherwise looks like three images
-          provenance: false
-          tags: |
-            us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
+          containerfile: serve.Dockerfile
+          image: us-east4-docker.pkg.dev/doggelganger/doggelganger/serve
+          tags: latest ${{ github.ref_name }}
+          platforms: linux/amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - id: push-to-registry
+        name: Push to Google Artifact Registry
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build-image.outputs.image }}
+          tags: ${{ steps.build-image.outputs.tags }}
