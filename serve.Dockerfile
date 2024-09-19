@@ -13,8 +13,8 @@ ENV UV_PROJECT_ENVIRONMENT="/usr/local/"
 
 
 # Install dependencies
-RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=uv.lock,target=uv.lock,z \
+# RUN --mount=type=cache,target=/root/.cache/uv \
+RUN --mount=type=bind,source=uv.lock,target=uv.lock,z \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml,z \
     uv sync --frozen --no-install-project
 
