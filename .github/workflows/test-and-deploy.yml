@@ -31,9 +31,10 @@ jobs:
       id-token: 'write'
 
     steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v4
+      - name: Delete huge unnecessary tools folder
+        run: rm -rf /opt/hostedtoolcache
+
+      - uses: actions/checkout@v4
 
       - id: auth
         name: Authenticate with Google Cloud
@@ -44,8 +45,7 @@ jobs:
           service_account: doggelganger-service@doggelganger.iam.gserviceaccount.com
           access_token_lifetime: 600s
 
-      - 
-        name: Login to Artifact Registry
+      - name: Login to Artifact Registry
         uses: redhat-actions/podman-login@v1.7
         with:
           registry: us-east4-docker.pkg.dev
