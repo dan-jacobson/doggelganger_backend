@@ -63,4 +63,4 @@ jobs:
             us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:latest
           push: true
           platform: linux/amd64 
-          provinance: false
+          provenance: false
