@@ -1,8 +1,0 @@
-litestar[standard]==2.11.0
-pillow
-python-dotenv==1.0.1
-transformers==4.44.2
-vecs==0.4.4
-
---extra-index-url https://download.pytorch.org/whl/cpu
-torch
