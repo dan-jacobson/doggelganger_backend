@@ -31,10 +31,10 @@ jobs:
       id-token: 'write'
 
     steps:
-      - name: Delete huge unnecessary tools folder
-        run: rm -rf /opt/hostedtoolcache
 
-      - uses: actions/checkout@v4
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - id: auth
         name: Authenticate with Google Cloud
@@ -45,25 +45,21 @@ jobs:
           service_account: doggelganger-service@doggelganger.iam.gserviceaccount.com
           access_token_lifetime: 600s
 
-      - name: Login to Artifact Registry
-        uses: redhat-actions/podman-login@v1.7
+      - 
+        name: Login to Artifact Registry
+        uses: docker/login-action@v3
         with:
           registry: us-east4-docker.pkg.dev
           username: oauth2accesstoken
           password: ${{ steps.auth.outputs.access_token }}
       
-      - id: build-image
-        name: Buildah Build
-        uses: redhat-actions/buildah-build@v2
+      -
+        name: Build and Push
+        uses: docker/build-push-action@v6
         with:
-          containerfiles: serve.Dockerfile
-          image: us-east4-docker.pkg.dev/doggelganger/doggelganger/serve
-          tags: latest ${{ github.ref_name }}
+          file: serve.Dockerfile
+          tags: |
+            - us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
+            - us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:latest
+          push: true
           platform: linux/amd64
-
-      - id: push-to-registry
-        name: Push to Google Artifact Registry
-        uses: redhat-actions/push-to-registry@v2
-        with:
-          image: ${{ steps.build-image.outputs.image }}
-          tags: ${{ steps.build-image.outputs.tags }}

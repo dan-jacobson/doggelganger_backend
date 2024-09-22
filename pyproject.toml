@@ -6,8 +6,9 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "litestar[standard]>=2.11.0",
-    "pillow>=10.2.0",
-    "torch>=2.4.1",
+    "pillow>=10.4.0",
+    "torch==2.4.1 ; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "torch==2.4.1+cpu ; sys_platform !='darwin'",
     "transformers>=4.44.2",
     "vecs>=0.4.4",
 ]
@@ -25,10 +26,16 @@ serve = "doggelganger.serve:main"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch]
+metadata.allow-direct-references = true
+
 [tool.uv]
 dev-dependencies = [
     "pytest-mock>=3.14.0",
     "pytest>=8.3.3",
     "python-dotenv>=1.0.1",
     "ruff>=0.6.5",
+    "torch==2.4.1"
 ]
+index-strategy = "unsafe-best-match"
+extra-index-url = ["https://download.pytorch.org/whl/cpu"]
