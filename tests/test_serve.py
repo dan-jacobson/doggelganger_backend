@@ -40,9 +40,11 @@ def test_embed_image_success(mock_is_valid_link, mock_query, mock_get_embedding,
         files={"data": ("test.png", img_byte_arr, "image/png")}
     )
     
-    assert response.status_code == 200
-    assert "embedding" in response.json()
-    assert "similar_image" in response.json()
+    print(f"Response content: {response.content}")
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code}, content: {response.content}"
+    response_json = response.json()
+    assert "embedding" in response_json, f"'embedding' not found in response: {response_json}"
+    assert "similar_image" in response_json, f"'similar_image' not found in response: {response_json}"
 
 @patch('doggelganger.serve.get_embedding')
 @patch('doggelganger.serve.dogs.query')
