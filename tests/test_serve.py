@@ -23,7 +23,7 @@ def test_embed_image_success(mock_is_valid_link, mock_query, mock_get_embedding,
     
     # Mock the query results
     mock_query.return_value = [
-        ("id1", 0.1, {"adoption_link": "http://valid.com"}),
+        (0, "id1", 0.1, {"adoption_link": "http://valid.com"}),
     ]
     
     # Mock is_valid_link to return True
