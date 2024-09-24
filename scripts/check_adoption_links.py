@@ -7,14 +7,19 @@ from tqdm import tqdm
 def check_link(dog, is_retry=False):
     url = dog["adoption_link"]
     try:
-        response = requests.head(url, timeout=5)
+        response = requests.get(url, timeout=5, allow_redirects=True)
         success = response.status_code == 200
         if success and not is_retry:
             # Check image_url if adoption_link is successful
             image_url = dog.get("image_url")
             if image_url:
-                img_response = requests.head(image_url, timeout=5)
-                return success, img_response.status_code == 200, dog
+                img_response = requests.get(image_url, timeout=5, allow_redirects=True, stream=True)
+                img_success = img_response.status_code == 200
+                if img_success:
+                    # Check if the Content-Type is an image
+                    content_type = img_response.headers.get('Content-Type', '')
+                    img_success = content_type.startswith('image/')
+                return success, img_success, dog
         return success, None, dog
     except requests.RequestException:
         return False, None, dog
