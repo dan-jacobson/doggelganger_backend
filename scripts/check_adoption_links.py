@@ -1,7 +1,14 @@
 import json
 import requests
+import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Check adoption links and image URLs.")
+    parser.add_argument('-N', type=int, help="Number of links to check", default=None)
+    return parser.parse_args()
 
 
 def check_link(dog, is_retry=False):
@@ -26,9 +33,15 @@ def check_link(dog, is_retry=False):
 
 
 def main():
+    args = parse_arguments()
+
     # Load the JSON file
     with open("data/petfinder/dog_metadata.json", "r") as f:
         dogs = json.load(f)
+
+    # Limit the number of dogs if N is specified
+    if args.N is not None:
+        dogs = dogs[:args.N]
 
     successes = 0
     failures = 0
