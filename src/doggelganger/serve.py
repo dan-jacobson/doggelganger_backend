@@ -1,5 +1,7 @@
 from typing import Annotated
 import logging
+import json
+import numpy as np
 
 from litestar import Litestar, get, post
 from litestar.datastructures import UploadFile
@@ -36,6 +38,18 @@ dogs = vx.get_or_create_collection(
     name="dog_embeddings", dimension=pipe.model.config.hidden_size
 )
 
+# Load alignment model
+def load_alignment_model(model_path):
+    with open(model_path, "r") as f:
+        model_params = json.load(f)
+    return np.array(model_params["coef"]), np.array(model_params["intercept"])
+
+alignment_model_path = "./weights/alignment_model.json"
+coef, intercept = load_alignment_model(alignment_model_path)
+
+def align_embedding(embedding, coef, intercept):
+    return embedding @ coef + intercept
+
 
 def is_valid_link(url):
     try:
@@ -65,9 +79,12 @@ async def embed_image(
         # Extract features
         embedding = get_embedding(img, pipe=pipe)
 
+        # Align embedding
+        aligned_embedding = align_embedding(embedding, coef, intercept)
+
         # Query similar images
         results = dogs.query(
-            data=embedding,
+            data=aligned_embedding,
             limit=10,  # Increase limit to have more options to check
             include_metadata=True,
             include_value=True,

@@ -9,18 +9,10 @@ import hashlib
 from dotenv import load_dotenv
 
 from doggelganger.utils import load_model, get_embedding
-from doggelganger.train import align_embedding
-
 load_dotenv()
 
 # Supabase configuration
 DB_CONNECTION = os.getenv("SUPABASE_DB")
-
-
-def load_alignment_model(model_path):
-    with open(model_path, "r") as f:
-        model_params = json.load(f)
-    return np.array(model_params["coef"]), np.array(model_params["intercept"])
 
 
 def generate_id(metadata):
@@ -29,11 +21,8 @@ def generate_id(metadata):
     return hashlib.md5(id_string.encode()).hexdigest()
 
 
-def process_dogs(data_dir, metadata_path, alignment_model_path):
+def process_dogs(data_dir, metadata_path):
     pipe = load_model()
-
-    # Load alignment model
-    coef, intercept = load_alignment_model(alignment_model_path)
 
     # Load metadata
     with open(metadata_path, "r") as f:
@@ -64,14 +53,11 @@ def process_dogs(data_dir, metadata_path, alignment_model_path):
                     embedding = get_embedding(dog["image_url"], pipe)
 
                 if embedding is not None:
-                    # Align embedding
-                    aligned_embedding = align_embedding(embedding, coef, intercept)
-
                     # Generate ID
                     dog_id = generate_id(dog)
 
                     # Prepare data for Supabase
-                    record = (dog_id, aligned_embedding.tolist(), dog)
+                    record = (dog_id, embedding.tolist(), dog)
 
                     # Push to Supabase
                     dogs.upsert([record])
@@ -98,9 +84,8 @@ def main():
 
     data_dir = "./data/petfinder"
     metadata_path = "./data/petfinder/dog_metadata.json"
-    alignment_model_path = "./weights/alignment_model.json"
 
-    process_dogs(data_dir, metadata_path, alignment_model_path)
+    process_dogs(data_dir, metadata_path)
     logging.info("Embeddings processing completed.")
 
 
