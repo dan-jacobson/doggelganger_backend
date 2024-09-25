@@ -10,6 +10,28 @@ from doggelganger.utils import load_model, get_embedding
 
 
 def make_embeddings(data_dir):
+    """
+    Generate embeddings for human and animal image pairs.
+
+    This function processes image pairs from the specified data directory,
+    generating embeddings for both human and animal images using a pre-trained model.
+
+    Args:
+        data_dir (str): Path to the directory containing 'human' and 'animal' subdirectories with image pairs.
+
+    Returns:
+        tuple: A tuple containing two dictionaries:
+            - human_embeddings (dict): Filename-keyed dictionary of human image embeddings.
+            - animal_embeddings (dict): Filename-keyed dictionary of animal image embeddings.
+
+    Raises:
+        FileNotFoundError: If the specified data directory or required subdirectories do not exist.
+        RuntimeError: If the model fails to load or generate embeddings.
+
+    Note:
+        - Image pairs should have the same filename in both 'human' and 'animal' subdirectories.
+        - Skips image pairs where embedding generation fails for either the human or animal image.
+    """
     pipe = load_model()
     human_embeddings = {}
     animal_embeddings = {}
