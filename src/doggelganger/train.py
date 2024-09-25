@@ -125,10 +125,10 @@ def print_model_stats(model, X_train, y_train, X_test, y_test):
 
     # Accuracy check using cosine similarity
     all_y = np.vstack((y_train, y_test))
-    y_test_aligned = model.predict(X_test)
+    preds = model.predict(X_test)
     
     # Calculate cosine similarities
-    cosine_similarities = 1 - pairwise_distances(y_test_aligned, all_y, metric='cosine')
+    cosine_similarities = 1 - pairwise_distances(preds, all_y, metric='cosine')
     
     # Calculate top-k accuracies
     n_test = len(y_test)
