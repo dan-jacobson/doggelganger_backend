@@ -38,14 +38,17 @@ dogs = vx.get_or_create_collection(
     name="dog_embeddings", dimension=pipe.model.config.hidden_size
 )
 
+
 # Load alignment model
 def load_alignment_model(model_path):
     with open(model_path, "r") as f:
         model_params = json.load(f)
     return np.array(model_params["coef"]), np.array(model_params["intercept"])
 
+
 alignment_model_path = "./weights/alignment_model.json"
 coef, intercept = load_alignment_model(alignment_model_path)
+
 
 def align_embedding(embedding, coef, intercept):
     return embedding @ coef + intercept
@@ -99,9 +102,12 @@ async def embed_image(
                     "similarity": 1 - score,  # converts cosine distance to similarity
                     "metadata": metadata,
                 }
-                logger.debug(f"Valid link after {i + 1} tries: {metadata.get("adoption_link")}")
+                logger.debug(
+                    f"Valid link after {i + 1} tries: {metadata.get("adoption_link")}"
+                )
                 break
-            else: logger.debug(f"Invalid adoption link: {metadata.get("adoption_link")}")
+            else:
+                logger.debug(f"Invalid adoption link: {metadata.get("adoption_link")}")
 
         if valid_result is None:
             return Response(

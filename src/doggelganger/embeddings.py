@@ -2,18 +2,16 @@ import os
 from pathlib import Path
 import json
 import logging
-import numpy as np
 from tqdm import tqdm
 import vecs
 import hashlib
 from dotenv import load_dotenv
 
 from doggelganger.utils import load_model, get_embedding
+
+
 load_dotenv()
-
-# Supabase configuration
 DB_CONNECTION = os.getenv("SUPABASE_DB")
-
 
 def generate_id(metadata):
     # Create a unique ID based on the dog's name and breed
@@ -57,7 +55,7 @@ def process_dogs(data_dir, metadata_path):
                     dog_id = generate_id(dog)
 
                     # Prepare data for Supabase
-                    record = (dog_id, embedding.tolist(), dog)
+                    record = (dog_id, embedding, dog)
 
                     # Push to Supabase
                     dogs.upsert([record])
