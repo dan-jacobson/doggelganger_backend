@@ -131,11 +131,14 @@ def print_model_stats(model, X_train, y_train, X_test, y_test):
     cosine_similarities = 1 - pairwise_distances(y_test_aligned, all_y, metric='cosine')
     
     # Calculate top-k accuracies
-    top1_accuracy = np.mean(np.argmax(cosine_similarities, axis=1) == np.arange(len(y_test)))
-    top3_accuracy = np.mean([np.isin(np.arange(len(y_test)), indices[:3]).any() 
-                             for indices in np.argsort(-cosine_similarities, axis=1)])
-    top10_accuracy = np.mean([np.isin(np.arange(len(y_test)), indices[:10]).any() 
-                              for indices in np.argsort(-cosine_similarities, axis=1)])
+    n_test = len(y_test)
+    correct_indices = np.arange(len(y_train), len(y_train) + n_test)
+    
+    top1_accuracy = np.mean(np.argmax(cosine_similarities, axis=1) == correct_indices)
+    top3_accuracy = np.mean([np.isin(correct_indices[i], indices[:3]).any() 
+                             for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))])
+    top10_accuracy = np.mean([np.isin(correct_indices[i], indices[:10]).any() 
+                              for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))])
     
     print("\nAccuracy using Cosine Similarity:")
     print(f"Top-1 Accuracy: {top1_accuracy:.4f}")
