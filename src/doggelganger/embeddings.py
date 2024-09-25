@@ -8,8 +8,8 @@ import vecs
 import hashlib
 from dotenv import load_dotenv
 
-from utils import load_model, get_embedding
-from train import align_embedding
+from doggelganger.utils import load_model, get_embedding
+from doggelganger.train import align_embedding
 
 load_dotenv()
 

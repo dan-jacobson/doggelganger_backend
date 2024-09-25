@@ -75,21 +75,16 @@ async def embed_image(
 
         # Find the first result with a valid adoption link
         valid_result = None
-        for result in results:
-            if len(result) == 4:  # Ensure we have all expected values
-                i, id, score, metadata = result
-                if is_valid_link(metadata.get("adoption_link", "")):
-                    valid_result = {
-                        "id": id,
-                        "similarity": 1 - score,  # converts cosine distance to similarity
-                        "metadata": metadata,
-                    }
-                    logger.debug(f"Valid link after {i + 1} tries: {metadata.get('adoption_link')}")
-                    break
-                else:
-                    logger.debug(f"Invalid adoption link: {metadata.get('adoption_link')}")
-            else:
-                logger.warning(f"Unexpected result format: {result}")
+        for i, (id, score, metadata) in enumerate(results):
+            if is_valid_link(metadata.get("adoption_link", "")):
+                valid_result = {
+                    "id": id,
+                    "similarity": 1 - score,  # converts cosine distance to similarity
+                    "metadata": metadata,
+                }
+                logger.debug(f"Valid link after {i + 1} tries: {metadata.get("adoption_link")}")
+                break
+            else: logger.debug(f"Invalid adoption link: {metadata.get("adoption_link")}")
 
         if valid_result is None:
             return Response(
