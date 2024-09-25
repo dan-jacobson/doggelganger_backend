@@ -35,21 +35,21 @@ def make_embeddings(data_dir):
     return human_embeddings, animal_embeddings
 
 
-def align_animal_to_human_embeddings(human_embeddings, animal_embeddings):
+def align_human_to_animal_embeddings(human_embeddings, animal_embeddings):
     """
-    Align animal embeddings to human embeddings using a linear transformation.
+    Align human embeddings to animal embeddings using a linear transformation.
 
     :param human_embeddings: dict of human embeddings
     :param animal_embeddings: dict of animal embeddings
-    :return: trained LinearRegression model, X (animal embeddings), y (human embeddings)
+    :return: trained LinearRegression model, X (human embeddings), y (animal embeddings)
     """
-    X = []  # animal embeddings (input)
-    y = []  # corresponding human embeddings (target)
+    X = []  # human embeddings (input)
+    y = []  # corresponding animal embeddings (target)
 
     for filename in human_embeddings.keys():
         if filename in animal_embeddings.keys():
-            X.append(animal_embeddings[filename])
-            y.append(human_embeddings[filename])
+            X.append(human_embeddings[filename])
+            y.append(animal_embeddings[filename])
 
     if not X or not y:
         raise ValueError(
@@ -66,12 +66,12 @@ def align_animal_to_human_embeddings(human_embeddings, animal_embeddings):
 
 def align_embedding(embedding, coef, intercept):
     """
-    Align a single embedding using the trained linear transformation.
+    Align a single human embedding to the animal embedding space using the trained linear transformation.
 
-    :param embedding: numpy array of the embedding to align
+    :param embedding: numpy array of the human embedding to align
     :param coef: coefficient matrix from the trained LinearRegression model
     :param intercept: intercept vector from the trained LinearRegression model
-    :return: aligned embedding
+    :return: aligned embedding in the animal embedding space
     """
     return np.dot(embedding, coef.T) + intercept
 
@@ -101,8 +101,8 @@ def main():
         # Load embeddings from /data/train
         human_embeddings, animal_embeddings = make_embeddings("data/train")
 
-        # Align animal embeddings to human embeddings
-        alignment_model, X, y = align_animal_to_human_embeddings(
+        # Align human embeddings to animal embeddings
+        alignment_model, X, y = align_human_to_animal_embeddings(
             human_embeddings, animal_embeddings
         )
 
@@ -118,6 +118,7 @@ def main():
             json.dump(model_params, f)
 
         print(f"\nAlignment model trained and saved. Used {len(X)} image pairs.")
+        print("This model now aligns human embeddings to animal embeddings.")
     except Exception as e:
         print(f"An error occurred during the training process: {str(e)}")
 
