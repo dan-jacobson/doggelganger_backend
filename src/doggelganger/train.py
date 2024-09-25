@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
 import json
 import os
@@ -9,9 +10,9 @@ from tqdm import tqdm
 from doggelganger.utils import load_model, get_embedding
 
 
-def make_embeddings(data_dir):
+def make_training_data(data_dir):
     """
-    Generate embeddings for human and animal image pairs.
+    Generate training data (X and y) from human and animal image pairs.
 
     This function processes image pairs from the specified data directory,
     generating embeddings for both human and animal images using a pre-trained model.
@@ -20,9 +21,9 @@ def make_embeddings(data_dir):
         data_dir (str): Path to the directory containing 'human' and 'animal' subdirectories with image pairs.
 
     Returns:
-        tuple: A tuple containing two dictionaries:
-            - human_embeddings (dict): Filename-keyed dictionary of human image embeddings.
-            - animal_embeddings (dict): Filename-keyed dictionary of animal image embeddings.
+        tuple: A tuple containing two numpy arrays:
+            - X (numpy.ndarray): Array of human image embeddings.
+            - y (numpy.ndarray): Array of corresponding animal image embeddings.
 
     Raises:
         FileNotFoundError: If the specified data directory or required subdirectories do not exist.
@@ -33,8 +34,8 @@ def make_embeddings(data_dir):
         - Skips image pairs where embedding generation fails for either the human or animal image.
     """
     pipe = load_model()
-    human_embeddings = {}
-    animal_embeddings = {}
+    X = []
+    y = []
 
     human_dir = Path(data_dir) / "human"
     animal_dir = Path(data_dir) / "animal"
@@ -48,50 +49,36 @@ def make_embeddings(data_dir):
             animal_embedding = get_embedding(animal_path, pipe)
 
             if human_embedding is not None and animal_embedding is not None:
-                human_embeddings[filename] = human_embedding
-                animal_embeddings[filename] = animal_embedding
+                X.append(human_embedding)
+                y.append(animal_embedding)
             else:
                 print(f"Skipping {filename} due to embedding generation failure")
 
-    print(f"Processed {len(human_embeddings)} valid image pairs")
-    return human_embeddings, animal_embeddings
+    print(f"Processed {len(X)} valid image pairs")
+    return np.array(X), np.array(y)
 
 
-def align_human_to_animal_embeddings(human_embeddings, animal_embeddings):
+def align_human_to_animal_embeddings(X, y):
     """Align human embeddings to animal embeddings using a linear transformation.
 
     Args:
-        human_embeddings (dict): Dictionary of human embeddings.
-        animal_embeddings (dict): Dictionary of animal embeddings.
+        X (numpy.ndarray): Human embeddings (input).
+        y (numpy.ndarray): Corresponding animal embeddings (target).
 
     Returns:
-        tuple: A tuple containing:
-            - model (LinearRegression): Trained LinearRegression model.
-            - X (numpy.ndarray): Human embeddings (input).
-            - y (numpy.ndarray): Corresponding animal embeddings (target).
+        LinearRegression: Trained LinearRegression model.
 
     Raises:
         ValueError: If no matching embeddings are found between human and animal datasets.
     """
-    X = []  # human embeddings (input)
-    y = []  # corresponding animal embeddings (target)
-
-    for filename in human_embeddings.keys():
-        if filename in animal_embeddings.keys():
-            X.append(human_embeddings[filename])
-            y.append(animal_embeddings[filename])
-
-    if not X or not y:
+    if X.shape[0] == 0 or y.shape[0] == 0:
         raise ValueError(
             "No matching embeddings found between human and animal datasets"
         )
 
-    X = np.array(X)
-    y = np.array(y)
-
     model = LinearRegression()
     model.fit(X, y)
-    return model, X, y
+    return model
 
 
 def align_embedding(embedding, coef, intercept):
@@ -108,38 +95,48 @@ def align_embedding(embedding, coef, intercept):
     return np.dot(embedding, coef.T) + intercept
 
 
-def print_model_stats(model, X, y):
+def print_model_stats(model, X_train, y_train, X_test, y_test):
     """Print statistics about the trained model.
 
     Args:
         model (LinearRegression): Trained LinearRegression model.
-        X (numpy.ndarray): Input features (human embeddings).
-        y (numpy.ndarray): Target values (animal embeddings).
+        X_train (numpy.ndarray): Training input features (human embeddings).
+        y_train (numpy.ndarray): Training target values (animal embeddings).
+        X_test (numpy.ndarray): Test input features (human embeddings).
+        y_test (numpy.ndarray): Test target values (animal embeddings).
     """
-    y_pred = model.predict(X)
-    mse = mean_squared_error(y, y_pred)
-    r2 = r2_score(y, y_pred)
+    y_train_pred = model.predict(X_train)
+    y_test_pred = model.predict(X_test)
+    
+    train_mse = mean_squared_error(y_train, y_train_pred)
+    train_r2 = r2_score(y_train, y_train_pred)
+    test_mse = mean_squared_error(y_test, y_test_pred)
+    test_r2 = r2_score(y_test, y_test_pred)
 
-    print("\nModel Training Statistics:")
-    print(f"Number of samples: {X.shape[0]}")
-    print(f"Mean Squared Error: {mse:.4f}")
-    print(f"R-squared Score: {r2:.4f}")
+    print("\nModel Statistics:")
+    print(f"Number of training samples: {X_train.shape[0]}")
+    print(f"Number of test samples: {X_test.shape[0]}")
+    print(f"Training Mean Squared Error: {train_mse:.4f}")
+    print(f"Training R-squared Score: {train_r2:.4f}")
+    print(f"Test Mean Squared Error: {test_mse:.4f}")
+    print(f"Test R-squared Score: {test_r2:.4f}")
     print(f"Coefficient shape: {model.coef_.shape}")
     print(f"Intercept shape: {model.intercept_.shape}")
 
 
 def main():
     try:
-        # Load embeddings from /data/train
-        human_embeddings, animal_embeddings = make_embeddings("data/train")
+        # Load training data from /data/train
+        X, y = make_training_data("data/train")
+
+        # Split the data into train and test sets
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.05, random_state=42)
 
         # Align human embeddings to animal embeddings
-        alignment_model, X, y = align_human_to_animal_embeddings(
-            human_embeddings, animal_embeddings
-        )
+        alignment_model = align_human_to_animal_embeddings(X_train, y_train)
 
         # Print model statistics
-        print_model_stats(alignment_model, X, y)
+        print_model_stats(alignment_model, X_train, y_train, X_test, y_test)
 
         # Save the alignment model
         model_params = {
@@ -149,7 +146,7 @@ def main():
         with open("weights/alignment_model.json", "w") as f:
             json.dump(model_params, f)
 
-        print(f"\nAlignment model trained and saved. Used {len(X)} image pairs.")
+        print(f"\nAlignment model trained and saved. Used {X.shape[0]} image pairs.")
         print("This model now aligns human embeddings to animal embeddings.")
     except Exception as e:
         print(f"An error occurred during the training process: {str(e)}")
