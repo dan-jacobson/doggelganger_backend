@@ -165,7 +165,7 @@ def main():
         with open("weights/alignment_model.json", "w") as f:
             json.dump(model_params, f)
 
-        print(f"\nAlignment model trained and saved. Used {X.shape[0]} image pairs.")
+        print(f"\nAlignment model trained and saved. Used {X_train.shape[0]} image pairs.")
         print("This model now aligns human embeddings to animal embeddings.")
     except Exception as e:
         print(f"An error occurred during the training process: {str(e)}")
