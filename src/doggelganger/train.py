@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error, r2_score, pairwise_distances
 import json
 import os
 from pathlib import Path
@@ -122,6 +122,25 @@ def print_model_stats(model, X_train, y_train, X_test, y_test):
     print(f"Test R-squared Score: {test_r2:.4f}")
     print(f"Coefficient shape: {model.coef_.shape}")
     print(f"Intercept shape: {model.intercept_.shape}")
+
+    # Accuracy check using cosine similarity
+    all_y = np.vstack((y_train, y_test))
+    y_test_aligned = model.predict(X_test)
+    
+    # Calculate cosine similarities
+    cosine_similarities = 1 - pairwise_distances(y_test_aligned, all_y, metric='cosine')
+    
+    # Calculate top-k accuracies
+    top1_accuracy = np.mean(np.argmax(cosine_similarities, axis=1) == np.arange(len(y_test)))
+    top3_accuracy = np.mean([np.isin(np.arange(len(y_test)), indices[:3]).any() 
+                             for indices in np.argsort(-cosine_similarities, axis=1)])
+    top10_accuracy = np.mean([np.isin(np.arange(len(y_test)), indices[:10]).any() 
+                              for indices in np.argsort(-cosine_similarities, axis=1)])
+    
+    print("\nAccuracy using Cosine Similarity:")
+    print(f"Top-1 Accuracy: {top1_accuracy:.4f}")
+    print(f"Top-3 Accuracy: {top3_accuracy:.4f}")
+    print(f"Top-10 Accuracy: {top10_accuracy:.4f}")
 
 
 def main():
