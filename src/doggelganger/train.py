@@ -36,12 +36,20 @@ def make_embeddings(data_dir):
 
 
 def align_human_to_animal_embeddings(human_embeddings, animal_embeddings):
-    """
-    Align human embeddings to animal embeddings using a linear transformation.
+    """Align human embeddings to animal embeddings using a linear transformation.
 
-    :param human_embeddings: dict of human embeddings
-    :param animal_embeddings: dict of animal embeddings
-    :return: trained LinearRegression model, X (human embeddings), y (animal embeddings)
+    Args:
+        human_embeddings (dict): Dictionary of human embeddings.
+        animal_embeddings (dict): Dictionary of animal embeddings.
+
+    Returns:
+        tuple: A tuple containing:
+            - model (LinearRegression): Trained LinearRegression model.
+            - X (numpy.ndarray): Human embeddings (input).
+            - y (numpy.ndarray): Corresponding animal embeddings (target).
+
+    Raises:
+        ValueError: If no matching embeddings are found between human and animal datasets.
     """
     X = []  # human embeddings (input)
     y = []  # corresponding animal embeddings (target)
@@ -65,24 +73,26 @@ def align_human_to_animal_embeddings(human_embeddings, animal_embeddings):
 
 
 def align_embedding(embedding, coef, intercept):
-    """
-    Align a single human embedding to the animal embedding space using the trained linear transformation.
+    """Align a single human embedding to the animal embedding space using the trained linear transformation.
 
-    :param embedding: numpy array of the human embedding to align
-    :param coef: coefficient matrix from the trained LinearRegression model
-    :param intercept: intercept vector from the trained LinearRegression model
-    :return: aligned embedding in the animal embedding space
+    Args:
+        embedding (numpy.ndarray): Numpy array of the human embedding to align.
+        coef (numpy.ndarray): Coefficient matrix from the trained LinearRegression model.
+        intercept (numpy.ndarray): Intercept vector from the trained LinearRegression model.
+
+    Returns:
+        numpy.ndarray: Aligned embedding in the animal embedding space.
     """
     return np.dot(embedding, coef.T) + intercept
 
 
 def print_model_stats(model, X, y):
-    """
-    Print statistics about the trained model.
+    """Print statistics about the trained model.
 
-    :param model: trained LinearRegression model
-    :param X: input features (dog embeddings)
-    :param y: target values (face embeddings)
+    Args:
+        model (LinearRegression): Trained LinearRegression model.
+        X (numpy.ndarray): Input features (human embeddings).
+        y (numpy.ndarray): Target values (animal embeddings).
     """
     y_pred = model.predict(X)
     mse = mean_squared_error(y, y_pred)
