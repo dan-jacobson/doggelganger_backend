@@ -19,8 +19,9 @@ train = [
 ]
 
 [project.scripts]
-train = "doggelganger.train:main"
+embed = "doggelganger.embeddings:main"
 serve = "doggelganger.serve:main"
+train = "doggelganger.train:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -35,7 +36,9 @@ dev-dependencies = [
     "pytest>=8.3.3",
     "python-dotenv>=1.0.1",
     "ruff>=0.6.5",
-    "torch==2.4.1"
+    "selenium>=4.25.0",
+    "torch==2.4.1",
+    "webdriver-manager>=4.0.2",
 ]
 index-strategy = "unsafe-best-match"
 extra-index-url = ["https://download.pytorch.org/whl/cpu"]
