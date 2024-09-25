@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Check adoption links and image URLs.")
-    parser.add_argument('-N', type=int, help="Number of links to check", default=None)
+    parser.add_argument("-N", type=int, help="Number of links to check", default=None)
     return parser.parse_args()
 
 
@@ -20,12 +20,14 @@ def check_link(dog, is_retry=False):
             # Check image_url if adoption_link is successful
             image_url = dog.get("image_url")
             if image_url:
-                img_response = requests.get(image_url, timeout=5, allow_redirects=True, stream=True)
+                img_response = requests.get(
+                    image_url, timeout=5, allow_redirects=True, stream=True
+                )
                 img_success = img_response.status_code == 200
                 if img_success:
                     # Check if the Content-Type is an image
-                    content_type = img_response.headers.get('Content-Type', '')
-                    img_success = content_type.startswith('image/')
+                    content_type = img_response.headers.get("Content-Type", "")
+                    img_success = content_type.startswith("image/")
                 return success, img_success, dog
         return success, None, dog
     except requests.RequestException:
@@ -41,7 +43,7 @@ def main():
 
     # Limit the number of dogs if N is specified
     if args.N is not None:
-        dogs = dogs[:args.N]
+        dogs = dogs[: args.N]
 
     successes = 0
     failures = 0

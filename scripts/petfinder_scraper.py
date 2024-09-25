@@ -156,12 +156,53 @@ def main():
     args = parser.parse_args()
 
     cities = {
-        "Brooklyn": "https://www.petfinder.com/search/dogs-for-adoption/us/ny/brooklyn/",
-        "Manhattan": "https://www.petfinder.com/search/dogs-for-adoption/us/ny/manhattan/",
-        "Boston": "https://www.petfinder.com/search/dogs-for-adoption/us/ma/boston/",
-        "Seattle": "https://www.petfinder.com/search/dogs-for-adoption/us/wa/seattle/",
-        "San Francisco": "https://www.petfinder.com/search/dogs-for-adoption/us/ca/san-francisco/",
+        # "Brooklyn": "ny/brooklyn/",
+        # "Manhattan": "ny/manhattan/",
+        # "Queens": "ny/queens",
+        # "Boston": "ma/boston/",
+        # "Seattle": "wa/seattle/",
+        # "San Francisco": "ca/san-francisco/",
+        "Los Angeles": "ca/los-angeles",
+        "Chicago": "il/chicago/",
+        "Houston": "tx/houston/",
+        "Phoenix": "az/phoenix/",
+        "Philadelphia": "pa/philadelphia/",
+        "San Antonio": "tx/san-antonio/",
+        "San Diego": "ca/san-diego/",
+        "Dallas": "tx/dallas",
+        "Jacksonville": "fl/jacksonville/",
+        "Austin": "tx/austin/",
+        "Fort Worth": "tx/fort-worth/",
+        "San Jose": "ca/san-jose/",
+        "Columbus": "oh/columbus/",
+        "Charlotte": "nc/charlotte/",
+        "Indianapolis": "in/indianapolis/",
+        "Denver": "co/denver/",
+        "Oklahoma City": "ok/oklahoma-city/",
+        "Nashville": "tn/nashville/",
+        "Washington DC": "district-of-columbia/",
+        "Las Vegas": "nv/las-vegas/",
+        "Detroit": "mi/detroit/",
+        "Portland": "or/portland/",
+        "Louisville": "ky/louisville/",
+        "Memphis": "tn/memphis",
+        "Baltimore": "md/baltimore",
+        "Milwaukee": "wi/milwaukee/",
+        "Albuquerque": "nm/albuquerque/",
+        "Tuscon": "az/tuscon",
+        "Atlanta": "ga/atlanta",
+        "Kansas City": "mo/kansas-city",
+        "Omeha": "ne/omaha",
+        "Raleigh": "nc/raleigh",
+        "Miami": "fl/miami/",
+        "Virginia Beach": "va/virginia-beach",
+        "Oakland": "ca/oakland",
+        "Minneapolis": "mn/minneapolis",
+        "New Orleans": "la/new-orleans",
+        "Honolulu": "hi/honolulu-county/",
     }
+
+    petfinder_url = "https://www.petfinder.com/search/dogs-for-adoption/us/"
 
     output_folder = "data/petfinder"
     os.makedirs(output_folder, exist_ok=True)
@@ -173,12 +214,13 @@ def main():
     existing_dogs = {dog["adoption_link"] for dog in all_dogs}
 
     try:
-        for city, base_url in cities.items():
+        for city, city_url in cities.items():
             print(f"Scraping dogs from {city}")
             page = 1
             empty_pages = 0
             max_empty_pages = 3
             city_dogs = 0
+            base_url = petfinder_url + city_url
 
             while empty_pages < max_empty_pages and city_dogs < args.N:
                 print(f"Scraping page {page}...")
