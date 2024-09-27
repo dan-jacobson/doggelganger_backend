@@ -1,14 +1,83 @@
 import numpy as np
-from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error, r2_score, pairwise_distances
+from sklearn.linear_model import LinearRegression
+from xgboost import XGBRegressor
 import json
 import os
 import argparse
 from pathlib import Path
 from tqdm import tqdm
+from abc import ABC, abstractmethod
 
 from doggelganger.utils import load_model, get_embedding
+
+
+class BaseModel(ABC):
+    @abstractmethod
+    def fit(self, X, y):
+        pass
+
+    @abstractmethod
+    def predict(self, X):
+        pass
+
+    @abstractmethod
+    def save(self, path):
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def load(path):
+        pass
+
+
+class LinearRegressionModel(BaseModel):
+    def __init__(self):
+        self.model = LinearRegression()
+
+    def fit(self, X, y):
+        self.model.fit(X, y)
+
+    def predict(self, X):
+        return self.model.predict(X)
+
+    def save(self, path):
+        model_params = {
+            "coef": self.model.coef_.tolist(),
+            "intercept": self.model.intercept_.tolist(),
+        }
+        with open(path, "w") as f:
+            json.dump(model_params, f)
+
+    @staticmethod
+    def load(path):
+        with open(path, "r") as f:
+            model_params = json.load(f)
+        model = LinearRegressionModel()
+        model.model.coef_ = np.array(model_params["coef"])
+        model.model.intercept_ = np.array(model_params["intercept"])
+        return model
+
+
+class XGBoostModel(BaseModel):
+    def __init__(self):
+        self.model = XGBRegressor()
+
+    def fit(self, X, y):
+        self.model.fit(X, y)
+
+    def predict(self, X):
+        return self.model.predict(X)
+
+    def save(self, path):
+        self.model.save_model(path)
+
+    @staticmethod
+    def load(path):
+        model = XGBoostModel()
+        model.model.load_model(path)
+        return model
 
 
 def make_training_data(data_dir):
@@ -59,15 +128,16 @@ def make_training_data(data_dir):
     return np.array(X), np.array(y)
 
 
-def align_human_to_animal_embeddings(X, y):
-    """Align human embeddings to animal embeddings using a linear transformation.
+def train_model(model_class, X, y):
+    """Train the specified model using the provided data.
 
     Args:
-        X (numpy.ndarray): Human embeddings (input).
-        y (numpy.ndarray): Corresponding animal embeddings (target).
+        model_class (BaseModel): The model class to use for training.
+        X (numpy.ndarray): Input features.
+        y (numpy.ndarray): Target values.
 
     Returns:
-        LinearRegression: Trained LinearRegression model.
+        BaseModel: Trained model instance.
 
     Raises:
         ValueError: If no matching embeddings are found between human and animal datasets.
@@ -77,23 +147,9 @@ def align_human_to_animal_embeddings(X, y):
             "No matching embeddings found between human and animal datasets"
         )
 
-    model = LinearRegression()
+    model = model_class()
     model.fit(X, y)
     return model
-
-
-def align_embedding(embedding, coef, intercept):
-    """Align a single human embedding to the animal embedding space using the trained linear transformation.
-
-    Args:
-        embedding (numpy.ndarray): Numpy array of the human embedding to align.
-        coef (numpy.ndarray): Coefficient matrix from the trained LinearRegression model.
-        intercept (numpy.ndarray): Intercept vector from the trained LinearRegression model.
-
-    Returns:
-        numpy.ndarray: Aligned embedding in the animal embedding space.
-    """
-    return np.dot(embedding, coef.T) + intercept
 
 
 def print_model_stats(model, X_train, y_train, X_test, y_test):
@@ -163,7 +219,15 @@ def print_model_stats(model, X_train, y_train, X_test, y_test):
 def main():
     parser = argparse.ArgumentParser(description="Train the alignment model for Doggelganger")
     parser.add_argument("--seed", type=int, default=1337, help="Random seed for k-fold split (default: 1337)")
+    parser.add_argument("--model", type=str, choices=['linear', 'xgboost'], default='linear', help="Model type to use (default: linear)")
     args = parser.parse_args()
+
+    model_classes = {
+        'linear': LinearRegressionModel,
+        'xgboost': XGBoostModel
+    }
+
+    model_class = model_classes[args.model]
 
     try:
         # Load training data from /data/train
@@ -186,11 +250,11 @@ def main():
             X_train, X_test = X[train_index], X[test_index]
             y_train, y_test = y[train_index], y[test_index]
 
-            # Align human embeddings to animal embeddings
-            alignment_model = align_human_to_animal_embeddings(X_train, y_train)
+            # Train the model
+            model = train_model(model_class, X_train, y_train)
 
             # Print model statistics and get the values
-            stats = print_model_stats(alignment_model, X_train, y_train, X_test, y_test)
+            stats = print_model_stats(model, X_train, y_train, X_test, y_test)
             
             # Append statistics to lists
             train_mse_list.append(stats['train_mse'])
@@ -204,7 +268,7 @@ def main():
             # Save the best model based on test R-squared score
             if stats['test_r2'] > best_score:
                 best_score = stats['test_r2']
-                best_model = alignment_model
+                best_model = model
                 print(f"New best model found (R-squared: {best_score:.4f})")
 
         # Print average statistics across all folds
@@ -218,12 +282,7 @@ def main():
         print(f"Average Top-10 Accuracy: {np.mean(top10_acc_list):.4f} (±{np.std(top10_acc_list):.4f})")
 
         # Save the best alignment model
-        model_params = {
-            "coef": best_model.coef_.tolist(),
-            "intercept": best_model.intercept_.tolist(),
-        }
-        with open("weights/alignment_model.json", "w") as f:
-            json.dump(model_params, f)
+        best_model.save(f"weights/alignment_model_{args.model}.json")
 
         print(f"\nBest alignment model trained and saved. Used {len(X)} image pairs.")
         print(f"Best model R-squared score: {best_score:.4f}")
