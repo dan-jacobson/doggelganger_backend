@@ -147,12 +147,13 @@ def print_model_stats(model, X_train, y_train, X_test, y_test):
 
 
 def main():
+    SEED = 1234
     try:
         # Load training data from /data/train
         X, y = make_training_data("data/train")
 
         # Split the data into train and test sets
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.05, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.05, random_state=SEED)
 
         # Align human embeddings to animal embeddings
         alignment_model = align_human_to_animal_embeddings(X_train, y_train)
