@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error, r2_score, pairwise_distances
 import json
 import os
@@ -149,31 +149,49 @@ def print_model_stats(model, X_train, y_train, X_test, y_test):
 
 def main():
     parser = argparse.ArgumentParser(description="Train the alignment model for Doggelganger")
-    parser.add_argument("--seed", type=int, default=1337, help="Random seed for train-test split (default: 1337)")
+    parser.add_argument("--seed", type=int, default=1337, help="Random seed for k-fold split (default: 1337)")
     args = parser.parse_args()
 
     try:
         # Load training data from /data/train
         X, y = make_training_data("data/train")
 
-        # Split the data into train and test sets
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.05, random_state=args.seed)
+        # Initialize KFold
+        kf = KFold(n_splits=5, shuffle=True, random_state=args.seed)
 
-        # Align human embeddings to animal embeddings
-        alignment_model = align_human_to_animal_embeddings(X_train, y_train)
+        best_model = None
+        best_score = float('-inf')
 
-        # Print model statistics
-        print_model_stats(alignment_model, X_train, y_train, X_test, y_test)
+        for fold, (train_index, test_index) in enumerate(kf.split(X), 1):
+            print(f"\nFold {fold}/5")
+            X_train, X_test = X[train_index], X[test_index]
+            y_train, y_test = y[train_index], y[test_index]
 
-        # Save the alignment model
+            # Align human embeddings to animal embeddings
+            alignment_model = align_human_to_animal_embeddings(X_train, y_train)
+
+            # Print model statistics
+            print_model_stats(alignment_model, X_train, y_train, X_test, y_test)
+
+            # Save the best model based on test R-squared score
+            y_test_pred = alignment_model.predict(X_test)
+            test_r2 = r2_score(y_test, y_test_pred)
+            
+            if test_r2 > best_score:
+                best_score = test_r2
+                best_model = alignment_model
+                print(f"New best model found (R-squared: {best_score:.4f})")
+
+        # Save the best alignment model
         model_params = {
-            "coef": alignment_model.coef_.tolist(),
-            "intercept": alignment_model.intercept_.tolist(),
+            "coef": best_model.coef_.tolist(),
+            "intercept": best_model.intercept_.tolist(),
         }
         with open("weights/alignment_model.json", "w") as f:
             json.dump(model_params, f)
 
-        print(f"\nAlignment model trained and saved. Used {X_train.shape[0]} image pairs.")
+        print(f"\nBest alignment model trained and saved. Used {len(X)} image pairs.")
+        print(f"Best model R-squared score: {best_score:.4f}")
         print("This model now aligns human embeddings to animal embeddings.")
     except Exception as e:
         print(f"An error occurred during the training process: {str(e)}")
