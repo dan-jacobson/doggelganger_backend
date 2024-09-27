@@ -1,0 +1,17 @@
+{
+    "commands":
+    [
+        {
+            "protocol": "http",
+            "method": "GET",
+            "resource": "/"
+        },
+        {
+            "protocol": "http",
+            "method": "POST",
+            "resource": "/embed",
+            "body_file": ".mint/test_dog_image.jpg",
+            "headers": ["Content-Type: multipart/form-data"]
+        }
+    ]
+}
