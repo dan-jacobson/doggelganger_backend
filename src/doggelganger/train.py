@@ -4,6 +4,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score, pairwise_distances
 import json
 import os
+import argparse
 from pathlib import Path
 from tqdm import tqdm
 
@@ -147,13 +148,16 @@ def print_model_stats(model, X_train, y_train, X_test, y_test):
 
 
 def main():
-    SEED = 1234
+    parser = argparse.ArgumentParser(description="Train the alignment model for Doggelganger")
+    parser.add_argument("--seed", type=int, default=1337, help="Random seed for train-test split (default: 1337)")
+    args = parser.parse_args()
+
     try:
         # Load training data from /data/train
         X, y = make_training_data("data/train")
 
         # Split the data into train and test sets
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.05, random_state=SEED)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.05, random_state=args.seed)
 
         # Align human embeddings to animal embeddings
         alignment_model = align_human_to_animal_embeddings(X_train, y_train)
