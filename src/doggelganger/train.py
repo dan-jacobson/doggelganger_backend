@@ -97,7 +97,7 @@ def align_embedding(embedding, coef, intercept):
 
 
 def print_model_stats(model, X_train, y_train, X_test, y_test):
-    """Print statistics about the trained model.
+    """Print statistics about the trained model and return them.
 
     Args:
         model (LinearRegression): Trained LinearRegression model.
@@ -105,6 +105,9 @@ def print_model_stats(model, X_train, y_train, X_test, y_test):
         y_train (numpy.ndarray): Training target values (animal embeddings).
         X_test (numpy.ndarray): Test input features (human embeddings).
         y_test (numpy.ndarray): Test target values (animal embeddings).
+
+    Returns:
+        dict: A dictionary containing the computed statistics.
     """
     y_train_pred = model.predict(X_train)
     y_test_pred = model.predict(X_test)
@@ -146,6 +149,16 @@ def print_model_stats(model, X_train, y_train, X_test, y_test):
     print(f"Top-3 Accuracy: {top3_accuracy:.4f}")
     print(f"Top-10 Accuracy: {top10_accuracy:.4f}")
 
+    return {
+        'train_mse': train_mse,
+        'train_r2': train_r2,
+        'test_mse': test_mse,
+        'test_r2': test_r2,
+        'top1_accuracy': top1_accuracy,
+        'top3_accuracy': top3_accuracy,
+        'top10_accuracy': top10_accuracy
+    }
+
 
 def main():
     parser = argparse.ArgumentParser(description="Train the alignment model for Doggelganger")
@@ -163,6 +176,11 @@ def main():
         best_model = None
         best_score = float('-inf')
 
+        # Lists to store statistics for each fold
+        train_mse_list, train_r2_list = [], []
+        test_mse_list, test_r2_list = [], []
+        top1_acc_list, top3_acc_list, top10_acc_list = [], [], []
+
         for fold, (train_index, test_index) in enumerate(kf.split(X), 1):
             print(f"\nFold {fold}/{n_splits}")
             X_train, X_test = X[train_index], X[test_index]
@@ -171,17 +189,33 @@ def main():
             # Align human embeddings to animal embeddings
             alignment_model = align_human_to_animal_embeddings(X_train, y_train)
 
-            # Print model statistics
-            print_model_stats(alignment_model, X_train, y_train, X_test, y_test)
+            # Print model statistics and get the values
+            stats = print_model_stats(alignment_model, X_train, y_train, X_test, y_test)
+            
+            # Append statistics to lists
+            train_mse_list.append(stats['train_mse'])
+            train_r2_list.append(stats['train_r2'])
+            test_mse_list.append(stats['test_mse'])
+            test_r2_list.append(stats['test_r2'])
+            top1_acc_list.append(stats['top1_accuracy'])
+            top3_acc_list.append(stats['top3_accuracy'])
+            top10_acc_list.append(stats['top10_accuracy'])
 
             # Save the best model based on test R-squared score
-            y_test_pred = alignment_model.predict(X_test)
-            test_r2 = r2_score(y_test, y_test_pred)
-            
-            if test_r2 > best_score:
-                best_score = test_r2
+            if stats['test_r2'] > best_score:
+                best_score = stats['test_r2']
                 best_model = alignment_model
                 print(f"New best model found (R-squared: {best_score:.4f})")
+
+        # Print average statistics across all folds
+        print("\nAverage Statistics Across All Folds:")
+        print(f"Average Training MSE: {np.mean(train_mse_list):.4f} (±{np.std(train_mse_list):.4f})")
+        print(f"Average Training R-squared: {np.mean(train_r2_list):.4f} (±{np.std(train_r2_list):.4f})")
+        print(f"Average Test MSE: {np.mean(test_mse_list):.4f} (±{np.std(test_mse_list):.4f})")
+        print(f"Average Test R-squared: {np.mean(test_r2_list):.4f} (±{np.std(test_r2_list):.4f})")
+        print(f"Average Top-1 Accuracy: {np.mean(top1_acc_list):.4f} (±{np.std(top1_acc_list):.4f})")
+        print(f"Average Top-3 Accuracy: {np.mean(top3_acc_list):.4f} (±{np.std(top3_acc_list):.4f})")
+        print(f"Average Top-10 Accuracy: {np.mean(top10_acc_list):.4f} (±{np.std(top10_acc_list):.4f})")
 
         # Save the best alignment model
         model_params = {
