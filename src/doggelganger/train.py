@@ -157,13 +157,14 @@ def main():
         X, y = make_training_data("data/train")
 
         # Initialize KFold
-        kf = KFold(n_splits=5, shuffle=True, random_state=args.seed)
+        n_splits = 8
+        kf = KFold(n_splits=n_splits, shuffle=True, random_state=args.seed)
 
         best_model = None
         best_score = float('-inf')
 
         for fold, (train_index, test_index) in enumerate(kf.split(X), 1):
-            print(f"\nFold {fold}/5")
+            print(f"\nFold {fold}/{n_splits}")
             X_train, X_test = X[train_index], X[test_index]
             y_train, y_test = y[train_index], y[test_index]
 
