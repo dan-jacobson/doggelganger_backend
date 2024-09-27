@@ -2,6 +2,7 @@ import json
 import os
 import time
 import argparse
+import random
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -156,12 +157,12 @@ def main():
     args = parser.parse_args()
 
     cities = {
-        # "Brooklyn": "ny/brooklyn/",
-        # "Manhattan": "ny/manhattan/",
-        # "Queens": "ny/queens",
-        # "Boston": "ma/boston/",
-        # "Seattle": "wa/seattle/",
-        # "San Francisco": "ca/san-francisco/",
+        "Brooklyn": "ny/brooklyn/",
+        "Manhattan": "ny/manhattan/",
+        "Queens": "ny/queens",
+        "Boston": "ma/boston/",
+        "Seattle": "wa/seattle/",
+        "San Francisco": "ca/san-francisco/",
         "Los Angeles": "ca/los-angeles",
         "Chicago": "il/chicago/",
         "Houston": "tx/houston/",
@@ -214,7 +215,9 @@ def main():
     existing_dogs = {dog["adoption_link"] for dog in all_dogs}
 
     try:
-        for city, city_url in cities.items():
+        city_items = cities.items()
+        random.shuffle(city_items)
+        for city, city_url in cities_items:
             print(f"Scraping dogs from {city}")
             page = 1
             empty_pages = 0
