@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from doggelganger.models.base import BaseModel
 from tqdm import tqdm
+from torch.utils.tensorboard import SummaryWriter
 
 class ResidualBlock(nn.Module):
     def __init__(self, dim):
@@ -39,6 +40,7 @@ class ResNetModel(BaseModel):
         self.model.to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
         self.criterion = nn.MSELoss()
+        self.writer = SummaryWriter()
 
     def fit(self, X, y):
         X = torch.tensor(X, dtype=torch.float32).to(self.device)
@@ -49,7 +51,9 @@ class ResNetModel(BaseModel):
         lambda_delta = 0.1
         lambda_ortho = 0.1
 
+        global_step = 0
         for epoch in tqdm(range(num_epochs)):
+            epoch_loss = 0
             for i in range(0, len(X), batch_size):
                 batch_X = X[i:i+batch_size]
                 batch_y = y[i:i+batch_size]
@@ -71,6 +75,20 @@ class ResNetModel(BaseModel):
                 
                 loss.backward()
                 self.optimizer.step()
+
+                # Log metrics
+                self.writer.add_scalar('Loss/total', loss.item(), global_step)
+                self.writer.add_scalar('Loss/main', loss_main.item(), global_step)
+                self.writer.add_scalar('Loss/delta', loss_delta.item(), global_step)
+                self.writer.add_scalar('Loss/ortho', loss_ortho.item(), global_step)
+
+                epoch_loss += loss.item()
+                global_step += 1
+
+            # Log epoch average loss
+            self.writer.add_scalar('Loss/epoch', epoch_loss / (len(X) // batch_size), epoch)
+
+        self.writer.close()
 
     def predict(self, X):
         self.model.eval()
