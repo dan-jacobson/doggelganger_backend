@@ -59,11 +59,13 @@ class ResNetModel(BaseModel):
                 
                 loss_main = self.criterion(outputs, batch_y)
                 loss_delta = torch.norm(outputs - batch_X, p=2)
-                loss_ortho = torch.norm(
-                    torch.mm(self.model.fc1.weight, self.model.fc1.weight.t()) - torch.eye(384).to(self.device)
-                ) + torch.norm(
-                    torch.mm(self.model.fc2.weight, self.model.fc2.weight.t()) - torch.eye(384).to(self.device)
-                )
+                loss_ortho = 0
+                for block in self.model.blocks:
+                    loss_ortho += torch.norm(
+                        torch.mm(block.fc1.weight, block.fc1.weight.t()) - torch.eye(384).to(self.device)
+                    ) + torch.norm(
+                        torch.mm(block.fc2.weight, block.fc2.weight.t()) - torch.eye(384).to(self.device)
+                    )
                 
                 loss = loss_main + lambda_delta * loss_delta + lambda_ortho * loss_ortho
                 
