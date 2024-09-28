@@ -8,7 +8,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from doggelganger.utils import get_embedding, load_model as load_embedding_model
-from doggelganger.models.regression_models import LinearRegressionModel, XGBoostModel
+from doggelganger.models import LinearRegressionModel, XGBoostModel
 
 
 def make_training_data(data_dir):
