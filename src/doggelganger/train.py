@@ -4,11 +4,16 @@ from sklearn.metrics import mean_squared_error, r2_score, pairwise_distances
 from sklearn.linear_model import LinearRegression
 import os
 import argparse
+import logging
 from pathlib import Path
 from tqdm import tqdm
 
 from doggelganger.utils import get_embedding, load_model as load_embedding_model
 from doggelganger.models import LinearRegressionModel, XGBoostModel
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
 def make_training_data(data_dir):
@@ -53,9 +58,9 @@ def make_training_data(data_dir):
                 X.append(human_embedding)
                 y.append(animal_embedding)
             else:
-                print(f"Skipping {filename} due to embedding generation failure")
+                logger.debug(f"Skipping {filename} due to embedding generation failure")
 
-    print(f"Processed {len(X)} valid image pairs")
+    logger.info(f"Processed {len(X)} valid image pairs")
     return np.array(X), np.array(y)
 
 
@@ -104,16 +109,16 @@ def print_model_stats(model, X_train, y_train, X_test, y_test):
     test_mse = mean_squared_error(y_test, y_test_pred)
     test_r2 = r2_score(y_test, y_test_pred)
 
-    print("\nModel Statistics:")
-    print(f"  Number of training samples: {X_train.shape[0]}")
-    print(f"  Number of test samples: {X_test.shape[0]}")
-    print(f"  Training Mean Squared Error: {train_mse:.4f}")
-    print(f"  Training R-squared Score: {train_r2:.4f}")
-    print(f"  Test Mean Squared Error: {test_mse:.4f}")
-    print(f"  Test R-squared Score: {test_r2:.4f}")
+    logger.info("\nModel Statistics:")
+    logger.info(f"  Number of training samples: {X_train.shape[0]}")
+    logger.info(f"  Number of test samples: {X_test.shape[0]}")
+    logger.info(f"  Training Mean Squared Error: {train_mse:.4f}")
+    logger.info(f"  Training R-squared Score: {train_r2:.4f}")
+    logger.info(f"  Test Mean Squared Error: {test_mse:.4f}")
+    logger.info(f"  Test R-squared Score: {test_r2:.4f}")
     if isinstance(model.model, LinearRegression):
-        print(f"Coefficient shape: {model.model.coef_.shape}")
-        print(f"Intercept shape: {model.model.intercept_.shape}")
+        logger.info(f"Coefficient shape: {model.model.coef_.shape}")
+        logger.info(f"Intercept shape: {model.model.intercept_.shape}")
 
     # Accuracy check using cosine similarity
     all_y = np.vstack((y_train, y_test))
@@ -132,10 +137,10 @@ def print_model_stats(model, X_train, y_train, X_test, y_test):
     top10_accuracy = np.mean([np.isin(correct_indices[i], indices[:10]).any() 
                               for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))])
     
-    print("\nAccuracy using Cosine Similarity:")
-    print(f"Top-1 Accuracy: {top1_accuracy:.4f}")
-    print(f"Top-3 Accuracy: {top3_accuracy:.4f}")
-    print(f"Top-10 Accuracy: {top10_accuracy:.4f}")
+    logger.info("\nAccuracy using Cosine Similarity:")
+    logger.info(f"Top-1 Accuracy: {top1_accuracy:.4f}")
+    logger.info(f"Top-3 Accuracy: {top3_accuracy:.4f}")
+    logger.info(f"Top-10 Accuracy: {top10_accuracy:.4f}")
 
     return {
         'train_mse': train_mse,
@@ -179,7 +184,7 @@ def main():
         top1_acc_list, top3_acc_list, top10_acc_list = [], [], []
 
         for fold, (train_index, test_index) in enumerate(kf.split(X), 1):
-            print(f"\nFold {fold}/{n_splits}")
+            logger.info(f"\nFold {fold}/{n_splits}")
             X_train, X_test = X[train_index], X[test_index]
             y_train, y_test = y[train_index], y[test_index]
 
@@ -202,28 +207,28 @@ def main():
             if stats['test_r2'] > best_score:
                 best_score = stats['test_r2']
                 best_model = model
-                print(f"New best model found (R-squared: {best_score:.4f})")
+                logger.info(f"New best model found (R-squared: {best_score:.4f})")
 
         # Print average statistics across all folds
-        print("\nAverage Statistics Across All Folds:")
-        print(f"  Training MSE: {np.mean(train_mse_list):.4f} (±{np.std(train_mse_list):.4f})")
-        print(f"  Training R-squared: {np.mean(train_r2_list):.4f} (±{np.std(train_r2_list):.4f})")
-        print(f"  Test MSE: {np.mean(test_mse_list):.4f} (±{np.std(test_mse_list):.4f})")
-        print(f"  Test R-squared: {np.mean(test_r2_list):.4f} (±{np.std(test_r2_list):.4f})")
-        print(f"  Top-1 Accuracy: {np.mean(top1_acc_list):.4f} (±{np.std(top1_acc_list):.4f})")
-        print(f"  Top-3 Accuracy: {np.mean(top3_acc_list):.4f} (±{np.std(top3_acc_list):.4f})")
-        print(f"  Top-10 Accuracy: {np.mean(top10_acc_list):.4f} (±{np.std(top10_acc_list):.4f})")
+        logger.info("\nAverage Statistics Across All Folds:")
+        logger.info(f"  Training MSE: {np.mean(train_mse_list):.4f} (±{np.std(train_mse_list):.4f})")
+        logger.info(f"  Training R-squared: {np.mean(train_r2_list):.4f} (±{np.std(train_r2_list):.4f})")
+        logger.info(f"  Test MSE: {np.mean(test_mse_list):.4f} (±{np.std(test_mse_list):.4f})")
+        logger.info(f"  Test R-squared: {np.mean(test_r2_list):.4f} (±{np.std(test_r2_list):.4f})")
+        logger.info(f"  Top-1 Accuracy: {np.mean(top1_acc_list):.4f} (±{np.std(top1_acc_list):.4f})")
+        logger.info(f"  Top-3 Accuracy: {np.mean(top3_acc_list):.4f} (±{np.std(top3_acc_list):.4f})")
+        logger.info(f"  Top-10 Accuracy: {np.mean(top10_acc_list):.4f} (±{np.std(top10_acc_list):.4f})")
 
         # Save the best alignment model
         if args.save:
             model_path = args.save if isinstance(args.save, str) else f"weights/alignment_model_{args.model}.json"
             best_model.save(model_path)
 
-            print(f"\nBest alignment model trained and saved. Used {len(X)} image pairs.")
-            print(f"Best model R-squared score: {best_score:.4f}")
-            print("This model now aligns human embeddings to animal embeddings.")
+            logger.info(f"\nBest alignment model trained and saved. Used {len(X)} image pairs.")
+            logger.info(f"Best model R-squared score: {best_score:.4f}")
+            logger.info("This model now aligns human embeddings to animal embeddings.")
     except Exception as e:
-        print(f"An error occurred during the training process: {str(e)}")
+        logger.error(f"An error occurred during the training process: {str(e)}")
 
 
 if __name__ == "__main__":
