@@ -46,7 +46,7 @@ class ResNetModel(BaseModel):
         X = torch.tensor(X, dtype=torch.float32).to(self.device)
         y = torch.tensor(y, dtype=torch.float32).to(self.device)
         
-        num_epochs = 10
+        num_epochs = 100
         batch_size = 32
         lambda_delta = 0.1
         lambda_ortho = 0.1

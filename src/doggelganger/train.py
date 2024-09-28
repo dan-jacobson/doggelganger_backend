@@ -9,7 +9,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from doggelganger.utils import get_embedding, load_model as load_embedding_model
-from doggelganger.models import LinearRegressionModel, XGBoostModel, ResNetModel
+from doggelganger.models import LinearRegressionModel#, XGBoostModel, ResNetModel
 
 # Set up logging
 logging.basicConfig(
