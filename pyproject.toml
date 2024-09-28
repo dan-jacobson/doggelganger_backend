@@ -38,6 +38,7 @@ dev-dependencies = [
     "ruff>=0.6.5",
     "selenium>=4.25.0",
     "torch==2.4.1",
+    "torchvision==0.19.1",
     "webdriver-manager>=4.0.2",
     "xgboost>=2.1.1",
 ]
