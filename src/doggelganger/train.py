@@ -9,7 +9,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from doggelganger.utils import get_embedding, load_model as load_embedding_model
-from doggelganger.models import LinearRegressionModel#, XGBoostModel, ResNetModel
+from doggelganger.models import LinearRegressionModel, ResNetModel
 
 # Set up logging
 logging.basicConfig(
@@ -85,8 +85,12 @@ def train_model(model_class, X, y):
             "No matching embeddings found between human and animal datasets"
         )
 
-    model = model_class()
-    model.fit(X, y)
+    if model_class == ResNetModel:
+        model, best_params = model_class.hyperparameter_search(X, y)
+        logger.info(f"Best hyperparameters found: {best_params}")
+    else:
+        model = model_class()
+        model.fit(X, y)
     return model
 
 

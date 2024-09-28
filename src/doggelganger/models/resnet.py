@@ -3,6 +3,7 @@ import torch.nn as nn
 from doggelganger.models.base import BaseModel
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
+import optuna
 
 class ResidualBlock(nn.Module):
     def __init__(self, dim):
@@ -34,22 +35,20 @@ class MinimalPerturbationNetwork(nn.Module):
                 nn.init.constant_(param, 0)
 
 class ResNetModel(BaseModel):
-    def __init__(self):
-        self.model = MinimalPerturbationNetwork(384)  # Assuming DinoV2 embedding size
+    def __init__(self, num_blocks=3, learning_rate=0.001, lambda_delta=0.1, lambda_ortho=0.1):
+        self.num_blocks = num_blocks
+        self.model = MinimalPerturbationNetwork(384, num_blocks)  # Assuming DinoV2 embedding size
         self.device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
         self.model.to(self.device)
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
         self.criterion = nn.MSELoss()
         self.writer = SummaryWriter()
+        self.lambda_delta = lambda_delta
+        self.lambda_ortho = lambda_ortho
 
-    def fit(self, X, y):
+    def fit(self, X, y, num_epochs=100, batch_size=32):
         X = torch.tensor(X, dtype=torch.float32).to(self.device)
         y = torch.tensor(y, dtype=torch.float32).to(self.device)
-        
-        num_epochs = 100
-        batch_size = 32
-        lambda_delta = 0.1
-        lambda_ortho = 0.1
 
         global_step = 0
         for epoch in tqdm(range(num_epochs)):
@@ -71,7 +70,7 @@ class ResNetModel(BaseModel):
                         torch.mm(block.fc2.weight, block.fc2.weight.t()) - torch.eye(384).to(self.device)
                     )
                 
-                loss = loss_main + lambda_delta * loss_delta + lambda_ortho * loss_ortho
+                loss = loss_main + self.lambda_delta * loss_delta + self.lambda_ortho * loss_ortho
                 
                 loss.backward()
                 self.optimizer.step()
@@ -89,6 +88,35 @@ class ResNetModel(BaseModel):
             self.writer.add_scalar('Loss/epoch', epoch_loss / (len(X) // batch_size), epoch)
 
         self.writer.close()
+        return epoch_loss / (len(X) // batch_size)
+
+    @staticmethod
+    def objective(trial, X, y):
+        num_blocks = trial.suggest_int('num_blocks', 2, 5)
+        learning_rate = trial.suggest_loguniform('learning_rate', 1e-5, 1e-2)
+        lambda_delta = trial.suggest_loguniform('lambda_delta', 1e-3, 1e-1)
+        lambda_ortho = trial.suggest_loguniform('lambda_ortho', 1e-3, 1e-1)
+        num_epochs = trial.suggest_int('num_epochs', 50, 200)
+        batch_size = trial.suggest_categorical('batch_size', [16, 32, 64])
+
+        model = ResNetModel(num_blocks, learning_rate, lambda_delta, lambda_ortho)
+        final_loss = model.fit(X, y, num_epochs, batch_size)
+        return final_loss
+
+    @classmethod
+    def hyperparameter_search(cls, X, y, n_trials=100):
+        study = optuna.create_study(direction='minimize')
+        study.optimize(lambda trial: cls.objective(trial, X, y), n_trials=n_trials)
+
+        best_params = study.best_params
+        best_model = cls(
+            num_blocks=best_params['num_blocks'],
+            learning_rate=best_params['learning_rate'],
+            lambda_delta=best_params['lambda_delta'],
+            lambda_ortho=best_params['lambda_ortho']
+        )
+        best_model.fit(X, y, num_epochs=best_params['num_epochs'], batch_size=best_params['batch_size'])
+        return best_model, best_params
 
     def predict(self, X):
         self.model.eval()
