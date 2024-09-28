@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, random_split
 
 from doggelganger.utils import get_embedding, load_model as load_embedding_model
 from doggelganger.train import make_training_data
@@ -11,6 +11,7 @@ EPOCHS = 10
 BATCH_SIZE = 32
 LAMBDA_DELTA = 0.1
 LAMBDA_ORTHO = 0.1
+TEST_SIZE = 0.1
 
 class EmbeddingDataset(Dataset):
     def __init__(self, selfie_embeddings, dog_embeddings):
@@ -23,14 +24,22 @@ class EmbeddingDataset(Dataset):
     def __getitem__(self, idx):
         return self.selfie_embeddings[idx], self.dog_embeddings[idx]
 
-def main(num_epochs=EPOCHS, batch_size=BATCH_SIZE, lambda_delta=LAMBDA_DELTA, lambda_ortho=LAMBDA_ORTHO):
+def main(num_epochs=EPOCHS, batch_size=BATCH_SIZE, lambda_delta=LAMBDA_DELTA, lambda_ortho=LAMBDA_ORTHO, test_size=TEST_SIZE):
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
     X, y = make_training_data("/data/train")
 
-    # Create dataset and dataloader
+    # Create dataset
     dataset = EmbeddingDataset(X, y)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+    # Split dataset into train and test sets
+    test_size = int(len(dataset) * test_size)
+    train_size = len(dataset) - test_size
+    train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
+
+    # Create dataloaders
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     # Initialize the transfer network
     embedding_dim = 384
@@ -42,8 +51,9 @@ def main(num_epochs=EPOCHS, batch_size=BATCH_SIZE, lambda_delta=LAMBDA_DELTA, la
 
     # Training loop
     for epoch in range(num_epochs):
+        transfer_net.train()
         running_loss = 0.0
-        for i, (selfie_emb, dog_emb) in enumerate(dataloader):
+        for i, (selfie_emb, dog_emb) in enumerate(train_dataloader):
             selfie_emb, dog_emb = selfie_emb.to(device), dog_emb.to(device)
 
             optimizer.zero_grad()
@@ -70,6 +80,17 @@ def main(num_epochs=EPOCHS, batch_size=BATCH_SIZE, lambda_delta=LAMBDA_DELTA, la
 
             running_loss += loss.item()
 
-        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss/len(dataloader):.4f}")
+        print(f"Epoch [{epoch+1}/{num_epochs}], Training Loss: {running_loss/len(train_dataloader):.4f}")
+
+        # Validation
+        transfer_net.eval()
+        val_loss = 0.0
+        with torch.no_grad():
+            for selfie_emb, dog_emb in test_dataloader:
+                selfie_emb, dog_emb = selfie_emb.to(device), dog_emb.to(device)
+                outputs = transfer_net(selfie_emb)
+                val_loss += criterion(outputs, dog_emb).item()
+
+        print(f"Epoch [{epoch+1}/{num_epochs}], Validation Loss: {val_loss/len(test_dataloader):.4f}")
 
     return transfer_net
