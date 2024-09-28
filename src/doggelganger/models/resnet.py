@@ -1,29 +1,41 @@
 import torch
 import torch.nn as nn
 from doggelganger.models.base import BaseModel
+from tqdm import tqdm
 
-class MinimalPerturbationNetwork(nn.Module):
-    def __init__(self, embedding_dim):
-        super(MinimalPerturbationNetwork, self).__init__()
-        self.fc1 = nn.Linear(embedding_dim, embedding_dim)
-        self.fc2 = nn.Linear(embedding_dim, embedding_dim)
-        
-        # Initialize weights close to identity and biases to zero
-        nn.init.eye_(self.fc1.weight)
-        nn.init.zeros_(self.fc1.bias)
-        nn.init.eye_(self.fc2.weight)
-        nn.init.zeros_(self.fc2.bias)
-        
+class ResidualBlock(nn.Module):
+    def __init__(self, dim):
+        super(ResidualBlock, self).__init__()
+        self.fc1 = nn.Linear(dim, dim)
+        self.fc2 = nn.Linear(dim, dim)
         self.relu = nn.ReLU()
 
     def forward(self, x):
         residual = self.relu(self.fc1(x))
-        return x + self.fc2(residual)  # Residual connection
+        return x + self.fc2(residual)
+
+class MinimalPerturbationNetwork(nn.Module):
+    def __init__(self, embedding_dim, num_blocks=3):
+        super(MinimalPerturbationNetwork, self).__init__()
+        self.blocks = nn.ModuleList([ResidualBlock(embedding_dim) for _ in range(num_blocks)])
+        self.init_weights()
+
+    def forward(self, x):
+        for block in self.blocks:
+            x = block(x)
+        return x
+
+    def init_weights(self):
+        for name, param in self.named_parameters():
+            if 'weight' in name:
+                nn.init.normal_(param, mean=0, std=1e-3)  # Very small initial weights
+            elif 'bias' in name:
+                nn.init.constant_(param, 0)
 
 class ResNetModel(BaseModel):
     def __init__(self):
         self.model = MinimalPerturbationNetwork(384)  # Assuming DinoV2 embedding size
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
         self.model.to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
         self.criterion = nn.MSELoss()
@@ -37,7 +49,7 @@ class ResNetModel(BaseModel):
         lambda_delta = 0.1
         lambda_ortho = 0.1
 
-        for epoch in range(num_epochs):
+        for epoch in tqdm(range(num_epochs)):
             for i in range(0, len(X), batch_size):
                 batch_X = X[i:i+batch_size]
                 batch_y = y[i:i+batch_size]
