@@ -9,7 +9,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from doggelganger.utils import get_embedding, load_model as load_embedding_model
-from doggelganger.models import LinearRegressionModel, XGBoostModel
+from doggelganger.models import LinearRegressionModel, XGBoostModel, ResNetModel
 
 # Set up logging
 logging.basicConfig(
@@ -182,7 +182,7 @@ def main():
     parser.add_argument(
         "--model",
         type=str,
-        choices=["linear", "xgboost"],
+        choices=["linear", "xgboost", "resnet"],
         default="linear",
         help="Model type to use (default: linear)",
     )
@@ -194,7 +194,11 @@ def main():
     )
     args = parser.parse_args()
 
-    model_classes = {"linear": LinearRegressionModel, "xgboost": XGBoostModel}
+    model_classes = {
+        "linear": LinearRegressionModel,
+        "xgboost": XGBoostModel,
+        "resnet": ResNetModel
+    }
 
     model_class = model_classes[args.model]
 
