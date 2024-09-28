@@ -2,7 +2,6 @@ import numpy as np
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error, r2_score, pairwise_distances
 from sklearn.linear_model import LinearRegression
-from xgboost import XGBRegressor
 import json
 import os
 import argparse
@@ -10,7 +9,10 @@ from pathlib import Path
 from tqdm import tqdm
 from abc import ABC, abstractmethod
 
-from doggelganger.utils import load_model, get_embedding
+from doggelganger.utils import get_embedding, load_model as load_embedding_model
+
+# had to move this import down here to prevent breaking `transformers.pipeline`
+from xgboost import XGBRegressor
 
 
 class BaseModel(ABC):
@@ -103,7 +105,7 @@ def make_training_data(data_dir):
         - Image pairs should have the same filename in both 'human' and 'animal' subdirectories.
         - Skips image pairs where embedding generation fails for either the human or animal image.
     """
-    pipe = load_model()
+    pipe = load_embedding_model()
     X = []
     y = []
 
@@ -174,14 +176,15 @@ def print_model_stats(model, X_train, y_train, X_test, y_test):
     test_r2 = r2_score(y_test, y_test_pred)
 
     print("\nModel Statistics:")
-    print(f"Number of training samples: {X_train.shape[0]}")
-    print(f"Number of test samples: {X_test.shape[0]}")
-    print(f"Training Mean Squared Error: {train_mse:.4f}")
-    print(f"Training R-squared Score: {train_r2:.4f}")
-    print(f"Test Mean Squared Error: {test_mse:.4f}")
-    print(f"Test R-squared Score: {test_r2:.4f}")
-    print(f"Coefficient shape: {model.coef_.shape}")
-    print(f"Intercept shape: {model.intercept_.shape}")
+    print(f"  Number of training samples: {X_train.shape[0]}")
+    print(f"  Number of test samples: {X_test.shape[0]}")
+    print(f"  Training Mean Squared Error: {train_mse:.4f}")
+    print(f"  Training R-squared Score: {train_r2:.4f}")
+    print(f"  Test Mean Squared Error: {test_mse:.4f}")
+    print(f"  Test R-squared Score: {test_r2:.4f}")
+    if isinstance(model.model, LinearRegression):
+        print(f"Coefficient shape: {model.model.coef_.shape}")
+        print(f"Intercept shape: {model.model.intercept_.shape}")
 
     # Accuracy check using cosine similarity
     all_y = np.vstack((y_train, y_test))
@@ -220,6 +223,7 @@ def main():
     parser = argparse.ArgumentParser(description="Train the alignment model for Doggelganger")
     parser.add_argument("--seed", type=int, default=1337, help="Random seed for k-fold split (default: 1337)")
     parser.add_argument("--model", type=str, choices=['linear', 'xgboost'], default='linear', help="Model type to use (default: linear)")
+    parser.add_argument("--save", type=bool or str, default=False, help="Saves model to /model/path (default: false)")
     args = parser.parse_args()
 
     model_classes = {
@@ -273,20 +277,22 @@ def main():
 
         # Print average statistics across all folds
         print("\nAverage Statistics Across All Folds:")
-        print(f"Average Training MSE: {np.mean(train_mse_list):.4f} (±{np.std(train_mse_list):.4f})")
-        print(f"Average Training R-squared: {np.mean(train_r2_list):.4f} (±{np.std(train_r2_list):.4f})")
-        print(f"Average Test MSE: {np.mean(test_mse_list):.4f} (±{np.std(test_mse_list):.4f})")
-        print(f"Average Test R-squared: {np.mean(test_r2_list):.4f} (±{np.std(test_r2_list):.4f})")
-        print(f"Average Top-1 Accuracy: {np.mean(top1_acc_list):.4f} (±{np.std(top1_acc_list):.4f})")
-        print(f"Average Top-3 Accuracy: {np.mean(top3_acc_list):.4f} (±{np.std(top3_acc_list):.4f})")
-        print(f"Average Top-10 Accuracy: {np.mean(top10_acc_list):.4f} (±{np.std(top10_acc_list):.4f})")
+        print(f"  Training MSE: {np.mean(train_mse_list):.4f} (±{np.std(train_mse_list):.4f})")
+        print(f"  Training R-squared: {np.mean(train_r2_list):.4f} (±{np.std(train_r2_list):.4f})")
+        print(f"  Test MSE: {np.mean(test_mse_list):.4f} (±{np.std(test_mse_list):.4f})")
+        print(f"  Test R-squared: {np.mean(test_r2_list):.4f} (±{np.std(test_r2_list):.4f})")
+        print(f"  Top-1 Accuracy: {np.mean(top1_acc_list):.4f} (±{np.std(top1_acc_list):.4f})")
+        print(f"  Top-3 Accuracy: {np.mean(top3_acc_list):.4f} (±{np.std(top3_acc_list):.4f})")
+        print(f"  Top-10 Accuracy: {np.mean(top10_acc_list):.4f} (±{np.std(top10_acc_list):.4f})")
 
         # Save the best alignment model
-        best_model.save(f"weights/alignment_model_{args.model}.json")
+        if args.save:
+            model_path = args.save if isinstance(args.save, str) else f"weights/alignment_model_{args.model}.json"
+            best_model.save(model_path)
 
-        print(f"\nBest alignment model trained and saved. Used {len(X)} image pairs.")
-        print(f"Best model R-squared score: {best_score:.4f}")
-        print("This model now aligns human embeddings to animal embeddings.")
+            print(f"\nBest alignment model trained and saved. Used {len(X)} image pairs.")
+            print(f"Best model R-squared score: {best_score:.4f}")
+            print("This model now aligns human embeddings to animal embeddings.")
     except Exception as e:
         print(f"An error occurred during the training process: {str(e)}")
 
