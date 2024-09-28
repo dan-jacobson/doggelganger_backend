@@ -1,6 +1,7 @@
 import numpy as np
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error, r2_score, pairwise_distances
+from sklearn.linear_model import LinearRegression
 import os
 import argparse
 from pathlib import Path
