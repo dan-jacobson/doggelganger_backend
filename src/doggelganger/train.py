@@ -1,85 +1,13 @@
 import numpy as np
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error, r2_score, pairwise_distances
-from sklearn.linear_model import LinearRegression
-import json
 import os
 import argparse
 from pathlib import Path
 from tqdm import tqdm
-from abc import ABC, abstractmethod
 
 from doggelganger.utils import get_embedding, load_model as load_embedding_model
-
-# had to move this import down here to prevent breaking `transformers.pipeline`
-from xgboost import XGBRegressor
-
-
-class BaseModel(ABC):
-    @abstractmethod
-    def fit(self, X, y):
-        pass
-
-    @abstractmethod
-    def predict(self, X):
-        pass
-
-    @abstractmethod
-    def save(self, path):
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def load(path):
-        pass
-
-
-class LinearRegressionModel(BaseModel):
-    def __init__(self):
-        self.model = LinearRegression()
-
-    def fit(self, X, y):
-        self.model.fit(X, y)
-
-    def predict(self, X):
-        return self.model.predict(X)
-
-    def save(self, path):
-        model_params = {
-            "coef": self.model.coef_.tolist(),
-            "intercept": self.model.intercept_.tolist(),
-        }
-        with open(path, "w") as f:
-            json.dump(model_params, f)
-
-    @staticmethod
-    def load(path):
-        with open(path, "r") as f:
-            model_params = json.load(f)
-        model = LinearRegressionModel()
-        model.model.coef_ = np.array(model_params["coef"])
-        model.model.intercept_ = np.array(model_params["intercept"])
-        return model
-
-
-class XGBoostModel(BaseModel):
-    def __init__(self):
-        self.model = XGBRegressor()
-
-    def fit(self, X, y):
-        self.model.fit(X, y)
-
-    def predict(self, X):
-        return self.model.predict(X)
-
-    def save(self, path):
-        self.model.save_model(path)
-
-    @staticmethod
-    def load(path):
-        model = XGBoostModel()
-        model.model.load_model(path)
-        return model
+from doggelganger.models.regression_models import LinearRegressionModel, XGBoostModel
 
 
 def make_training_data(data_dir):
