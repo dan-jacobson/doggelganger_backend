@@ -1,0 +1,3 @@
+from doggelganger.models.base import BaseModel as BaseModel
+from doggelganger.models.linear import LinearRegressionModel as LinearRegressionModel
+from doggelganger.models.xgb import XGBoostModel as XGBoostModel

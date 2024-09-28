@@ -6,13 +6,15 @@ import os
 import argparse
 import logging
 from pathlib import Path
-from tqdm import tqdm, trange
+from tqdm import tqdm
 
 from doggelganger.utils import get_embedding, load_model as load_embedding_model
 from doggelganger.models import LinearRegressionModel, XGBoostModel
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 
@@ -103,67 +105,96 @@ def print_model_stats(model, X_train, y_train, X_test, y_test):
     """
     y_train_pred = model.predict(X_train)
     y_test_pred = model.predict(X_test)
-    
+
     train_mse = mean_squared_error(y_train, y_train_pred)
     train_r2 = r2_score(y_train, y_train_pred)
     test_mse = mean_squared_error(y_test, y_test_pred)
     test_r2 = r2_score(y_test, y_test_pred)
 
-    logger.debug("\nModel Statistics:")
-    logger.debug(f"  Number of training samples: {X_train.shape[0]}")
-    logger.debug(f"  Number of test samples: {X_test.shape[0]}")
-    logger.debug(f"  Training Mean Squared Error: {train_mse:.4f}")
-    logger.debug(f"  Training R-squared Score: {train_r2:.4f}")
-    logger.debug(f"  Test Mean Squared Error: {test_mse:.4f}")
-    logger.debug(f"  Test R-squared Score: {test_r2:.4f}")
+    logger.debug(
+        "\nModel Statistics:\n"
+        f"  Number of training samples: {X_train.shape[0]}\n"
+        f"  Number of test samples: {X_test.shape[0]}\n"
+        f"  Training Mean Squared Error: {train_mse:.4f}\n"
+        f"  Training R-squared Score: {train_r2:.4f}\n"
+        f"  Test Mean Squared Error: {test_mse:.4f}\n"
+        f"  Test R-squared Score: {test_r2:.4f}"
+    )
     if isinstance(model.model, LinearRegression):
-        logger.debug(f"Coefficient shape: {model.model.coef_.shape}")
-        logger.debug(f"Intercept shape: {model.model.intercept_.shape}")
+        logger.debug(
+            f"  Coefficient shape: {model.model.coef_.shape}\n"
+            f"  Intercept shape: {model.model.intercept_.shape}"
+        )
 
     # Accuracy check using cosine similarity
     all_y = np.vstack((y_train, y_test))
     preds = model.predict(X_test)
-    
+
     # Calculate cosine similarities
-    cosine_similarities = 1 - pairwise_distances(preds, all_y, metric='cosine')
-    
+    cosine_similarities = 1 - pairwise_distances(preds, all_y, metric="cosine")
+
     # Calculate top-k accuracies
     n_test = len(y_test)
     correct_indices = np.arange(len(y_train), len(y_train) + n_test)
-    
+
     top1_accuracy = np.mean(np.argmax(cosine_similarities, axis=1) == correct_indices)
-    top3_accuracy = np.mean([np.isin(correct_indices[i], indices[:3]).any() 
-                             for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))])
-    top10_accuracy = np.mean([np.isin(correct_indices[i], indices[:10]).any() 
-                              for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))])
-    
-    logger.debug("\nAccuracy using Cosine Similarity:")
-    logger.debug(f"Top-1 Accuracy: {top1_accuracy:.4f}")
-    logger.debug(f"Top-3 Accuracy: {top3_accuracy:.4f}")
-    logger.debug(f"Top-10 Accuracy: {top10_accuracy:.4f}")
+    top3_accuracy = np.mean(
+        [
+            np.isin(correct_indices[i], indices[:3]).any()
+            for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))
+        ]
+    )
+    top10_accuracy = np.mean(
+        [
+            np.isin(correct_indices[i], indices[:10]).any()
+            for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))
+        ]
+    )
+
+    logger.debug(
+        "\nAccuracy using Cosine Similarity:\n"
+        f"Top-1 Accuracy: {top1_accuracy:.4f}\n"
+        f"Top-3 Accuracy: {top3_accuracy:.4f}\n"
+        f"Top-10 Accuracy: {top10_accuracy:.4f}"
+    )
 
     return {
-        'train_mse': train_mse,
-        'train_r2': train_r2,
-        'test_mse': test_mse,
-        'test_r2': test_r2,
-        'top1_accuracy': top1_accuracy,
-        'top3_accuracy': top3_accuracy,
-        'top10_accuracy': top10_accuracy
+        "train_mse": train_mse,
+        "train_r2": train_r2,
+        "test_mse": test_mse,
+        "test_r2": test_r2,
+        "top1_accuracy": top1_accuracy,
+        "top3_accuracy": top3_accuracy,
+        "top10_accuracy": top10_accuracy,
     }
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Train the alignment model for Doggelganger")
-    parser.add_argument("--seed", type=int, default=1337, help="Random seed for k-fold split (default: 1337)")
-    parser.add_argument("--model", type=str, choices=['linear', 'xgboost'], default='linear', help="Model type to use (default: linear)")
-    parser.add_argument("--save", type=bool or str, default=False, help="Saves model to /model/path (default: false)")
+    parser = argparse.ArgumentParser(
+        description="Train the alignment model for Doggelganger"
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=1337,
+        help="Random seed for k-fold split (default: 1337)",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        choices=["linear", "xgboost"],
+        default="linear",
+        help="Model type to use (default: linear)",
+    )
+    parser.add_argument(
+        "--save",
+        type=bool or str,
+        default=False,
+        help="Saves model to /model/path (default: false)",
+    )
     args = parser.parse_args()
 
-    model_classes = {
-        'linear': LinearRegressionModel,
-        'xgboost': XGBoostModel
-    }
+    model_classes = {"linear": LinearRegressionModel, "xgboost": XGBoostModel}
 
     model_class = model_classes[args.model]
 
@@ -176,14 +207,16 @@ def main():
         kf = KFold(n_splits=n_splits, shuffle=True, random_state=args.seed)
 
         best_model = None
-        best_score = float('-inf')
+        best_score = float("-inf")
 
         # Lists to store statistics for each fold
         train_mse_list, train_r2_list = [], []
         test_mse_list, test_r2_list = [], []
         top1_acc_list, top3_acc_list, top10_acc_list = [], [], []
 
-        for fold, (train_index, test_index) in tqdm(enumerate(kf.split(X), 1), total=n_splits, desc="Processing folds"):
+        for fold, (train_index, test_index) in tqdm(
+            enumerate(kf.split(X), 1), total=n_splits, desc="Processing folds"
+        ):
             logger.debug(f"\nFold {fold}/{n_splits}")
             X_train, X_test = X[train_index], X[test_index]
             y_train, y_test = y[train_index], y[test_index]
@@ -193,38 +226,46 @@ def main():
 
             # Print model statistics and get the values
             stats = print_model_stats(model, X_train, y_train, X_test, y_test)
-            
+
             # Append statistics to lists
-            train_mse_list.append(stats['train_mse'])
-            train_r2_list.append(stats['train_r2'])
-            test_mse_list.append(stats['test_mse'])
-            test_r2_list.append(stats['test_r2'])
-            top1_acc_list.append(stats['top1_accuracy'])
-            top3_acc_list.append(stats['top3_accuracy'])
-            top10_acc_list.append(stats['top10_accuracy'])
+            train_mse_list.append(stats["train_mse"])
+            train_r2_list.append(stats["train_r2"])
+            test_mse_list.append(stats["test_mse"])
+            test_r2_list.append(stats["test_r2"])
+            top1_acc_list.append(stats["top1_accuracy"])
+            top3_acc_list.append(stats["top3_accuracy"])
+            top10_acc_list.append(stats["top10_accuracy"])
 
             # Save the best model based on test R-squared score
-            if stats['test_r2'] > best_score:
-                best_score = stats['test_r2']
+            if stats["test_r2"] > best_score:
+                best_score = stats["test_r2"]
                 best_model = model
                 logger.info(f"New best model found (R-squared: {best_score:.4f})")
 
         # Print average statistics across all folds
-        logger.info("\nAverage Statistics Across All Folds:\n"
-                    f"  Training MSE: {np.mean(train_mse_list):.4f} (±{np.std(train_mse_list):.4f})\n"
-                    f"  Training R-squared: {np.mean(train_r2_list):.4f} (±{np.std(train_r2_list):.4f})\n"
-                    f"  Test MSE: {np.mean(test_mse_list):.4f} (±{np.std(test_mse_list):.4f})\n"
-                    f"  Test R-squared: {np.mean(test_r2_list):.4f} (±{np.std(test_r2_list):.4f})\n"
-                    f"  Top-1 Accuracy: {np.mean(top1_acc_list):.4f} (±{np.std(top1_acc_list):.4f})\n"
-                    f"  Top-3 Accuracy: {np.mean(top3_acc_list):.4f} (±{np.std(top3_acc_list):.4f})\n"
-                    f"  Top-10 Accuracy: {np.mean(top10_acc_list):.4f} (±{np.std(top10_acc_list):.4f})")
+        logger.info(
+            "\nAverage Statistics Across All Folds:\n"
+            f"  Training MSE: {np.mean(train_mse_list):.4f} (±{np.std(train_mse_list):.4f})\n"
+            f"  Training R-squared: {np.mean(train_r2_list):.4f} (±{np.std(train_r2_list):.4f})\n"
+            f"  Test MSE: {np.mean(test_mse_list):.4f} (±{np.std(test_mse_list):.4f})\n"
+            f"  Test R-squared: {np.mean(test_r2_list):.4f} (±{np.std(test_r2_list):.4f})\n"
+            f"  Top-1 Accuracy: {np.mean(top1_acc_list):.4f} (±{np.std(top1_acc_list):.4f})\n"
+            f"  Top-3 Accuracy: {np.mean(top3_acc_list):.4f} (±{np.std(top3_acc_list):.4f})\n"
+            f"  Top-10 Accuracy: {np.mean(top10_acc_list):.4f} (±{np.std(top10_acc_list):.4f})"
+        )
 
         # Save the best alignment model
         if args.save:
-            model_path = args.save if isinstance(args.save, str) else f"weights/alignment_model_{args.model}.json"
+            model_path = (
+                args.save
+                if isinstance(args.save, str)
+                else f"weights/alignment_model_{args.model}.json"
+            )
             best_model.save(model_path)
 
-            logger.info(f"\nBest alignment model trained and saved. Used {len(X)} image pairs.")
+            logger.info(
+                f"\nBest alignment model trained and saved. Used {len(X)} image pairs."
+            )
             logger.info(f"Best model R-squared score: {best_score:.4f}")
             logger.info("This model now aligns human embeddings to animal embeddings.")
     except Exception as e:

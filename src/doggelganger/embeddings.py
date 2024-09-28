@@ -13,6 +13,7 @@ from doggelganger.utils import load_model, get_embedding
 load_dotenv()
 DB_CONNECTION = os.getenv("SUPABASE_DB")
 
+
 def generate_id(metadata):
     # Create a unique ID based on the dog's name and breed
     id_string = f"{metadata['adoption_link']}"
