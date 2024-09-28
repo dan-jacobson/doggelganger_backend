@@ -217,7 +217,7 @@ def main():
     try:
         city_items = cities.items()
         random.shuffle(city_items)
-        for city, city_url in cities_items:
+        for city, city_url in city_items:
             print(f"Scraping dogs from {city}")
             page = 1
             empty_pages = 0
