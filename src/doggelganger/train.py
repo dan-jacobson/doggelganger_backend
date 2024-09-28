@@ -6,7 +6,7 @@ import os
 import argparse
 import logging
 from pathlib import Path
-from tqdm import tqdm
+from tqdm import tqdm, trange
 
 from doggelganger.utils import get_embedding, load_model as load_embedding_model
 from doggelganger.models import LinearRegressionModel, XGBoostModel
@@ -109,16 +109,16 @@ def print_model_stats(model, X_train, y_train, X_test, y_test):
     test_mse = mean_squared_error(y_test, y_test_pred)
     test_r2 = r2_score(y_test, y_test_pred)
 
-    logger.info("\nModel Statistics:")
-    logger.info(f"  Number of training samples: {X_train.shape[0]}")
-    logger.info(f"  Number of test samples: {X_test.shape[0]}")
-    logger.info(f"  Training Mean Squared Error: {train_mse:.4f}")
-    logger.info(f"  Training R-squared Score: {train_r2:.4f}")
-    logger.info(f"  Test Mean Squared Error: {test_mse:.4f}")
-    logger.info(f"  Test R-squared Score: {test_r2:.4f}")
+    logger.debug("\nModel Statistics:")
+    logger.debug(f"  Number of training samples: {X_train.shape[0]}")
+    logger.debug(f"  Number of test samples: {X_test.shape[0]}")
+    logger.debug(f"  Training Mean Squared Error: {train_mse:.4f}")
+    logger.debug(f"  Training R-squared Score: {train_r2:.4f}")
+    logger.debug(f"  Test Mean Squared Error: {test_mse:.4f}")
+    logger.debug(f"  Test R-squared Score: {test_r2:.4f}")
     if isinstance(model.model, LinearRegression):
-        logger.info(f"Coefficient shape: {model.model.coef_.shape}")
-        logger.info(f"Intercept shape: {model.model.intercept_.shape}")
+        logger.debug(f"Coefficient shape: {model.model.coef_.shape}")
+        logger.debug(f"Intercept shape: {model.model.intercept_.shape}")
 
     # Accuracy check using cosine similarity
     all_y = np.vstack((y_train, y_test))
@@ -137,10 +137,10 @@ def print_model_stats(model, X_train, y_train, X_test, y_test):
     top10_accuracy = np.mean([np.isin(correct_indices[i], indices[:10]).any() 
                               for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))])
     
-    logger.info("\nAccuracy using Cosine Similarity:")
-    logger.info(f"Top-1 Accuracy: {top1_accuracy:.4f}")
-    logger.info(f"Top-3 Accuracy: {top3_accuracy:.4f}")
-    logger.info(f"Top-10 Accuracy: {top10_accuracy:.4f}")
+    logger.debug("\nAccuracy using Cosine Similarity:")
+    logger.debug(f"Top-1 Accuracy: {top1_accuracy:.4f}")
+    logger.debug(f"Top-3 Accuracy: {top3_accuracy:.4f}")
+    logger.debug(f"Top-10 Accuracy: {top10_accuracy:.4f}")
 
     return {
         'train_mse': train_mse,
@@ -183,8 +183,8 @@ def main():
         test_mse_list, test_r2_list = [], []
         top1_acc_list, top3_acc_list, top10_acc_list = [], [], []
 
-        for fold, (train_index, test_index) in enumerate(kf.split(X), 1):
-            logger.info(f"\nFold {fold}/{n_splits}")
+        for fold, (train_index, test_index) in tqdm(enumerate(kf.split(X), 1), total=n_splits, desc="Processing folds"):
+            logger.debug(f"\nFold {fold}/{n_splits}")
             X_train, X_test = X[train_index], X[test_index]
             y_train, y_test = y[train_index], y[test_index]
 
