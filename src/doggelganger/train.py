@@ -210,14 +210,14 @@ def main():
                 logger.info(f"New best model found (R-squared: {best_score:.4f})")
 
         # Print average statistics across all folds
-        logger.info("\nAverage Statistics Across All Folds:")
-        logger.info(f"  Training MSE: {np.mean(train_mse_list):.4f} (±{np.std(train_mse_list):.4f})")
-        logger.info(f"  Training R-squared: {np.mean(train_r2_list):.4f} (±{np.std(train_r2_list):.4f})")
-        logger.info(f"  Test MSE: {np.mean(test_mse_list):.4f} (±{np.std(test_mse_list):.4f})")
-        logger.info(f"  Test R-squared: {np.mean(test_r2_list):.4f} (±{np.std(test_r2_list):.4f})")
-        logger.info(f"  Top-1 Accuracy: {np.mean(top1_acc_list):.4f} (±{np.std(top1_acc_list):.4f})")
-        logger.info(f"  Top-3 Accuracy: {np.mean(top3_acc_list):.4f} (±{np.std(top3_acc_list):.4f})")
-        logger.info(f"  Top-10 Accuracy: {np.mean(top10_acc_list):.4f} (±{np.std(top10_acc_list):.4f})")
+        logger.info("\nAverage Statistics Across All Folds:\n"
+                    f"  Training MSE: {np.mean(train_mse_list):.4f} (±{np.std(train_mse_list):.4f})\n"
+                    f"  Training R-squared: {np.mean(train_r2_list):.4f} (±{np.std(train_r2_list):.4f})\n"
+                    f"  Test MSE: {np.mean(test_mse_list):.4f} (±{np.std(test_mse_list):.4f})\n"
+                    f"  Test R-squared: {np.mean(test_r2_list):.4f} (±{np.std(test_r2_list):.4f})\n"
+                    f"  Top-1 Accuracy: {np.mean(top1_acc_list):.4f} (±{np.std(top1_acc_list):.4f})\n"
+                    f"  Top-3 Accuracy: {np.mean(top3_acc_list):.4f} (±{np.std(top3_acc_list):.4f})\n"
+                    f"  Top-10 Accuracy: {np.mean(top10_acc_list):.4f} (±{np.std(top10_acc_list):.4f})")
 
         # Save the best alignment model
         if args.save:
