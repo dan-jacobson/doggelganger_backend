@@ -2,12 +2,15 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader, random_split
+from torch.utils.tensorboard import SummaryWriter
+import os
+from datetime import datetime
 
 from doggelganger.utils import get_embedding, load_model as load_embedding_model
 from doggelganger.train import make_training_data
 from doggelganger.models.resnet import MinimalPerturbationNetwork
 
-EPOCHS = 10
+EPOCHS = 100
 BATCH_SIZE = 32
 LAMBDA_DELTA = 0.1
 LAMBDA_ORTHO = 0.1
@@ -26,6 +29,11 @@ class EmbeddingDataset(Dataset):
 
 def main(num_epochs=EPOCHS, batch_size=BATCH_SIZE, lambda_delta=LAMBDA_DELTA, lambda_ortho=LAMBDA_ORTHO, test_size=TEST_SIZE):
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+
+    # Set up TensorBoard
+    current_time = datetime.now().strftime('%b%d_%H-%M-%S')
+    log_dir = os.path.join('runs', current_time)
+    writer = SummaryWriter(log_dir)
 
     X, y = make_training_data("/data/train")
 
@@ -80,7 +88,9 @@ def main(num_epochs=EPOCHS, batch_size=BATCH_SIZE, lambda_delta=LAMBDA_DELTA, la
 
             running_loss += loss.item()
 
-        print(f"Epoch [{epoch+1}/{num_epochs}], Training Loss: {running_loss/len(train_dataloader):.4f}")
+        avg_train_loss = running_loss / len(train_dataloader)
+        print(f"Epoch [{epoch+1}/{num_epochs}], Training Loss: {avg_train_loss:.4f}")
+        writer.add_scalar('Loss/train', avg_train_loss, epoch)
 
         # Validation
         transfer_net.eval()
@@ -91,8 +101,11 @@ def main(num_epochs=EPOCHS, batch_size=BATCH_SIZE, lambda_delta=LAMBDA_DELTA, la
                 outputs = transfer_net(selfie_emb)
                 val_loss += criterion(outputs, dog_emb).item()
 
-        print(f"Epoch [{epoch+1}/{num_epochs}], Validation Loss: {val_loss/len(test_dataloader):.4f}")
+        avg_val_loss = val_loss / len(test_dataloader)
+        print(f"Epoch [{epoch+1}/{num_epochs}], Validation Loss: {avg_val_loss:.4f}")
+        writer.add_scalar('Loss/validation', avg_val_loss, epoch)
 
+    writer.close()
     return transfer_net
 
 if __name__=="__main__":
