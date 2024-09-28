@@ -94,3 +94,6 @@ def main(num_epochs=EPOCHS, batch_size=BATCH_SIZE, lambda_delta=LAMBDA_DELTA, la
         print(f"Epoch [{epoch+1}/{num_epochs}], Validation Loss: {val_loss/len(test_dataloader):.4f}")
 
     return transfer_net
+
+if __name__=="__main__":
+    main()
