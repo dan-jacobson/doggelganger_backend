@@ -5,7 +5,7 @@ from ray import tune
 from ray.train import RunConfig, report
 from ray.tune.schedulers import ASHAScheduler
 
-from doggelganger.train import make_training_data
+from doggelganger.train import make_training_data, calculate_accuracies
 from doggelganger.models.resnet import ResNetModel
 
 
@@ -29,13 +29,14 @@ def train_model(config, X, y):
         num_blocks, learning_rate, lambda_delta, lambda_ortho, init_method=init_method
     )
 
-    def log_metrics(epoch, loss, accuracies):
+    def log_metrics(epoch, loss, y, preds):
+        top1_accuracy, top3_accuracy, top10_accuracy = calculate_accuracies(y, preds)
         report(
             {
                 "loss": loss,
-                "top1_accuracy": accuracies[0],
-                "top3_accuracy": accuracies[1],
-                "top10_accuracy": accuracies[2],
+                "top1_accuracy": top1_accuracy,
+                "top3_accuracy": top3_accuracy,
+                "top10_accuracy": top10_accuracy,
             }
         )
 
@@ -45,23 +46,7 @@ def train_model(config, X, y):
     preds = model.predict(X_test)
 
     # Calculate accuracies
-    all_y = np.vstack((y_train, y_test))
-    cosine_similarities = 1 - pairwise_distances(preds, all_y, metric="cosine")
-    correct_indices = np.arange(len(y_train), len(y_train) + len(y_test))
-
-    top1_accuracy = np.mean(np.argmax(cosine_similarities, axis=1) == correct_indices)
-    top3_accuracy = np.mean(
-        [
-            np.isin(correct_indices[i], indices[:3]).any()
-            for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))
-        ]
-    )
-    top10_accuracy = np.mean(
-        [
-            np.isin(correct_indices[i], indices[:10]).any()
-            for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))
-        ]
-    )
+    top1_accuracy, top3_accuracy, top10_accuracy = calculate_accuracies(y_test, preds)
 
     # Blended score (gotta play with these weights)
     blended_score = 0.5 * top1_accuracy + 0.3 * top3_accuracy + 0.2 * top10_accuracy
