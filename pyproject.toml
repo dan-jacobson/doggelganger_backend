@@ -36,6 +36,7 @@ dev-dependencies = [
     "pytest-mock>=3.14.0",
     "pytest>=8.3.3",
     "python-dotenv>=1.0.1",
+    "ray[tune]>=2.37.0",
     "ruff>=0.6.5",
     "selenium>=4.25.0",
     "tensorboard>=2.18.0",

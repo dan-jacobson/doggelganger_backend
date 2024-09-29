@@ -28,3 +28,4 @@ scripts/
 supabase/
 *.Dockerfile
 tests/
+ray_results/

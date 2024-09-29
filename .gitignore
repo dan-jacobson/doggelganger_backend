@@ -27,3 +27,6 @@ __pycache__/
 
 # weights dir
 weights/
+
+# ray dir
+ray_results/
