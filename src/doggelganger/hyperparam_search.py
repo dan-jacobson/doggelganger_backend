@@ -10,7 +10,7 @@ from doggelganger.train import make_training_data
 from doggelganger.models.resnet import ResNetModel
 
 
-def train_model(config):
+def train_model(config, X, y):
     # Hyperparameters
     num_blocks = config["num_blocks"]
     learning_rate = config["learning_rate"]
@@ -87,7 +87,7 @@ def hyperparameter_search(X, y, num_samples=10, max_num_epochs=200):
     scheduler = ASHAScheduler(max_t=max_num_epochs, grace_period=2, reduction_factor=2)
 
     tuner = tune.Tuner(
-        partial(train_model, X=X, y=y),
+        tune.with_parameters(train_model, X=X, y=y),
         tune_config=tune.TuneConfig(
             metric="blended_score",
             mode="max",
