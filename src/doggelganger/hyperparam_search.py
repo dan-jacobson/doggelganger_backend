@@ -3,6 +3,9 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import pairwise_distances
 
+from doggelganger.models.resnet import ResNetModel
+from doggelganger.train import make_training_data
+
 def objective(trial, model_class, X, y):
     # Hyperparameters to optimize
     num_blocks = trial.suggest_int("num_blocks", 2, 5)
@@ -56,3 +59,9 @@ def hyperparameter_search(model_class, X, y, n_trials=100):
         batch_size=best_params["batch_size"],
     )
     return best_model, best_params
+
+def main():
+    X, y = make_training_data('data/train')
+
+    hyperparameter_search(ResNetModel, X, y, n_trials=50)
+    

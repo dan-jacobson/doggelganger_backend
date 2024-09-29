@@ -86,12 +86,8 @@ def train_model(model_class, X, y):
             "No matching embeddings found between human and animal datasets"
         )
 
-    if model_class == ResNetModel:
-        model, best_params = hyperparameter_search(model_class, X, y)
-        logger.info(f"Best hyperparameters found: {best_params}")
-    else:
-        model = model_class()
-        model.fit(X, y)
+    model = model_class()
+    model.fit(X, y)
     return model
 
 

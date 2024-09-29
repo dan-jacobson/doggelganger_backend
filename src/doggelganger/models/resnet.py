@@ -30,10 +30,8 @@ class MinimalPerturbationNetwork(nn.Module):
 
         if init_method == 'default':
             self.init_weights()
-        elif init_method == 'dan':
-            self.init_weights_dan()
-        elif init_method == 'he_with_scale':
-            self.init_weights_he_with_scale()
+        elif init_method == 'he':
+            self.init_weights_he_with_scale(scale=0.1)
         elif init_method == 'fixup':
             self.init_weights_fixup()
         elif init_method == 'lsuv':
@@ -53,14 +51,7 @@ class MinimalPerturbationNetwork(nn.Module):
             elif "bias" in name:
                 nn.init.constant_(param, 0)
 
-    def init_weights_dan(self):
-        for name, param in self.named_parameters():
-            if 'weight' in name:
-                nn.init.orthogonal_(param)
-            elif 'bias' in name:
-                nn.init.constant_(param, 0)
-
-    def init_weights_he_with_scale(self):
+    def init_weights_he_with_scale(self, scale=0.1):
         for m in self.modules():
             if isinstance(m, nn.Linear):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
@@ -70,7 +61,7 @@ class MinimalPerturbationNetwork(nn.Module):
         with torch.no_grad():
             for name, param in self.named_parameters():
                 if 'weight' in name:
-                    param.div_(10)  # Divide weights by 10
+                    param.mul_(scale) # Scale the weights
 
     def init_weights_fixup(self):
         for m in self.modules():
@@ -107,7 +98,6 @@ class ResNetModel(BaseModel):
         self.model.to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
         self.criterion = nn.MSELoss()
-        self.writer = SummaryWriter()
         self.lambda_delta = lambda_delta
         self.lambda_ortho = lambda_ortho
 
@@ -146,21 +136,9 @@ class ResNetModel(BaseModel):
                 loss.backward()
                 self.optimizer.step()
 
-                # Log metrics
-                self.writer.add_scalar("Loss/total", loss.item(), global_step)
-                self.writer.add_scalar("Loss/main", loss_main.item(), global_step)
-                self.writer.add_scalar("Loss/delta", loss_delta.item(), global_step)
-                self.writer.add_scalar("Loss/ortho", loss_ortho.item(), global_step)
-
                 epoch_loss += loss.item()
                 global_step += 1
 
-            # Log epoch average loss
-            self.writer.add_scalar(
-                "Loss/epoch", epoch_loss / (len(X) // batch_size), epoch
-            )
-
-        self.writer.close()
         return epoch_loss / (len(X) // batch_size)
 
 
