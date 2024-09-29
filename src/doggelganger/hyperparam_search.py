@@ -26,7 +26,7 @@ def train_model(config, X, y):
 
     # Split the data
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.10, random_state=13
+        X, y, test_size=0.15, random_state=13
     )
 
     # Create and train the model
@@ -34,20 +34,20 @@ def train_model(config, X, y):
         num_blocks, learning_rate, lambda_delta, lambda_ortho, init_method=init_method
     )
 
-    def log_metrics(loss, y, preds):
+    def log_metrics(loss, y, preds, prefix="train"):
         top1_accuracy, top3_accuracy, top10_accuracy = calculate_accuracies(y, preds)
         score = blended_score(top1_accuracy, top3_accuracy, top10_accuracy)
         report(
             {
-                "loss": loss,
-                "top1_accuracy": top1_accuracy,
-                "top3_accuracy": top3_accuracy,
-                "top10_accuracy": top10_accuracy,
-                "blended_score": score,
+                f"{prefix}_loss": loss,
+                f"{prefix}_top1_accuracy": top1_accuracy,
+                f"{prefix}_top3_accuracy": top3_accuracy,
+                f"{prefix}_top10_accuracy": top10_accuracy,
+                f"{prefix}_blended_score": score,
             }
         )
 
-    model.fit(X_train, y_train, num_epochs, batch_size, callback=log_metrics)
+    model.fit(X_train, y_train, num_epochs, batch_size, callback=None)
 
     # Predict on test set
     preds = model.predict(X_test)
@@ -65,12 +65,12 @@ def train_model(config, X, y):
 
 def hyperparameter_search(X, y, num_samples=10, max_num_epochs=200, name=None):
     config = {
-        "num_blocks": tune.randint(2, 6),
-        "learning_rate": tune.loguniform(1e-5, 1e-2),
-        "lambda_delta": tune.loguniform(1e-3, 1e-1),
-        "lambda_ortho": tune.loguniform(1e-3, 1e-1),
+        "num_blocks": tune.randint(2, 16),
+        "learning_rate": tune.loguniform(1e-8, 1e-2),
+        "lambda_delta": tune.loguniform(1e-5, 1e-1),
+        "lambda_ortho": tune.loguniform(1e-5, 1e-1),
         "num_epochs": tune.randint(50, max_num_epochs + 1),
-        "batch_size": tune.choice([16, 32, 64]),
+        "batch_size": tune.choice([16,]), #32, 64]),
         "init_method": tune.choice(["default", "he", "fixup", "lsuv"]),
     }
 
@@ -93,7 +93,6 @@ def hyperparameter_search(X, y, num_samples=10, max_num_epochs=200, name=None):
 
     best_trial = result.get_best_result(scope="last")
     print(f"Best trial config: {best_trial.config}")
-    print(f"Best trial final validation loss: {best_trial.metrics["loss"]}")
     print(
         f"Best trial final validation accuracy: {best_trial.metrics["blended_score"]}"
     )
