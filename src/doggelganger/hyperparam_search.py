@@ -4,6 +4,7 @@ from sklearn.metrics import pairwise_distances
 from ray import tune
 from ray.train import RunConfig, report
 from ray.tune.schedulers import ASHAScheduler
+from ray.tune.search.optuna import OptunaSearch
 
 from doggelganger.train import make_training_data, calculate_accuracies
 from doggelganger.models.resnet import ResNetModel
@@ -24,7 +25,7 @@ def train_model(config, X, y):
 
     # Split the data
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.15, random_state=42
+        X, y, test_size=0.10, random_state=13
     )
 
     # Create and train the model
@@ -37,7 +38,6 @@ def train_model(config, X, y):
         score = blended_score(top1_accuracy, top3_accuracy, top10_accuracy)
         report(
             {
-                "epoch": epoch,
                 "loss": loss,
                 "top1_accuracy": top1_accuracy,
                 "top3_accuracy": top3_accuracy,
@@ -73,26 +73,28 @@ def hyperparameter_search(X, y, num_samples=10, max_num_epochs=200):
         "init_method": tune.choice(["default", "he", "fixup", "lsuv"]),
     }
 
-    scheduler = ASHAScheduler(max_t=max_num_epochs, grace_period=2, reduction_factor=2)
+    # scheduler = ASHAScheduler(max_t=max_num_epochs, grace_period=2, reduction_factor=2)
+    algo = OptunaSearch()
 
     tuner = tune.Tuner(
         tune.with_parameters(train_model, X=X, y=y),
         tune_config=tune.TuneConfig(
             metric="blended_score",
             mode="max",
-            scheduler=scheduler,
+            # scheduler=scheduler,
             num_samples=num_samples,
+            search_alg=algo,
         ),
         param_space=config,
         run_config=RunConfig(storage_path="/Users/drj/code/doggelganger_backend/ray_results", name="weight_init"),
     )
     result = tuner.fit()
 
-    best_trial = result.get_best_result(scope="last-5-avg")
+    best_trial = result.get_best_result(scope="last")
     print(f"Best trial config: {best_trial.config}")
-    print(f"Best trial final validation loss: {best_trial["loss"]}")
+    print(f"Best trial final validation loss: {best_trial.metrics["loss"]}")
     print(
-        f"Best trial final validation accuracy: {best_trial["blended_score"]}"
+        f"Best trial final validation accuracy: {best_trial.metrics["blended_score"]}"
     )
 
     best_trained_model = ResNetModel(
