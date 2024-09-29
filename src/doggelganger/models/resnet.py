@@ -19,12 +19,26 @@ class ResidualBlock(nn.Module):
 
 
 class MinimalPerturbationNetwork(nn.Module):
-    def __init__(self, embedding_dim, num_blocks=3):
+    def __init__(self, embedding_dim, num_blocks=3, init_method='default'):
         super(MinimalPerturbationNetwork, self).__init__()
         self.blocks = nn.ModuleList(
             [ResidualBlock(embedding_dim) for _ in range(num_blocks)]
         )
-        self.init_weights()
+        self.num_blocks = num_blocks
+        self.embedding_dim = embedding_dim
+
+        if init_method == 'default':
+            self.init_weights()
+        elif init_method == 'dan':
+            self.init_weights_dan()
+        elif init_method == 'he_with_scale':
+            self.init_weights_he_with_scale()
+        elif init_method == 'fixup':
+            self.init_weights_fixup()
+        elif init_method == 'lsuv':
+            self.init_weights_lsuv()
+        else:
+            raise ValueError(f"Unknown initialization method: {init_method}")
 
     def forward(self, x):
         for block in self.blocks:
@@ -37,6 +51,44 @@ class MinimalPerturbationNetwork(nn.Module):
                 nn.init.normal_(param, mean=0, std=1e-3)  # Very small initial weights
             elif "bias" in name:
                 nn.init.constant_(param, 0)
+
+    def init_weights_dan(self):
+        for name, param in self.named_parameters():
+            if 'weight' in name:
+                nn.init.orthogonal_(param)
+            elif 'bias' in name:
+                nn.init.constant_(param, 0)
+
+    def init_weights_he_with_scale(self):
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+        # Scale the weights
+        with torch.no_grad():
+            for name, param in self.named_parameters():
+                if 'weight' in name:
+                    param.div_(10)  # Divide weights by 10
+
+    def init_weights_fixup(self):
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, mean=0, std=np.sqrt(2 / (m.weight.shape[0] * np.prod(m.weight.shape[1:]))) * self.num_blocks ** (-0.5))
+                nn.init.constant_(m.bias, 0)
+
+    def init_weights_lsuv(self):
+        def svd_orthonormal(shape):
+            # Orthonormal init
+            a = np.random.randn(*shape).astype(np.float32)
+            u, _, v = np.linalg.svd(a, full_matrices=False)
+            q = u if u.shape == shape else v
+            return q.reshape(shape)
+
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                m.weight.data = torch.FloatTensor(svd_orthonormal(m.weight.shape))
+                m.bias.data.zero_()
 
 
 class ResNetModel(BaseModel):
