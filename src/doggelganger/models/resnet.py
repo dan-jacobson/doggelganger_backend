@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 from doggelganger.models.base import BaseModel
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
