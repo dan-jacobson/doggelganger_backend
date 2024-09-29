@@ -109,38 +109,6 @@ class ResNetModel(BaseModel):
         self.writer.close()
         return epoch_loss / (len(X) // batch_size)
 
-    @staticmethod
-    def objective(trial, X, y):
-        num_blocks = trial.suggest_int("num_blocks", 2, 5)
-        learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-2, log=True)
-        lambda_delta = trial.suggest_float("lambda_delta", 1e-3, 1e-1, log=True)
-        lambda_ortho = trial.suggest_float("lambda_ortho", 1e-3, 1e-1, log=True)
-        num_epochs = trial.suggest_int("num_epochs", 50, 200)
-        batch_size = trial.suggest_categorical("batch_size", [16, 32, 64])
-
-        model = ResNetModel(num_blocks, learning_rate, lambda_delta, lambda_ortho)
-        final_loss = model.fit(X, y, num_epochs, batch_size)
-        return final_loss
-
-    @classmethod
-    def hyperparameter_search(cls, X, y, n_trials=100):
-        study = optuna.create_study(direction="minimize")
-        study.optimize(lambda trial: cls.objective(trial, X, y), n_trials=n_trials)
-
-        best_params = study.best_params
-        best_model = cls(
-            num_blocks=best_params["num_blocks"],
-            learning_rate=best_params["learning_rate"],
-            lambda_delta=best_params["lambda_delta"],
-            lambda_ortho=best_params["lambda_ortho"],
-        )
-        best_model.fit(
-            X,
-            y,
-            num_epochs=best_params["num_epochs"],
-            batch_size=best_params["batch_size"],
-        )
-        return best_model, best_params
 
     def predict(self, X):
         self.model.eval()

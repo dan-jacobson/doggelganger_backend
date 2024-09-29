@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 from doggelganger.utils import get_embedding, load_model as load_embedding_model
 from doggelganger.models import LinearRegressionModel, XGBoostModel, ResNetModel
+from doggelganger.hyperparam_search import hyperparameter_search
 
 # Set up logging
 logging.basicConfig(
@@ -86,7 +87,7 @@ def train_model(model_class, X, y):
         )
 
     if model_class == ResNetModel:
-        model, best_params = model_class.hyperparameter_search(X, y)
+        model, best_params = hyperparameter_search(model_class, X, y)
         logger.info(f"Best hyperparameters found: {best_params}")
     else:
         model = model_class()
