@@ -11,12 +11,13 @@ def objective(trial, model_class, X, y):
     lambda_ortho = trial.suggest_float("lambda_ortho", 1e-3, 1e-1, log=True)
     num_epochs = trial.suggest_int("num_epochs", 50, 200)
     batch_size = trial.suggest_categorical("batch_size", [16, 32, 64])
+    init_method = trial.suggest_categorical("init_method", ['default', 'he', 'fixup', 'lsuv'])
 
     # Split the data
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     # Create and train the model
-    model = model_class(num_blocks, learning_rate, lambda_delta, lambda_ortho)
+    model = model_class(num_blocks, learning_rate, lambda_delta, lambda_ortho, init_method=init_method)
     model.fit(X_train, y_train, num_epochs, batch_size)
 
     # Predict on test set
@@ -46,6 +47,7 @@ def hyperparameter_search(model_class, X, y, n_trials=100):
         learning_rate=best_params["learning_rate"],
         lambda_delta=best_params["lambda_delta"],
         lambda_ortho=best_params["lambda_ortho"],
+        init_method=best_params["init_method"],
     )
     best_model.fit(
         X,
