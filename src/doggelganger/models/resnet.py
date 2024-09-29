@@ -154,7 +154,7 @@ class ResNetModel(BaseModel):
                 with torch.no_grad():
                     preds = self.model(X).cpu().numpy()
                 
-                callback(epoch, avg_loss, y.cpu().numpy(), preds)
+                callback(avg_loss, y.cpu().numpy(), preds)
 
         return avg_loss
 
