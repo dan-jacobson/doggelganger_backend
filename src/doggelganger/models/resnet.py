@@ -101,7 +101,7 @@ class ResNetModel(BaseModel):
         self.lambda_delta = lambda_delta
         self.lambda_ortho = lambda_ortho
 
-    def fit(self, X, y, num_epochs=100, batch_size=32):
+    def fit(self, X, y, num_epochs=100, batch_size=32, callback=None):
         X = torch.tensor(X, dtype=torch.float32).to(self.device)
         y = torch.tensor(y, dtype=torch.float32).to(self.device)
 
@@ -139,7 +139,20 @@ class ResNetModel(BaseModel):
                 epoch_loss += loss.item()
                 global_step += 1
 
-        return epoch_loss / (len(X) // batch_size)
+            avg_loss = epoch_loss / (len(X) // batch_size)
+            
+            if callback:
+                # Calculate accuracies for callback
+                with torch.no_grad():
+                    preds = self.model(X).cpu().numpy()
+                cosine_similarities = 1 - pairwise_distances(preds, y.cpu().numpy(), metric="cosine")
+                top1_accuracy = np.mean(np.argmax(cosine_similarities, axis=1) == np.arange(len(y)))
+                top3_accuracy = np.mean([np.isin(i, indices[:3]).any() for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))])
+                top10_accuracy = np.mean([np.isin(i, indices[:10]).any() for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))])
+                
+                callback(epoch, avg_loss, (top1_accuracy, top3_accuracy, top10_accuracy))
+
+        return avg_loss
 
 
     def predict(self, X):

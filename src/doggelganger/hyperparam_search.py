@@ -2,6 +2,8 @@ import optuna
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import pairwise_distances
+from torch.utils.tensorboard import SummaryWriter
+import os
 
 from doggelganger.models.resnet import ResNetModel
 from doggelganger.train import make_training_data
@@ -19,9 +21,20 @@ def objective(trial, model_class, X, y):
     # Split the data
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
+    # Create TensorBoard writer
+    log_dir = os.path.join("logs", f"trial_{trial.number}")
+    writer = SummaryWriter(log_dir=log_dir)
+
     # Create and train the model
     model = model_class(num_blocks, learning_rate, lambda_delta, lambda_ortho, init_method=init_method)
-    model.fit(X_train, y_train, num_epochs, batch_size)
+    
+    def log_metrics(epoch, loss, accuracies):
+        writer.add_scalar('Loss/train', loss, epoch)
+        writer.add_scalar('Accuracy/top1', accuracies[0], epoch)
+        writer.add_scalar('Accuracy/top3', accuracies[1], epoch)
+        writer.add_scalar('Accuracy/top10', accuracies[2], epoch)
+
+    model.fit(X_train, y_train, num_epochs, batch_size, callback=log_metrics)
 
     # Predict on test set
     preds = model.predict(X_test)
@@ -35,8 +48,15 @@ def objective(trial, model_class, X, y):
     top3_accuracy = np.mean([np.isin(correct_indices[i], indices[:3]).any() for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))])
     top10_accuracy = np.mean([np.isin(correct_indices[i], indices[:10]).any() for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))])
 
+    # Log final test accuracies
+    writer.add_scalar('TestAccuracy/top1', top1_accuracy, 0)
+    writer.add_scalar('TestAccuracy/top3', top3_accuracy, 0)
+    writer.add_scalar('TestAccuracy/top10', top10_accuracy, 0)
+
     # Blended score (you can adjust the weights if needed)
     blended_score = 0.5 * top1_accuracy + 0.3 * top3_accuracy + 0.2 * top10_accuracy
+
+    writer.close()
 
     return blended_score
 
