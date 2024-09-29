@@ -1,4 +1,5 @@
 import numpy as np
+import argparse
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import pairwise_distances
 from ray import tune
@@ -62,7 +63,7 @@ def train_model(config, X, y):
     }
 
 
-def hyperparameter_search(X, y, num_samples=10, max_num_epochs=200):
+def hyperparameter_search(X, y, num_samples=10, max_num_epochs=200, name=None):
     config = {
         "num_blocks": tune.randint(2, 6),
         "learning_rate": tune.loguniform(1e-5, 1e-2),
@@ -86,7 +87,7 @@ def hyperparameter_search(X, y, num_samples=10, max_num_epochs=200):
             search_alg=algo,
         ),
         param_space=config,
-        run_config=RunConfig(storage_path="/Users/drj/code/doggelganger_backend/ray_results", name="weight_init"),
+        run_config=RunConfig(storage_path="/Users/drj/code/doggelganger_backend/ray_results", name=name or "weight_init"),
     )
     result = tuner.fit()
 
@@ -115,6 +116,11 @@ def hyperparameter_search(X, y, num_samples=10, max_num_epochs=200):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run hyperparameter search for ResNet model.")
+    parser.add_argument("--name", type=str, default=None, help="Name for the Ray experiment")
+    parser.add_argument("--num_samples", type=int, default=50, help="Number of samples for hyperparameter search")
+    args = parser.parse_args()
+
     X, y = make_training_data("data/train")
-    best_model, best_params = hyperparameter_search(X, y, num_samples=50)
+    best_model, best_params = hyperparameter_search(X, y, num_samples=args.num_samples, name=args.name)
     print("Best hyperparameters found were: ", best_params)
