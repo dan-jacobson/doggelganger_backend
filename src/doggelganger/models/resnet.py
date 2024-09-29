@@ -41,11 +41,12 @@ class MinimalPerturbationNetwork(nn.Module):
 
 class ResNetModel(BaseModel):
     def __init__(
-        self, num_blocks=3, learning_rate=0.001, lambda_delta=0.1, lambda_ortho=0.1
+        self, num_blocks=3, learning_rate=0.001, lambda_delta=0.1, lambda_ortho=0.1,
+        init_method='default'
     ):
         self.num_blocks = num_blocks
         self.model = MinimalPerturbationNetwork(
-            384, num_blocks
+            384, num_blocks, init_method=init_method
         )  # Assuming DinoV2 embedding size
         self.device = torch.device(
             "mps" if torch.backends.mps.is_available() else "cpu"
