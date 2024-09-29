@@ -32,11 +32,13 @@ metadata.allow-direct-references = true
 
 [tool.uv]
 dev-dependencies = [
+    "optuna>=4.0.0",
     "pytest-mock>=3.14.0",
     "pytest>=8.3.3",
     "python-dotenv>=1.0.1",
     "ruff>=0.6.5",
     "selenium>=4.25.0",
+    "tensorboard>=2.18.0",
     "torch==2.4.1",
     "torchvision==0.19.1",
     "webdriver-manager>=4.0.2",
