@@ -34,7 +34,7 @@ def train_model(config, X, y):
         num_blocks, learning_rate, lambda_delta, lambda_ortho, init_method=init_method
     )
 
-    def log_metrics(epoch, loss, y, preds):
+    def log_metrics(loss, y, preds):
         top1_accuracy, top3_accuracy, top10_accuracy = calculate_accuracies(y, preds)
         score = blended_score(top1_accuracy, top3_accuracy, top10_accuracy)
         report(
@@ -87,7 +87,7 @@ def hyperparameter_search(X, y, num_samples=10, max_num_epochs=200, name=None):
             search_alg=algo,
         ),
         param_space=config,
-        run_config=RunConfig(storage_path="/Users/drj/code/doggelganger_backend/ray_results", name=name or "weight_init"),
+        run_config=RunConfig(storage_path="/Users/drj/code/doggelganger_backend/ray_results", name=name),
     )
     result = tuner.fit()
 
