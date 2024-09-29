@@ -8,6 +8,9 @@ from ray.tune.schedulers import ASHAScheduler
 from doggelganger.train import make_training_data, calculate_accuracies
 from doggelganger.models.resnet import ResNetModel
 
+# gotta play around with these weights
+def blended_score(top1_accuracy, top3_accuracy, top10_accuracy):
+    return 0.5 * top1_accuracy + 0.3 * top3_accuracy + 0.2 * top10_accuracy
 
 def train_model(config, X, y):
     # Hyperparameters
@@ -31,12 +34,15 @@ def train_model(config, X, y):
 
     def log_metrics(epoch, loss, y, preds):
         top1_accuracy, top3_accuracy, top10_accuracy = calculate_accuracies(y, preds)
+        score = blended_score(top1_accuracy, top3_accuracy, top10_accuracy)
         report(
             {
+                "epoch": epoch,
                 "loss": loss,
                 "top1_accuracy": top1_accuracy,
                 "top3_accuracy": top3_accuracy,
                 "top10_accuracy": top10_accuracy,
+                "blended_score": score,
             }
         )
 
@@ -47,15 +53,12 @@ def train_model(config, X, y):
 
     # Calculate accuracies
     top1_accuracy, top3_accuracy, top10_accuracy = calculate_accuracies(y_test, preds)
-
-    # Blended score (gotta play with these weights)
-    blended_score = 0.5 * top1_accuracy + 0.3 * top3_accuracy + 0.2 * top10_accuracy
-
+    score = blended_score(top1_accuracy, top3_accuracy, top10_accuracy)
     return {
-        "blended_score": blended_score,
         "top1_accuracy": top1_accuracy,
         "top3_accuracy": top3_accuracy,
         "top10_accuracy": top10_accuracy,
+        "blended_score": score,
     }
 
 
@@ -81,15 +84,15 @@ def hyperparameter_search(X, y, num_samples=10, max_num_epochs=200):
             num_samples=num_samples,
         ),
         param_space=config,
-        run_config=RunConfig(name="weight_init"),
+        run_config=RunConfig(storage_path="/Users/drj/code/doggelganger_backend/ray_results", name="weight_init"),
     )
     result = tuner.fit()
 
-    best_trial = result.get_best_result()
+    best_trial = result.get_best_result(scope="last-5-avg")
     print(f"Best trial config: {best_trial.config}")
-    print(f"Best trial final validation loss: {best_trial.last_result["loss"]}")
+    print(f"Best trial final validation loss: {best_trial["loss"]}")
     print(
-        f"Best trial final validation accuracy: {best_trial.last_result["blended_score"]}"
+        f"Best trial final validation accuracy: {best_trial["blended_score"]}"
     )
 
     best_trained_model = ResNetModel(
