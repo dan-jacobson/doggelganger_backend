@@ -97,8 +97,7 @@ def hyperparameter_search(X, y, num_samples=10, max_num_epochs=200, name=None):
     result = tuner.fit()
 
     best_trial = result.get_best_result(scope="last")
-    logger.info(f"Best trial config: {best_trial.config}")
-    logger.info(
+    logger.info(f"Best trial config: {best_trial.config}"
         f"Best trial final validation accuracy: {best_trial.metrics['blended_score']}"
     )
 
@@ -123,8 +122,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run hyperparameter search for ResNet model.")
     parser.add_argument("--name", type=str, default=None, help="Name for the Ray experiment")
     parser.add_argument("--num_samples", type=int, default=50, help="Number of samples for hyperparameter search")
+    parser.add_argument("--save", type=bool, default=False, help="Should the best model be saved")
     args = parser.parse_args()
 
     X, y = make_training_data("data/train")
     best_model, best_params = hyperparameter_search(X, y, num_samples=args.num_samples, name=args.name)
-    logger.info(f"Best hyperparameters found were: {best_params}")
+    if args.save:
+        best_model.save(path=f"weights/{args.name}")
+        logger.info(f"Best model saved to: weights/{args.name}")
