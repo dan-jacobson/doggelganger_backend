@@ -1,38 +1,42 @@
-import optuna
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import pairwise_distances
 from torch.utils.tensorboard import SummaryWriter
 import os
+from ray import tune
+from ray.tune.schedulers import ASHAScheduler
+from functools import partial
 
 from doggelganger.models.resnet import ResNetModel
 from doggelganger.train import make_training_data
 
-def objective(trial, model_class, X, y):
-    # Hyperparameters to optimize
-    num_blocks = trial.suggest_int("num_blocks", 2, 5)
-    learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-2, log=True)
-    lambda_delta = trial.suggest_float("lambda_delta", 1e-3, 1e-1, log=True)
-    lambda_ortho = trial.suggest_float("lambda_ortho", 1e-3, 1e-1, log=True)
-    num_epochs = trial.suggest_int("num_epochs", 50, 200)
-    batch_size = trial.suggest_categorical("batch_size", [16, 32, 64])
-    init_method = trial.suggest_categorical("init_method", ['default', 'he', 'fixup', 'lsuv'])
+def objective(config, checkpoint_dir=None):
+    # Hyperparameters
+    num_blocks = config["num_blocks"]
+    learning_rate = config["learning_rate"]
+    lambda_delta = config["lambda_delta"]
+    lambda_ortho = config["lambda_ortho"]
+    num_epochs = config["num_epochs"]
+    batch_size = config["batch_size"]
+    init_method = config["init_method"]
 
     # Split the data
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     # Create TensorBoard writer
-    log_dir = os.path.join("logs", f"trial_{trial.number}")
-    writer = SummaryWriter(log_dir=log_dir)
+    writer = SummaryWriter(log_dir=tune.get_trial_dir())
 
     # Create and train the model
-    model = model_class(num_blocks, learning_rate, lambda_delta, lambda_ortho, init_method=init_method)
+    model = ResNetModel(num_blocks, learning_rate, lambda_delta, lambda_ortho, init_method=init_method)
     
     def log_metrics(epoch, loss, accuracies):
         writer.add_scalar('Loss/train', loss, epoch)
         writer.add_scalar('Accuracy/top1', accuracies[0], epoch)
         writer.add_scalar('Accuracy/top3', accuracies[1], epoch)
         writer.add_scalar('Accuracy/top10', accuracies[2], epoch)
+        
+        # Report intermediate result
+        tune.report(loss=loss, top1_accuracy=accuracies[0], top3_accuracy=accuracies[1], top10_accuracy=accuracies[2])
 
     model.fit(X_train, y_train, num_epochs, batch_size, callback=log_metrics)
 
@@ -58,30 +62,57 @@ def objective(trial, model_class, X, y):
 
     writer.close()
 
-    return blended_score
+    # Final report
+    tune.report(blended_score=blended_score)
 
-def hyperparameter_search(model_class, X, y, n_trials=100):
-    study = optuna.create_study(direction="maximize")
-    study.optimize(lambda trial: objective(trial, model_class, X, y), n_trials=n_trials)
+def hyperparameter_search(X, y, num_samples=10, max_num_epochs=200, gpus_per_trial=0):
+    config = {
+        "num_blocks": tune.randint(2, 6),
+        "learning_rate": tune.loguniform(1e-5, 1e-2),
+        "lambda_delta": tune.loguniform(1e-3, 1e-1),
+        "lambda_ortho": tune.loguniform(1e-3, 1e-1),
+        "num_epochs": tune.randint(50, 201),
+        "batch_size": tune.choice([16, 32, 64]),
+        "init_method": tune.choice(['default', 'he', 'fixup', 'lsuv'])
+    }
 
-    best_params = study.best_params
-    best_model = model_class(
-        num_blocks=best_params["num_blocks"],
-        learning_rate=best_params["learning_rate"],
-        lambda_delta=best_params["lambda_delta"],
-        lambda_ortho=best_params["lambda_ortho"],
-        init_method=best_params["init_method"],
+    scheduler = ASHAScheduler(
+        max_t=max_num_epochs,
+        grace_period=1,
+        reduction_factor=2)
+
+    result = tune.run(
+        partial(objective, X=X, y=y),
+        resources_per_trial={"cpu": 2, "gpu": gpus_per_trial},
+        config=config,
+        num_samples=num_samples,
+        scheduler=scheduler
     )
-    best_model.fit(
+
+    best_trial = result.get_best_trial("blended_score", "max", "last")
+    print("Best trial config: {}".format(best_trial.config))
+    print("Best trial final validation loss: {}".format(
+        best_trial.last_result["loss"]))
+    print("Best trial final validation accuracy: {}".format(
+        best_trial.last_result["blended_score"]))
+
+    best_trained_model = ResNetModel(
+        num_blocks=best_trial.config["num_blocks"],
+        learning_rate=best_trial.config["learning_rate"],
+        lambda_delta=best_trial.config["lambda_delta"],
+        lambda_ortho=best_trial.config["lambda_ortho"],
+        init_method=best_trial.config["init_method"],
+    )
+    best_trained_model.fit(
         X,
         y,
-        num_epochs=best_params["num_epochs"],
-        batch_size=best_params["batch_size"],
+        num_epochs=best_trial.config["num_epochs"],
+        batch_size=best_trial.config["batch_size"],
     )
-    return best_model, best_params
+
+    return best_trained_model, best_trial.config
 
 def main():
     X, y = make_training_data('data/train')
-
-    hyperparameter_search(ResNetModel, X, y, n_trials=50)
-    
+    best_model, best_params = hyperparameter_search(X, y, num_samples=50)
+    print("Best hyperparameters found were: ", best_params)
