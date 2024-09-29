@@ -2,9 +2,8 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import pairwise_distances
 from ray import tune
-from ray.train import RunConfig
+from ray.train import RunConfig, report
 from ray.tune.schedulers import ASHAScheduler
-from functools import partial
 
 from doggelganger.train import make_training_data
 from doggelganger.models.resnet import ResNetModel
@@ -31,11 +30,13 @@ def train_model(config, X, y):
     )
 
     def log_metrics(epoch, loss, accuracies):
-        tune.report(
-            loss=loss,
-            top1_accuracy=accuracies[0],
-            top3_accuracy=accuracies[1],
-            top10_accuracy=accuracies[2],
+        report(
+            {
+                "loss": loss,
+                "top1_accuracy": accuracies[0],
+                "top3_accuracy": accuracies[1],
+                "top10_accuracy": accuracies[2],
+            }
         )
 
     model.fit(X_train, y_train, num_epochs, batch_size, callback=log_metrics)
@@ -79,7 +80,7 @@ def hyperparameter_search(X, y, num_samples=10, max_num_epochs=200):
         "learning_rate": tune.loguniform(1e-5, 1e-2),
         "lambda_delta": tune.loguniform(1e-3, 1e-1),
         "lambda_ortho": tune.loguniform(1e-3, 1e-1),
-        "num_epochs": tune.randint(50, max_num_epochs+1),
+        "num_epochs": tune.randint(50, max_num_epochs + 1),
         "batch_size": tune.choice([16, 32, 64]),
         "init_method": tune.choice(["default", "he", "fixup", "lsuv"]),
     }
@@ -97,15 +98,13 @@ def hyperparameter_search(X, y, num_samples=10, max_num_epochs=200):
         param_space=config,
         run_config=RunConfig(name="weight_init"),
     )
-    tuner.fit()
+    result = tuner.fit()
 
-    best_trial = tuner.get_best_trial("blended_score", "max", "last")
-    print("Best trial config: {}".format(best_trial.config))
-    print("Best trial final validation loss: {}".format(best_trial.last_result["loss"]))
+    best_trial = result.get_best_result()
+    print(f"Best trial config: {best_trial.config}")
+    print(f"Best trial final validation loss: {best_trial.last_result["loss"]}")
     print(
-        "Best trial final validation accuracy: {}".format(
-            best_trial.last_result["blended_score"]
-        )
+        f"Best trial final validation accuracy: {best_trial.last_result["blended_score"]}"
     )
 
     best_trained_model = ResNetModel(
@@ -124,7 +123,8 @@ def hyperparameter_search(X, y, num_samples=10, max_num_epochs=200):
 
     return best_trained_model, best_trial.config
 
-if __name__=="__main__": 
+
+if __name__ == "__main__":
     X, y = make_training_data("data/train")
     best_model, best_params = hyperparameter_search(X, y, num_samples=50)
     print("Best hyperparameters found were: ", best_params)

@@ -1,10 +1,9 @@
 import torch
 import torch.nn as nn
 import numpy as np
+from sklearn.metrics import pairwise_distances
 from doggelganger.models.base import BaseModel
 from tqdm import tqdm
-from torch.utils.tensorboard import SummaryWriter
-import optuna
 
 
 class ResidualBlock(nn.Module):
@@ -20,7 +19,7 @@ class ResidualBlock(nn.Module):
 
 
 class MinimalPerturbationNetwork(nn.Module):
-    def __init__(self, embedding_dim, num_blocks=3, init_method='default'):
+    def __init__(self, embedding_dim, num_blocks=3, init_method="default"):
         super(MinimalPerturbationNetwork, self).__init__()
         self.blocks = nn.ModuleList(
             [ResidualBlock(embedding_dim) for _ in range(num_blocks)]
@@ -28,13 +27,13 @@ class MinimalPerturbationNetwork(nn.Module):
         self.num_blocks = num_blocks
         self.embedding_dim = embedding_dim
 
-        if init_method == 'default':
+        if init_method == "default":
             self.init_weights()
-        elif init_method == 'he':
+        elif init_method == "he":
             self.init_weights_he_with_scale(scale=0.1)
-        elif init_method == 'fixup':
+        elif init_method == "fixup":
             self.init_weights_fixup()
-        elif init_method == 'lsuv':
+        elif init_method == "lsuv":
             self.init_weights_lsuv()
         else:
             raise ValueError(f"Unknown initialization method: {init_method}")
@@ -54,19 +53,24 @@ class MinimalPerturbationNetwork(nn.Module):
     def init_weights_he_with_scale(self, scale=0.1):
         for m in self.modules():
             if isinstance(m, nn.Linear):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
         # Scale the weights
         with torch.no_grad():
             for name, param in self.named_parameters():
-                if 'weight' in name:
-                    param.mul_(scale) # Scale the weights
+                if "weight" in name:
+                    param.mul_(scale)  # Scale the weights
 
     def init_weights_fixup(self):
         for m in self.modules():
             if isinstance(m, nn.Linear):
-                nn.init.normal_(m.weight, mean=0, std=np.sqrt(2 / (m.weight.shape[0] * np.prod(m.weight.shape[1:]))) * self.num_blocks ** (-0.5))
+                nn.init.normal_(
+                    m.weight,
+                    mean=0,
+                    std=np.sqrt(2 / (m.weight.shape[0] * np.prod(m.weight.shape[1:])))
+                    * self.num_blocks ** (-0.5),
+                )
                 nn.init.constant_(m.bias, 0)
 
     def init_weights_lsuv(self):
@@ -85,8 +89,12 @@ class MinimalPerturbationNetwork(nn.Module):
 
 class ResNetModel(BaseModel):
     def __init__(
-        self, num_blocks=3, learning_rate=0.001, lambda_delta=0.1, lambda_ortho=0.1,
-        init_method='default'
+        self,
+        num_blocks=3,
+        learning_rate=0.001,
+        lambda_delta=0.1,
+        lambda_ortho=0.1,
+        init_method="default",
     ):
         self.num_blocks = num_blocks
         self.model = MinimalPerturbationNetwork(
@@ -140,20 +148,39 @@ class ResNetModel(BaseModel):
                 global_step += 1
 
             avg_loss = epoch_loss / (len(X) // batch_size)
-            
+
             if callback:
                 # Calculate accuracies for callback
                 with torch.no_grad():
                     preds = self.model(X).cpu().numpy()
-                cosine_similarities = 1 - pairwise_distances(preds, y.cpu().numpy(), metric="cosine")
-                top1_accuracy = np.mean(np.argmax(cosine_similarities, axis=1) == np.arange(len(y)))
-                top3_accuracy = np.mean([np.isin(i, indices[:3]).any() for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))])
-                top10_accuracy = np.mean([np.isin(i, indices[:10]).any() for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))])
-                
-                callback(epoch, avg_loss, (top1_accuracy, top3_accuracy, top10_accuracy))
+                cosine_similarities = 1 - pairwise_distances(
+                    preds, y.cpu().numpy(), metric="cosine"
+                )
+                top1_accuracy = np.mean(
+                    np.argmax(cosine_similarities, axis=1) == np.arange(len(y))
+                )
+                top3_accuracy = np.mean(
+                    [
+                        np.isin(i, indices[:3]).any()
+                        for i, indices in enumerate(
+                            np.argsort(-cosine_similarities, axis=1)
+                        )
+                    ]
+                )
+                top10_accuracy = np.mean(
+                    [
+                        np.isin(i, indices[:10]).any()
+                        for i, indices in enumerate(
+                            np.argsort(-cosine_similarities, axis=1)
+                        )
+                    ]
+                )
+
+                callback(
+                    epoch, avg_loss, (top1_accuracy, top3_accuracy, top10_accuracy)
+                )
 
         return avg_loss
-
 
     def predict(self, X):
         self.model.eval()
