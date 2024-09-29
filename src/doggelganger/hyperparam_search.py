@@ -1,5 +1,6 @@
 import numpy as np
 import argparse
+import logging
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import pairwise_distances
 from ray import tune
@@ -9,6 +10,10 @@ from ray.tune.search.optuna import OptunaSearch
 
 from doggelganger.train import make_training_data, calculate_accuracies
 from doggelganger.models.resnet import ResNetModel
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # gotta play around with these weights
 def blended_score(top1_accuracy, top3_accuracy, top10_accuracy):
@@ -92,9 +97,9 @@ def hyperparameter_search(X, y, num_samples=10, max_num_epochs=200, name=None):
     result = tuner.fit()
 
     best_trial = result.get_best_result(scope="last")
-    print(f"Best trial config: {best_trial.config}")
-    print(
-        f"Best trial final validation accuracy: {best_trial.metrics["blended_score"]}"
+    logger.info(f"Best trial config: {best_trial.config}")
+    logger.info(
+        f"Best trial final validation accuracy: {best_trial.metrics['blended_score']}"
     )
 
     best_trained_model = ResNetModel(
@@ -122,4 +127,4 @@ if __name__ == "__main__":
 
     X, y = make_training_data("data/train")
     best_model, best_params = hyperparameter_search(X, y, num_samples=args.num_samples, name=args.name)
-    print("Best hyperparameters found were: ", best_params)
+    logger.info(f"Best hyperparameters found were: {best_params}")
