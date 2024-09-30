@@ -1,7 +1,6 @@
 from typing import Annotated
 import logging
-import json
-import numpy as np
+import argparse
 
 from litestar import Litestar, get, post
 from litestar.datastructures import UploadFile
@@ -20,7 +19,8 @@ import os
 import requests
 from dotenv import load_dotenv
 
-from doggelganger.utils import load_model, get_embedding
+from doggelganger.utils import get_embedding, load_model as load_embedding_pipeline
+from doggelganger.train import model_classes
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -30,7 +30,7 @@ load_dotenv()
 DB_CONNECTION = os.getenv("SUPABASE_DB")
 
 # Initialize the image feature extraction pipeline
-pipe = load_model()
+pipe = load_embedding_pipeline()
 
 # Initialize vecs client
 vx = vecs.create_client(DB_CONNECTION)
@@ -38,20 +38,8 @@ dogs = vx.get_or_create_collection(
     name="dog_embeddings", dimension=pipe.model.config.hidden_size
 )
 
-
-# Load alignment model
-def load_alignment_model(model_path):
-    with open(model_path, "r") as f:
-        model_params = json.load(f)
-    return np.array(model_params["coef"]), np.array(model_params["intercept"])
-
-
-alignment_model_path = "./weights/alignment_model.json"
-coef, intercept = load_alignment_model(alignment_model_path)
-
-
-def align_embedding(embedding, coef, intercept):
-    return embedding @ coef + intercept
+def align_embedding(embedding, model):
+    return model.predict(embedding)
 
 
 def is_valid_link(url):
@@ -83,7 +71,7 @@ async def embed_image(
         embedding = get_embedding(img, pipe=pipe)
 
         # Align embedding
-        aligned_embedding = align_embedding(embedding, coef, intercept)
+        aligned_embedding = align_embedding(embedding, alignment_model)
 
         # Query similar images
         results = dogs.query(
@@ -135,8 +123,41 @@ app = Litestar([embed_image, health_check])
 
 def main():
     import uvicorn
+    parser = argparse.ArgumentParser(
+        description="Serve the Doggelganger backend as a uvicorn app."
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        choices=["linear", "xgboost", "resnet"],
+        default="linear",
+        help="Model type to use (default: linear)",
+    )
+    parser.add_argument(
+        "--weights_path",
+        type=str,
+        default="weights/linear.json",
+        help="Path to alignment model weights (default: weights/linear.json)",
+    )
+    parser.add_argument(
+        "--host",
+        type=str,
+        default="0.0.0.0",
+        help="Host to pass to uvicorn (default: 0.0.0.0)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port to pass to uvicorn (default: 8000)",
+    )
+    args = parser.parse_args()
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    model_class = model_classes[args.model]
+    global alignment_model
+    alignment_model = model_class.load(args.weights_path)
+
+    uvicorn.run(app, host=args.host, port=args.port)
 
 
 if __name__ == "__main__":
