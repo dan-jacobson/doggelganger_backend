@@ -90,6 +90,7 @@ class MinimalPerturbationNetwork(nn.Module):
 class ResNetModel(BaseModel):
     def __init__(
         self,
+        embedding_dim,
         num_blocks=3,
         learning_rate=0.001,
         lambda_delta=0.1,
@@ -98,8 +99,8 @@ class ResNetModel(BaseModel):
     ):
         self.num_blocks = num_blocks
         self.model = MinimalPerturbationNetwork(
-            384, num_blocks, init_method=init_method
-        )  # Assuming DinoV2 embedding size
+            embedding_dim, num_blocks, init_method=init_method
+        )
         self.device = torch.device(
             "mps" if torch.backends.mps.is_available() else "cpu"
         )
@@ -129,10 +130,10 @@ class ResNetModel(BaseModel):
                 for block in self.model.blocks:
                     loss_ortho += torch.norm(
                         torch.mm(block.fc1.weight, block.fc1.weight.t())
-                        - torch.eye(384).to(self.device)
+                        - torch.eye(self.model.embedding_dim).to(self.device)
                     ) + torch.norm(
                         torch.mm(block.fc2.weight, block.fc2.weight.t())
-                        - torch.eye(384).to(self.device)
+                        - torch.eye(self.model.embedding_dim).to(self.device)
                     )
 
                 loss = (

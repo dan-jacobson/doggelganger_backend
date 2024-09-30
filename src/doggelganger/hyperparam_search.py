@@ -31,12 +31,13 @@ def train_model(config, X, y):
 
     # Split the data
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.15, random_state=13
+        X, y, test_size=0.15, random_state=1234
     )
+    embedding_dim = X.shape[1]
 
     # Create and train the model
     model = ResNetModel(
-        num_blocks, learning_rate, lambda_delta, lambda_ortho, init_method=init_method
+        embedding_dim, num_blocks, learning_rate, lambda_delta, lambda_ortho, init_method=init_method
     )
 
     def log_metrics(loss, y, preds, prefix="train"):
@@ -101,32 +102,34 @@ def hyperparameter_search(X, y, num_samples=10, max_num_epochs=200, name=None):
         f"Best trial final validation accuracy: {best_trial.metrics['blended_score']}"
     )
 
-    best_trained_model = ResNetModel(
-        num_blocks=best_trial.config["num_blocks"],
-        learning_rate=best_trial.config["learning_rate"],
-        lambda_delta=best_trial.config["lambda_delta"],
-        lambda_ortho=best_trial.config["lambda_ortho"],
-        init_method=best_trial.config["init_method"],
-    )
-    best_trained_model.fit(
-        X,
-        y,
-        num_epochs=best_trial.config["num_epochs"],
-        batch_size=best_trial.config["batch_size"],
-    )
 
-    return best_trained_model, best_trial.config
+    return best_trial.config
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run hyperparameter search for ResNet model.")
     parser.add_argument("--name", type=str, default=None, help="Name for the Ray experiment")
     parser.add_argument("--num_samples", type=int, default=50, help="Number of samples for hyperparameter search")
-    parser.add_argument("--save", type=bool, default=False, help="Should the best model be saved")
+    parser.add_argument("--save", action="store_true", default=False, help="Should the best model be saved")
     args = parser.parse_args()
 
     X, y = make_training_data("data/train")
-    best_model, best_params = hyperparameter_search(X, y, num_samples=args.num_samples, name=args.name)
+    best_params = hyperparameter_search(X, y, num_samples=args.num_samples, name=args.name)
+
     if args.save:
+        best_model = ResNetModel(
+            embedding_dim=X.shape[1],
+            num_blocks=best_params["num_blocks"],
+            learning_rate=best_params["learning_rate"],
+            lambda_delta=best_params["lambda_delta"],
+            lambda_ortho=best_params["lambda_ortho"],
+            init_method=best_params["init_method"],
+        )
+        best_model.fit(
+            X,
+            y,
+            num_epochs=best_params["num_epochs"],
+            batch_size=best_params["batch_size"],
+        )
         best_model.save(path=f"weights/{args.name}")
         logger.info(f"Best model saved to: weights/{args.name}")
