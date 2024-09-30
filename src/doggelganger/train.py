@@ -17,6 +17,34 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+def calculate_accuracies(y, preds):
+    """
+    Calculate top1, top3, and top10 accuracies.
+    
+    Args:
+        y (numpy.ndarray): True labels (embeddings).
+        preds (numpy.ndarray): Predicted labels (embeddings).
+    
+    Returns:
+        tuple: (top1_accuracy, top3_accuracy, top10_accuracy)
+    """
+    cosine_similarities = 1 - pairwise_distances(preds, y, metric="cosine")
+    
+    top1_accuracy = np.mean(np.argmax(cosine_similarities, axis=1) == np.arange(len(y)))
+    top3_accuracy = np.mean(
+        [
+            np.isin(i, indices[:3]).any()
+            for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))
+        ]
+    )
+    top10_accuracy = np.mean(
+        [
+            np.isin(i, indices[:10]).any()
+            for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))
+        ]
+    )
+    
+    return top1_accuracy, top3_accuracy, top10_accuracy
 
 def make_training_data(data_dir):
     """
@@ -278,34 +306,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-import numpy as np
-from sklearn.metrics import pairwise_distances
-
-def calculate_accuracies(y, preds):
-    """
-    Calculate top1, top3, and top10 accuracies.
-    
-    Args:
-        y (numpy.ndarray): True labels (embeddings).
-        preds (numpy.ndarray): Predicted labels (embeddings).
-    
-    Returns:
-        tuple: (top1_accuracy, top3_accuracy, top10_accuracy)
-    """
-    cosine_similarities = 1 - pairwise_distances(preds, y, metric="cosine")
-    
-    top1_accuracy = np.mean(np.argmax(cosine_similarities, axis=1) == np.arange(len(y)))
-    top3_accuracy = np.mean(
-        [
-            np.isin(i, indices[:3]).any()
-            for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))
-        ]
-    )
-    top10_accuracy = np.mean(
-        [
-            np.isin(i, indices[:10]).any()
-            for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))
-        ]
-    )
-    
-    return top1_accuracy, top3_accuracy, top10_accuracy
