@@ -17,6 +17,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+model_classes = {
+    "linear": LinearRegressionModel,
+    "xgboost": XGBoostModel,
+    "resnet": ResNetModel,
+}
+
 def calculate_accuracies(y, preds):
     """
     Calculate top1, top3, and top10 accuracies.
@@ -222,11 +228,6 @@ def main():
     )
     args = parser.parse_args()
 
-    model_classes = {
-        "linear": LinearRegressionModel,
-        "xgboost": XGBoostModel,
-        "resnet": ResNetModel,
-    }
 
     model_class = model_classes[args.model]
 
