@@ -5,12 +5,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(description="Check adoption links and image URLs.")
-    parser.add_argument("-N", type=int, help="Number of links to check", default=None)
-    return parser.parse_args()
-
-
 def check_link(dog, is_retry=False):
     url = dog["adoption_link"]
     try:
@@ -35,7 +29,14 @@ def check_link(dog, is_retry=False):
 
 
 def main():
-    args = parse_arguments()
+    parser = argparse.ArgumentParser(description="Check adoption links and image URLs.")
+    parser.add_argument("-N", type=int, help="Number of links to check.", default=None)
+    parser.add_argument(
+        "--remove",
+        action="store_true",
+        help="Remove dogs where either the adoption link or image failed to load.",
+    )
+    args = parser.parse_args()
 
     # Load the JSON file
     with open("data/petfinder/dog_metadata.json", "r") as f:
