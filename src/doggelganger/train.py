@@ -23,19 +23,20 @@ model_classes = {
     "resnet": ResNetModel,
 }
 
+
 def calculate_accuracies(y, preds):
     """
     Calculate top1, top3, and top10 accuracies.
-    
+
     Args:
         y (numpy.ndarray): True labels (embeddings).
         preds (numpy.ndarray): Predicted labels (embeddings).
-    
+
     Returns:
         tuple: (top1_accuracy, top3_accuracy, top10_accuracy)
     """
     cosine_similarities = 1 - pairwise_distances(preds, y, metric="cosine")
-    
+
     top1_accuracy = np.mean(np.argmax(cosine_similarities, axis=1) == np.arange(len(y)))
     top3_accuracy = np.mean(
         [
@@ -49,8 +50,9 @@ def calculate_accuracies(y, preds):
             for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))
         ]
     )
-    
+
     return top1_accuracy, top3_accuracy, top10_accuracy
+
 
 def make_training_data(data_dir):
     """
@@ -118,8 +120,10 @@ def train_model(model_class, X, y):
         raise ValueError(
             "No matching embeddings found between human and animal datasets"
         )
-
-    model = model_class()
+    if issubclass(model_class, ResNetModel):
+        model = model_class(embedding_dim=X.shape[1])
+    else:
+        model = model_class()
     model.fit(X, y)
     return model
 
@@ -218,16 +222,21 @@ def main():
         type=str,
         choices=["linear", "xgboost", "resnet"],
         default="linear",
-        help="Model type to use (default: linear)",
+        help="Model type to use (default: linear).",
     )
     parser.add_argument(
         "--save",
-        type=bool or str,
-        default=False,
-        help="Saves model to /model/path (default: false)",
+        type=str,
+        default="",
+        help="Saves model to /model/path (default: false).",
+    )
+    parser.add_argument(
+        "--kfolds",
+        type=int,
+        default=8,
+        help="Number of k-folds during training. Pass 0 for no kfolds (default: 8).",
     )
     args = parser.parse_args()
-
 
     model_class = model_classes[args.model]
 
@@ -235,71 +244,78 @@ def main():
         # Load training data from /data/train
         X, y = make_training_data("data/train")
 
-        # Initialize KFold
-        n_splits = 8
-        kf = KFold(n_splits=n_splits, shuffle=True, random_state=args.seed)
-
         best_model = None
         best_score = float("-inf")
+        num_images = len(X)
 
-        # Lists to store statistics for each fold
-        train_mse_list, train_r2_list = [], []
-        test_mse_list, test_r2_list = [], []
-        top1_acc_list, top3_acc_list, top10_acc_list = [], [], []
+        if args.kfolds:
+            # Initialize KFold
+            kf = KFold(n_splits=args.kfolds, shuffle=True, random_state=args.seed)
 
-        for fold, (train_index, test_index) in tqdm(
-            enumerate(kf.split(X), 1), total=n_splits, desc="Processing folds"
-        ):
-            logger.debug(f"\nFold {fold}/{n_splits}")
-            X_train, X_test = X[train_index], X[test_index]
-            y_train, y_test = y[train_index], y[test_index]
+            # Lists to store statistics for each fold
+            train_mse_list, train_r2_list = [], []
+            test_mse_list, test_r2_list = [], []
+            top1_acc_list, top3_acc_list, top10_acc_list = [], [], []
 
-            # Train the model
-            model = train_model(model_class, X_train, y_train)
+            for fold, (train_index, test_index) in tqdm(
+                enumerate(kf.split(X), 1), total=args.kfolds, desc="Processing folds"
+            ):
+                logger.debug(f"\nFold {fold}/{args.kfolds}")
+                X_train, X_test = X[train_index], X[test_index]
+                y_train, y_test = y[train_index], y[test_index]
 
-            # Print model statistics and get the values
-            stats = print_model_stats(model, X_train, y_train, X_test, y_test)
+                num_images = len(X_train)
 
-            # Append statistics to lists
-            train_mse_list.append(stats["train_mse"])
-            train_r2_list.append(stats["train_r2"])
-            test_mse_list.append(stats["test_mse"])
-            test_r2_list.append(stats["test_r2"])
-            top1_acc_list.append(stats["top1_accuracy"])
-            top3_acc_list.append(stats["top3_accuracy"])
-            top10_acc_list.append(stats["top10_accuracy"])
+                # Train the model
+                model = train_model(model_class, X_train, y_train)
 
-            # Save the best model based on test R-squared score
-            if stats["test_r2"] > best_score:
-                best_score = stats["test_r2"]
-                best_model = model
-                logger.info(f"New best model found (R-squared: {best_score:.4f})")
+                # Print model statistics and get the values
+                stats = print_model_stats(model, X_train, y_train, X_test, y_test)
 
-        # Print average statistics across all folds
-        logger.info(
-            "\nAverage Statistics Across All Folds:\n"
-            f"  Training MSE: {np.mean(train_mse_list):.4f} (±{np.std(train_mse_list):.4f})\n"
-            f"  Training R-squared: {np.mean(train_r2_list):.4f} (±{np.std(train_r2_list):.4f})\n"
-            f"  Test MSE: {np.mean(test_mse_list):.4f} (±{np.std(test_mse_list):.4f})\n"
-            f"  Test R-squared: {np.mean(test_r2_list):.4f} (±{np.std(test_r2_list):.4f})\n"
-            f"  Top-1 Accuracy: {np.mean(top1_acc_list):.4f} (±{np.std(top1_acc_list):.4f})\n"
-            f"  Top-3 Accuracy: {np.mean(top3_acc_list):.4f} (±{np.std(top3_acc_list):.4f})\n"
-            f"  Top-10 Accuracy: {np.mean(top10_acc_list):.4f} (±{np.std(top10_acc_list):.4f})"
-        )
+                # Append statistics to lists
+                train_mse_list.append(stats["train_mse"])
+                train_r2_list.append(stats["train_r2"])
+                test_mse_list.append(stats["test_mse"])
+                test_r2_list.append(stats["test_r2"])
+                top1_acc_list.append(stats["top1_accuracy"])
+                top3_acc_list.append(stats["top3_accuracy"])
+                top10_acc_list.append(stats["top10_accuracy"])
+
+                # Save the best model based on test R-squared score
+                if stats["test_r2"] > best_score:
+                    best_score = stats["test_r2"]
+                    best_model = model
+                    logger.info(f"New best model found (R-squared: {best_score:.4f})")
+
+            # Print average statistics across all folds
+            logger.info(
+                "\nAverage Statistics Across All Folds:\n"
+                f"  Training MSE: {np.mean(train_mse_list):.4f} (±{np.std(train_mse_list):.4f})\n"
+                f"  Training R-squared: {np.mean(train_r2_list):.4f} (±{np.std(train_r2_list):.4f})\n"
+                f"  Test MSE: {np.mean(test_mse_list):.4f} (±{np.std(test_mse_list):.4f})\n"
+                f"  Test R-squared: {np.mean(test_r2_list):.4f} (±{np.std(test_r2_list):.4f})\n"
+                f"  Top-1 Accuracy: {np.mean(top1_acc_list):.4f} (±{np.std(top1_acc_list):.4f})\n"
+                f"  Top-3 Accuracy: {np.mean(top3_acc_list):.4f} (±{np.std(top3_acc_list):.4f})\n"
+                f"  Top-10 Accuracy: {np.mean(top10_acc_list):.4f} (±{np.std(top10_acc_list):.4f})"
+            )
 
         # Save the best alignment model
         if args.save:
             model_path = (
                 args.save
                 if isinstance(args.save, str)
-                else f"weights/alignment_model_{args.model}.json"
+                else f"weights/alignment_model_{args.model}.pt"
             )
+            if not best_model:
+                best_model = train_model(model_class, X, y)
             best_model.save(model_path)
 
+
             logger.info(
-                f"\nBest alignment model trained and saved. Used {len(X)} image pairs."
+                f"\nBest alignment model trained and saved. Used {num_images} image pairs."
             )
-            logger.info(f"Best model R-squared score: {best_score:.4f}")
+            if best_score > 0:
+                logger.info(f"Best model R-squared score: {best_score:.4f}")
             logger.info("This model now aligns human embeddings to animal embeddings.")
     except Exception as e:
         logger.error(f"An error occurred during the training process: {str(e)}")
