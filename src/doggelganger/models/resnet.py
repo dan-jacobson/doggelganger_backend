@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
 import numpy as np
-from sklearn.metrics import pairwise_distances
 from doggelganger.models.base import BaseModel
 from tqdm import tqdm
+
+from pathlib import Path
 
 
 class ResidualBlock(nn.Module):
@@ -91,10 +92,10 @@ class ResNetModel(BaseModel):
     def __init__(
         self,
         embedding_dim,
-        num_blocks=3,
+        num_blocks=5,
         learning_rate=0.001,
-        lambda_delta=0.1,
-        lambda_ortho=0.1,
+        lambda_delta=0.05,
+        lambda_ortho=0.005,
         init_method="default",
     ):
         self.num_blocks = num_blocks
@@ -110,7 +111,7 @@ class ResNetModel(BaseModel):
         self.lambda_delta = lambda_delta
         self.lambda_ortho = lambda_ortho
 
-    def fit(self, X, y, num_epochs=100, batch_size=32, callback=None):
+    def fit(self, X, y, num_epochs=150, batch_size=64, callback=None):
         X = torch.tensor(X, dtype=torch.float32).to(self.device)
         y = torch.tensor(y, dtype=torch.float32).to(self.device)
 
@@ -154,7 +155,7 @@ class ResNetModel(BaseModel):
                 # Calculate predictions for callback
                 with torch.no_grad():
                     preds = self.model(X).cpu().numpy()
-                
+
                 callback(avg_loss, y.cpu().numpy(), preds)
 
         return avg_loss
@@ -165,11 +166,12 @@ class ResNetModel(BaseModel):
             X = torch.tensor(X, dtype=torch.float32).to(self.device)
             return self.model(X).cpu().numpy()
 
-    def save(self, path):
-        torch.save(self.model.state_dict(), path)
+    def save(self, path: Path):
+        model_scripted = torch.jit.script(self.model)
+        model_scripted.save(path)
 
     @staticmethod
-    def load(path):
-        model = ResNetModel()
-        model.model.load_state_dict(torch.load(path))
+    def load(path: Path, embedding_dim: int):
+        model = ResNetModel(embedding_dim=embedding_dim)
+        model.model = torch.jit.load(path)
         return model
