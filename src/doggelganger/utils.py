@@ -5,6 +5,7 @@ from transformers import pipeline
 from huggingface_hub import snapshot_download
 
 HUGGINGFACE_MODEL = "facebook/dinov2-small"
+# HUGGINGFACE_MODEL = "/Users/drj/.cache/huggingface/hub/models--facebook--dinov2-base/snapshots/f9e44c814b77203eaa57a6bdbbd535f21ede1415"
 
 
 def download_model_weights():
