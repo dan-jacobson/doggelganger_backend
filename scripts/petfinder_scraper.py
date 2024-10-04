@@ -215,7 +215,7 @@ def main():
     existing_dogs = {dog["adoption_link"] for dog in all_dogs}
 
     try:
-        city_items = cities.items()
+        city_items = list(cities.items())
         random.shuffle(city_items)
         for city, city_url in city_items:
             print(f"Scraping dogs from {city}")
