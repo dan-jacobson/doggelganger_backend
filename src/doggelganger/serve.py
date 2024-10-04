@@ -27,19 +27,27 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 load_dotenv()
-DB_CONNECTION = os.getenv("SUPABASE_DB")
+DOGGELGANGER_DB_CONNECTION = os.getenv("SUPABASE_DB")
+MODEL_CLASS = os.getenv("DOGGELGANGER_ALIGNMENT_MODEL")
+MODEL_WEIGHTS = os.getenv("DOGGELGANGER_ALIGNMENT_WEIGHTS")
 
 # Initialize the image feature extraction pipeline
 pipe = load_embedding_pipeline()
+embedding_dim = pipe.model.config.hidden_size
+
+# Initialize the alignment model
+model_class = model_classes[MODEL_CLASS]
+alignment_model = model_class.load(path=MODEL_WEIGHTS, embedding_dim=embedding_dim)
 
 # Initialize vecs client
-vx = vecs.create_client(DB_CONNECTION)
+vx = vecs.create_client(DOGGELGANGER_DB_CONNECTION)
 dogs = vx.get_or_create_collection(
     name="dog_embeddings", dimension=pipe.model.config.hidden_size
 )
 
-def align_embedding(embedding, model):
-    return model.predict(embedding)
+
+def align_embedding(embedding):
+    return alignment_model.predict(embedding)
 
 
 def is_valid_link(url):
@@ -71,7 +79,7 @@ async def embed_image(
         embedding = get_embedding(img, pipe=pipe)
 
         # Align embedding
-        aligned_embedding = align_embedding(embedding, alignment_model)
+        aligned_embedding = align_embedding(embedding)
 
         # Query similar images
         results = dogs.query(
@@ -88,7 +96,7 @@ async def embed_image(
                 valid_result = {
                     "id": id,
                     "similarity": 1 - score,  # converts cosine distance to similarity
-                    "metadata": metadata,
+                    "dog_data": metadata,
                 }
                 logger.debug(
                     f"Valid link after {i + 1} tries: {metadata.get("adoption_link")}"
@@ -107,7 +115,7 @@ async def embed_image(
             content={
                 "message": "Image processed successfully",
                 "embedding": embedding,
-                "similar_image": valid_result,
+                **valid_result,
             },
             status_code=HTTP_200_OK,
         )
@@ -123,21 +131,9 @@ app = Litestar([embed_image, health_check])
 
 def main():
     import uvicorn
+
     parser = argparse.ArgumentParser(
         description="Serve the Doggelganger backend as a uvicorn app."
-    )
-    parser.add_argument(
-        "--model",
-        type=str,
-        choices=["linear", "xgboost", "resnet"],
-        default="linear",
-        help="Model type to use (default: linear)",
-    )
-    parser.add_argument(
-        "--weights_path",
-        type=str,
-        default="weights/linear.json",
-        help="Path to alignment model weights (default: weights/linear.json)",
     )
     parser.add_argument(
         "--host",
@@ -153,10 +149,6 @@ def main():
     )
     args = parser.parse_args()
 
-    model_class = model_classes[args.model]
-    global alignment_model
-    alignment_model = model_class.load(args.weights_path)
-
     uvicorn.run(app, host=args.host, port=args.port)
 
 
@@ -167,3 +159,7 @@ if __name__ == "__main__":
 # curl -i -X POST \
 #   http://0.0.0.0:8000/embed \
 #   -F "image=@/path/to/your/image.jpg"
+
+# curl -i -X POST \
+#   http://0.0.0.0:8000/embed \
+#   -F "image=@.mint/example.jpg"

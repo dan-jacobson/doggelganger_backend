@@ -1,8 +1,7 @@
-import numpy as np
+import torch
 import argparse
 import logging
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import pairwise_distances
 from ray import tune
 from ray.train import RunConfig, report
 from ray.tune.schedulers import ASHAScheduler
@@ -12,12 +11,16 @@ from doggelganger.train import make_training_data, calculate_accuracies
 from doggelganger.models.resnet import ResNetModel
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 # gotta play around with these weights
 def blended_score(top1_accuracy, top3_accuracy, top10_accuracy):
     return 0.5 * top1_accuracy + 0.3 * top3_accuracy + 0.2 * top10_accuracy
+
 
 def train_model(config, X, y):
     # Hyperparameters
@@ -37,7 +40,12 @@ def train_model(config, X, y):
 
     # Create and train the model
     model = ResNetModel(
-        embedding_dim, num_blocks, learning_rate, lambda_delta, lambda_ortho, init_method=init_method
+        embedding_dim,
+        num_blocks,
+        learning_rate,
+        lambda_delta,
+        lambda_ortho,
+        init_method=init_method,
     )
 
     def log_metrics(loss, y, preds, prefix="train"):
@@ -76,7 +84,11 @@ def hyperparameter_search(X, y, num_samples=10, max_num_epochs=200, name=None):
         "lambda_delta": tune.loguniform(1e-5, 1e-1),
         "lambda_ortho": tune.loguniform(1e-5, 1e-1),
         "num_epochs": tune.randint(50, max_num_epochs + 1),
-        "batch_size": tune.choice([16,]), #32, 64]),
+        "batch_size": tune.choice(
+            [
+                16,
+            ]
+        ),  # 32, 64]),
         "init_method": tune.choice(["default", "he", "fixup", "lsuv"]),
     }
 
@@ -93,28 +105,46 @@ def hyperparameter_search(X, y, num_samples=10, max_num_epochs=200, name=None):
             search_alg=algo,
         ),
         param_space=config,
-        run_config=RunConfig(storage_path="/Users/drj/code/doggelganger_backend/ray_results", name=name),
+        run_config=RunConfig(
+            storage_path="/Users/drj/code/doggelganger_backend/ray_results", name=name
+        ),
     )
     result = tuner.fit()
 
     best_trial = result.get_best_result(scope="last")
-    logger.info(f"Best trial config: {best_trial.config}"
+    logger.info(
+        f"Best trial config: {best_trial.config}"
         f"Best trial final validation accuracy: {best_trial.metrics['blended_score']}"
     )
-
 
     return best_trial.config
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run hyperparameter search for ResNet model.")
-    parser.add_argument("--name", type=str, default=None, help="Name for the Ray experiment")
-    parser.add_argument("--num_samples", type=int, default=50, help="Number of samples for hyperparameter search")
-    parser.add_argument("--save", action="store_true", default=False, help="Should the best model be saved")
+    parser = argparse.ArgumentParser(
+        description="Run hyperparameter search for ResNet model."
+    )
+    parser.add_argument(
+        "--name", type=str, default=None, help="Name for the Ray experiment"
+    )
+    parser.add_argument(
+        "--num_samples",
+        type=int,
+        default=50,
+        help="Number of samples for hyperparameter search",
+    )
+    parser.add_argument(
+        "--save",
+        action="store_true",
+        default=False,
+        help="Should the best model be saved",
+    )
     args = parser.parse_args()
 
     X, y = make_training_data("data/train")
-    best_params = hyperparameter_search(X, y, num_samples=args.num_samples, name=args.name)
+    best_params = hyperparameter_search(
+        X, y, num_samples=args.num_samples, name=args.name
+    )
 
     if args.save:
         best_model = ResNetModel(
@@ -131,5 +161,7 @@ if __name__ == "__main__":
             num_epochs=best_params["num_epochs"],
             batch_size=best_params["batch_size"],
         )
-        best_model.save(path=f"weights/{args.name}")
-        logger.info(f"Best model saved to: weights/{args.name}")
+        weights_path = f"weights/{args.name}.pt"
+        model_scripted = torch.jit.script(best_model)  # Export to TorchScript
+        model_scripted.save(weights_path)  # Save
+        logger.info(f"Best model saved to: {weights_path}")
