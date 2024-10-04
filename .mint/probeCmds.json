@@ -10,7 +10,7 @@
             "protocol": "http",
             "method": "POST",
             "resource": "/embed",
-            "body_file": ".mint/test_dog_image.jpg",
+            "body_file": ".mint/example.jpg",
             "headers": ["Content-Type: multipart/form-data"]
         }
     ]
