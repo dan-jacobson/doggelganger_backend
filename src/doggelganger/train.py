@@ -9,19 +9,13 @@ from pathlib import Path
 from tqdm import tqdm
 
 from doggelganger.utils import get_embedding, load_model as load_embedding_model
-from doggelganger.models import LinearRegressionModel, ResNetModel, XGBoostModel
+from doggelganger.models import model_classes, ResNetModel
 
 # Set up logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
-
-model_classes = {
-    "linear": LinearRegressionModel,
-    "xgboost": XGBoostModel,
-    "resnet": ResNetModel,
-}
 
 
 def calculate_accuracies(y, preds):
@@ -309,7 +303,6 @@ def main():
             if not best_model:
                 best_model = train_model(model_class, X, y)
             best_model.save(model_path)
-
 
             logger.info(
                 f"\nBest alignment model trained and saved. Used {num_images} image pairs."

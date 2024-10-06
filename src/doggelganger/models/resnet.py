@@ -167,7 +167,7 @@ class ResNetModel(BaseModel):
             return self.model(X).cpu().numpy()
 
     def save(self, path: Path):
-        model_scripted = torch.jit.script(self.model)
+        model_scripted = torch.jit.script(self.model.cpu())
         model_scripted.save(path)
 
     @staticmethod
