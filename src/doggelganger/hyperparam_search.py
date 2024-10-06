@@ -4,7 +4,6 @@ import logging
 from sklearn.model_selection import train_test_split
 from ray import tune
 from ray.train import RunConfig, report
-from ray.tune.schedulers import ASHAScheduler
 from ray.tune.search.optuna import OptunaSearch
 
 from doggelganger.train import make_training_data, calculate_accuracies
@@ -162,6 +161,5 @@ if __name__ == "__main__":
             batch_size=best_params["batch_size"],
         )
         weights_path = f"weights/{args.name}.pt"
-        model_scripted = torch.jit.script(best_model)  # Export to TorchScript
-        model_scripted.save(weights_path)  # Save
+        best_model.save(weights_path)
         logger.info(f"Best model saved to: {weights_path}")
