@@ -7,4 +7,4 @@ slim \
 --include-shell \
 --include-dir-bins /usr/local/lib/python3.12/site-packages/torch/bin \
 --preserve-path /usr/local/lib/python3.12/site-packages/PIL \
-serve
+"${1:-"serve"}"

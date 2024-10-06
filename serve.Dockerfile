@@ -14,12 +14,12 @@ WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --frozen --no-install-project --index-strategy unsafe-best-match
+    uv sync --frozen --no-install-project --no-dev --index-strategy unsafe-best-match
 
 # Copy files and build project
 ADD . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen
+    uv sync --frozen --no-dev
 
 # Set HF cache dir and download weights
 ENV HF_HOME=.cache/huggingface
