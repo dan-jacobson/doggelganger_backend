@@ -53,6 +53,7 @@ def main():
     retry_successes = 0
     image_failures = 0
     image_failure_examples = []
+    valid_dogs = []
 
     # First pass: check all links
     with ThreadPoolExecutor(max_workers=10) as executor:
@@ -62,12 +63,15 @@ def main():
             as_completed(future_to_dog), total=len(dogs), desc="Checking adoption links"
         ):
             is_success, image_success, dog = future.result()
-            if is_success:
+            if is_success and image_success:
                 successes += 1
-                if image_success is False:
-                    image_failures += 1
-                    if len(image_failure_examples) < 5:
-                        image_failure_examples.append(dog)
+                valid_dogs.append(dog)
+            elif is_success and not image_success:
+                image_failures += 1
+                if len(image_failure_examples) < 5:
+                    image_failure_examples.append(dog)
+                if not args.remove:
+                    valid_dogs.append(dog)
             else:
                 failures += 1
                 failed_dogs.append(dog)
@@ -84,21 +88,23 @@ def main():
                 total=len(failed_dogs),
                 desc="Retrying failed links",
             ):
-                is_success, _, _ = future.result()
+                is_success, _, dog = future.result()
                 if is_success:
                     retry_successes += 1
                     failures -= 1  # Decrement failures count
+                    if not args.remove:
+                        valid_dogs.append(dog)
 
-    total = successes + failures
-    success_percent = (successes / total) * 100 if total > 0 else 0
+    total = len(dogs)
+    removed = total - len(valid_dogs)
+    success_percent = (len(valid_dogs) / total) * 100 if total > 0 else 0
 
     print(f"1. Number of successes: {successes}")
     print(f"2. Number of failures: {failures}")
-    print(
-        f"3. Number of initial failures that worked the second time: {retry_successes}"
-    )
+    print(f"3. Number of initial failures that worked the second time: {retry_successes}")
     print(f"4. Number of successes whose 'image_url' didn't work: {image_failures}")
     print(f"5. Percent successes: {success_percent:.2f}%")
+    print(f"6. Number of dogs removed: {removed}")
 
     print("\n5 examples of successes whose 'image_url' didn't work:")
     for i, dog in enumerate(image_failure_examples, 1):
@@ -107,6 +113,12 @@ def main():
         print(f"  Adoption Link: {dog.get('adoption_link', 'N/A')}")
         print(f"  Image URL: {dog.get('image_url', 'N/A')}")
         print()
+
+    if args.remove:
+        # Save the updated JSON file with only valid dogs
+        with open(DOG_FILE, "w") as f:
+            json.dump(valid_dogs, f, indent=2)
+        print(f"Updated {DOG_FILE} with {len(valid_dogs)} valid dogs.")
 
 
 if __name__ == "__main__":
