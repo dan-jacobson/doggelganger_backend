@@ -6,6 +6,9 @@ from tqdm import tqdm
 import vecs
 import hashlib
 from dotenv import load_dotenv
+import argparse
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from functools import partial
 
 from doggelganger.utils import load_model, get_embedding
 
@@ -15,67 +18,86 @@ DB_CONNECTION = os.getenv("SUPABASE_DB")
 
 
 def generate_id(metadata):
-    # Create a unique ID based on the dog's name and breed
+    # Create a unique ID based on the dog's adoption link
     id_string = f"{metadata['adoption_link']}"
     return hashlib.md5(id_string.encode()).hexdigest()
 
 
-def process_dogs(data_dir, metadata_path):
+def process_dog(dog, data_dir, pipe):
+    try:
+        # Determine image source
+        if "local_image" in dog and dog["local_image"]:
+            image_path = Path(data_dir, dog["local_image"])
+            embedding = get_embedding(image_path, pipe)
+        else:
+            embedding = get_embedding(dog["image_url"], pipe)
+
+        if embedding is not None:
+            # Generate ID
+            dog_id = generate_id(dog)
+            return dog_id, embedding, dog
+        else:
+            logging.error(f"Failed to get embedding for dog: {dog['name']}")
+            return None
+    except Exception as e:
+        logging.error(f"Error processing dog {dog['name']}: {str(e)}")
+        return None
+
+
+def process_dogs(data_dir, metadata_path, drop_existing=False):
     pipe = load_model()
 
     # Load metadata
     with open(metadata_path, "r") as f:
         metadata = json.load(f)
 
-    # Initialize counters
+    # Initialize Supabase client
+    vx = vecs.create_client(DB_CONNECTION)
+    
+    if drop_existing:
+        vx.delete_collection("dog_embeddings")
+        logging.info("Existing 'dog_embeddings' collection dropped.")
+
+    dogs = vx.get_or_create_collection(
+        name="dog_embeddings",
+        dimension=pipe.model.config.hidden_size,
+    )
+
+    # Process dogs in parallel
+    process_dog_partial = partial(process_dog, data_dir=data_dir, pipe=pipe)
+    
+    batch_size = 100
     total_processed = 0
     successfully_pushed = 0
 
-    try:
-        # Initialize Supabase client
-        vx = vecs.create_client(DB_CONNECTION)
-        dogs = vx.get_or_create_collection(
-            name="dog_embeddings",
-            dimension=pipe.model.config.hidden_size,
-        )
-
-        # Process dogs
-        for dog in tqdm(metadata, desc="Processing dogs"):
-            total_processed += 1
-
-            try:
-                # Determine image source
-                if "local_image" in dog and dog["local_image"]:
-                    image_path = Path(data_dir, dog["local_image"])
-                    embedding = get_embedding(image_path, pipe)
-                else:
-                    embedding = get_embedding(dog["image_url"], pipe)
-
-                if embedding is not None:
-                    # Generate ID
-                    dog_id = generate_id(dog)
-
-                    # Prepare data for Supabase
-                    record = (dog_id, embedding, dog)
-
-                    # Push to Supabase
-                    dogs.upsert([record])
+    with ProcessPoolExecutor() as executor:
+        for i in range(0, len(metadata), batch_size):
+            batch = metadata[i:i+batch_size]
+            futures = [executor.submit(process_dog_partial, dog) for dog in batch]
+            
+            records = []
+            for future in as_completed(futures):
+                result = future.result()
+                if result:
+                    records.append(result)
                     successfully_pushed += 1
-                else:
-                    logging.error(f"Failed to get embedding for dog: {dog['name']}")
-            except Exception as e:
-                logging.error(f"Error processing dog {dog['name']}: {str(e)}")
+                total_processed += 1
 
-        dogs.create_index()
+            if records:
+                dogs.upsert(records)
 
-    except Exception as e:
-        logging.error(f"Error initializing Supabase client or collection: {str(e)}")
+            logging.info(f"Processed {total_processed} dogs, successfully pushed {successfully_pushed}")
 
+    dogs.create_index()
     logging.info(f"Total dogs processed: {total_processed}")
     logging.info(f"Successfully pushed to Supabase: {successfully_pushed}")
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Process dog embeddings and upload to Supabase.")
+    parser.add_argument('--drop', action='store_true', help='Drop existing collection before processing')
+    args = parser.parse_args()
+
     # Set up logging
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -84,7 +106,7 @@ def main():
     data_dir = "./data/petfinder"
     metadata_path = "./data/petfinder/dog_metadata.json"
 
-    process_dogs(data_dir, metadata_path)
+    process_dogs(data_dir, metadata_path, drop_existing=args.drop)
     logging.info("Embeddings processing completed.")
 
 
