@@ -3,32 +3,41 @@ import asyncio
 import aiohttp
 import argparse
 from tqdm.asyncio import tqdm
+import random
 
 DOG_FILE = 'data/petfinder/dog_metadata.json'
 
-async def check_link(session, dog, is_retry=False):
+async def check_link(session, dog, is_retry=False, max_retries=3):
     url = dog["adoption_link"]
-    try:
-        async with session.get(url, timeout=5, allow_redirects=True) as response:
-            success = response.status == 200
-            if success and not is_retry:
-                # Check image_url if adoption_link is successful
-                image_url = dog.get("image_url")
-                if image_url:
-                    async with session.get(image_url, timeout=5, allow_redirects=True) as img_response:
-                        img_success = img_response.status == 200
-                        if img_success:
-                            # Check if the Content-Type is an image
-                            content_type = img_response.headers.get("Content-Type", "")
-                            img_success = content_type.startswith("image/")
-                        return success, img_success, dog
-            return success, None, dog
-    except asyncio.TimeoutError:
-        return False, None, dog
+    for attempt in range(max_retries):
+        try:
+            async with session.get(url, timeout=10, allow_redirects=True) as response:
+                success = response.status == 200
+                if success and not is_retry:
+                    # Check image_url if adoption_link is successful
+                    image_url = dog.get("image_url")
+                    if image_url:
+                        async with session.get(image_url, timeout=10, allow_redirects=True) as img_response:
+                            img_success = img_response.status == 200
+                            if img_success:
+                                # Check if the Content-Type is an image
+                                content_type = img_response.headers.get("Content-Type", "")
+                                img_success = content_type.startswith("image/")
+                            return success, img_success, dog
+                return success, None, dog
+        except (asyncio.TimeoutError, aiohttp.ClientError):
+            if attempt == max_retries - 1:
+                return False, None, dog
+            await asyncio.sleep(2 ** attempt + random.uniform(0, 1))
+    return False, None, dog
 
 async def check_links(dogs, is_retry=False):
     async with aiohttp.ClientSession() as session:
-        tasks = [check_link(session, dog, is_retry) for dog in dogs]
+        semaphore = asyncio.Semaphore(10)  # Limit to 10 concurrent requests
+        async def check_with_semaphore(dog):
+            async with semaphore:
+                return await check_link(session, dog, is_retry)
+        tasks = [check_with_semaphore(dog) for dog in dogs]
         return await tqdm.gather(*tasks, desc="Checking links", total=len(dogs))
 
 async def main():
