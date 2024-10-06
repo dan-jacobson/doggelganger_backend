@@ -1,36 +1,37 @@
 import json
-import requests
+import asyncio
+import aiohttp
 import argparse
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
 DOG_FILE = 'data/petfinder/dog_metadata.json'
 
-
-def check_link(dog, is_retry=False):
+async def check_link(session, dog, is_retry=False):
     url = dog["adoption_link"]
     try:
-        response = requests.get(url, timeout=5, allow_redirects=True)
-        success = response.status_code == 200
-        if success and not is_retry:
-            # Check image_url if adoption_link is successful
-            image_url = dog.get("image_url")
-            if image_url:
-                img_response = requests.get(
-                    image_url, timeout=5, allow_redirects=True, stream=True
-                )
-                img_success = img_response.status_code == 200
-                if img_success:
-                    # Check if the Content-Type is an image
-                    content_type = img_response.headers.get("Content-Type", "")
-                    img_success = content_type.startswith("image/")
-                return success, img_success, dog
-        return success, None, dog
-    except requests.RequestException:
+        async with session.get(url, timeout=5, allow_redirects=True) as response:
+            success = response.status == 200
+            if success and not is_retry:
+                # Check image_url if adoption_link is successful
+                image_url = dog.get("image_url")
+                if image_url:
+                    async with session.get(image_url, timeout=5, allow_redirects=True) as img_response:
+                        img_success = img_response.status == 200
+                        if img_success:
+                            # Check if the Content-Type is an image
+                            content_type = img_response.headers.get("Content-Type", "")
+                            img_success = content_type.startswith("image/")
+                        return success, img_success, dog
+            return success, None, dog
+    except asyncio.TimeoutError:
         return False, None, dog
 
+async def check_links(dogs, is_retry=False):
+    async with aiohttp.ClientSession() as session:
+        tasks = [check_link(session, dog, is_retry) for dog in dogs]
+        return await tqdm.gather(*tasks, desc="Checking links")
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(description="Check adoption links and image URLs.")
     parser.add_argument("-N", type=int, help="Number of links to check.", default=None)
     parser.add_argument(
@@ -56,44 +57,31 @@ def main():
     valid_dogs = []
 
     # First pass: check all links
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        future_to_dog = {executor.submit(check_link, dog): dog for dog in dogs}
-        failed_dogs = []
-        for future in tqdm(
-            as_completed(future_to_dog), total=len(dogs), desc="Checking adoption links"
-        ):
-            is_success, image_success, dog = future.result()
-            if is_success and image_success:
-                successes += 1
+    results = await check_links(dogs)
+    failed_dogs = []
+    for is_success, image_success, dog in results:
+        if is_success and image_success:
+            successes += 1
+            valid_dogs.append(dog)
+        elif is_success and not image_success:
+            image_failures += 1
+            if len(image_failure_examples) < 5:
+                image_failure_examples.append(dog)
+            if not args.remove:
                 valid_dogs.append(dog)
-            elif is_success and not image_success:
-                image_failures += 1
-                if len(image_failure_examples) < 5:
-                    image_failure_examples.append(dog)
-                if not args.remove:
-                    valid_dogs.append(dog)
-            else:
-                failures += 1
-                failed_dogs.append(dog)
+        else:
+            failures += 1
+            failed_dogs.append(dog)
 
     # Second pass: retry failed links
     if failed_dogs:
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            retry_futures = {
-                executor.submit(check_link, dog, is_retry=True): dog
-                for dog in failed_dogs
-            }
-            for future in tqdm(
-                as_completed(retry_futures),
-                total=len(failed_dogs),
-                desc="Retrying failed links",
-            ):
-                is_success, _, dog = future.result()
-                if is_success:
-                    retry_successes += 1
-                    failures -= 1  # Decrement failures count
-                    if not args.remove:
-                        valid_dogs.append(dog)
+        retry_results = await check_links(failed_dogs, is_retry=True)
+        for is_success, _, dog in retry_results:
+            if is_success:
+                retry_successes += 1
+                failures -= 1  # Decrement failures count
+                if not args.remove:
+                    valid_dogs.append(dog)
 
     total = len(dogs)
     removed = total - len(valid_dogs)
@@ -120,6 +108,5 @@ def main():
             json.dump(valid_dogs, f, indent=2)
         print(f"Updated {DOG_FILE} with {len(valid_dogs)} valid dogs.")
 
-
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
