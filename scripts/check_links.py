@@ -2,7 +2,7 @@ import json
 import asyncio
 import aiohttp
 import argparse
-from tqdm import tqdm
+from tqdm.asyncio import tqdm
 
 DOG_FILE = 'data/petfinder/dog_metadata.json'
 
@@ -29,7 +29,7 @@ async def check_link(session, dog, is_retry=False):
 async def check_links(dogs, is_retry=False):
     async with aiohttp.ClientSession() as session:
         tasks = [check_link(session, dog, is_retry) for dog in dogs]
-        return await tqdm.gather(*tasks, desc="Checking links")
+        return await tqdm.gather(*tasks, desc="Checking links", total=len(dogs))
 
 async def main():
     parser = argparse.ArgumentParser(description="Check adoption links and image URLs.")
