@@ -20,7 +20,7 @@ import requests
 from dotenv import load_dotenv
 
 from doggelganger.utils import get_embedding, load_model as load_embedding_pipeline
-from doggelganger.train import model_classes
+from doggelganger.models import model_classes
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
