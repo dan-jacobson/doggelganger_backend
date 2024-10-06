@@ -4,6 +4,8 @@ import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
+DOG_FILE = 'data/petfinder/dog_metadata.json'
+
 
 def check_link(dog, is_retry=False):
     url = dog["adoption_link"]
@@ -39,7 +41,7 @@ def main():
     args = parser.parse_args()
 
     # Load the JSON file
-    with open("data/petfinder/dog_metadata.json", "r") as f:
+    with open(DOG_FILE, "r") as f:
         dogs = json.load(f)
 
     # Limit the number of dogs if N is specified
