@@ -6,7 +6,7 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_ANON_KEY") ?? ""
 )
 
-async function checkLink(url: string): Promise<boolean> {
+async function checkAdoption(url: string): Promise<boolean> {
   try {
     const response = await fetch(url, { method: 'HEAD' });
     return response.ok;
@@ -15,7 +15,7 @@ async function checkLink(url: string): Promise<boolean> {
   }
 }
 
-async function checkImageUrl(url: string): Promise<boolean> {
+async function checkImage(url: string): Promise<boolean> {
   try {
     const response = await fetch(url, { method: 'HEAD' });
     return response.ok && response.headers.get('Content-Type')?.startsWith('image/');
@@ -30,25 +30,21 @@ Deno.serve(async (req) => {
     const randomVector = Array.from({ length: 1536 }, () => Math.random());
 
     // Query 100 results from the database
-    const { data: dogs, error } = await supabase.rpc('match_dogs', {
-      query_embedding: randomVector,
-      match_threshold: 0.0,
-      match_count: 100
-    });
+    const { data: dogs, error } = await supabase.from('dog_embeddings').select();
 
     if (error) throw error;
 
     const results = await Promise.all(dogs.map(async (dog) => {
-      const adoptionLinkValid = await checkLink(dog.adoption_link);
-      const imageUrlValid = await checkImageUrl(dog.image_url);
+      const adoptionValid = await checkAdoption(dog.adoption_link);
+      const imageValid = await checkImage(dog.image_url);
 
       return {
         id: dog.id,
         name: dog.name,
         adoption_link: dog.adoption_link,
-        adoption_link_valid: adoptionLinkValid,
+        adoption_link_valid: adoptionValid,
         image_url: dog.image_url,
-        image_url_valid: imageUrlValid
+        image_url_valid: imageValid
       };
     }));
 
