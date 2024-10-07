@@ -26,11 +26,15 @@ async function checkImage(url: string): Promise<boolean> {
 
 Deno.serve(async (req) => {
   try {
-    // Generate a random vector
-    const randomVector = Array.from({ length: 1536 }, () => Math.random());
+    // Generate a random hex string prefix
+    const randomPrefix = Math.random().toString(16).substring(2, 6);
 
-    // Query 100 results from the database
-    const { data: dogs, error } = await supabase.from('dog_embeddings').select();
+    // Query approximately 100 results from the database
+    const { data: dogs, error } = await supabase
+      .from('dog_embeddings')
+      .select()
+      .filter('id', 'gt', randomPrefix)
+      .limit(100);
 
     if (error) throw error;
 
