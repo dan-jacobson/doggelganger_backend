@@ -4,13 +4,13 @@ import aiohttp
 import argparse
 from tqdm.asyncio import tqdm
 import random
-from pymongo import MongoClient
-from bson import ObjectId
+import vecs
+import os
+from dotenv import load_dotenv
 
 DOG_FILE = 'data/petfinder/dog_metadata.json'
-MONGODB_URI = "mongodb://localhost:27017"
-DB_NAME = "doggelganger"
-COLLECTION_NAME = "dog_embeddings"
+load_dotenv()
+DB_CONNECTION = os.getenv("SUPABASE_DB")
 
 async def check_link(session, dog, is_retry=False, max_retries=3):
     url = dog["adoption_link"]
@@ -46,10 +46,9 @@ async def check_links(dogs, is_retry=False):
         return await tqdm.gather(*tasks, desc="Checking links", total=len(dogs))
 
 def get_dogs_from_db():
-    client = MongoClient(MONGODB_URI)
-    db = client[DB_NAME]
-    collection = db[COLLECTION_NAME]
-    return list(collection.find({}))
+    vx = vecs.create_client(DB_CONNECTION)
+    dogs = vx.get_collection("dog_embeddings")
+    return [record.metadata for record in dogs.peek(limit=None)]
 
 async def main():
     parser = argparse.ArgumentParser(description="Check adoption links and image URLs.")
@@ -140,16 +139,16 @@ async def main():
             print(f"Updated {DOG_FILE} with {len(valid_dogs)} valid dogs.")
         else:
             # Update the database with only valid dogs
-            client = MongoClient(MONGODB_URI)
-            db = client[DB_NAME]
-            collection = db[COLLECTION_NAME]
+            vx = vecs.create_client(DB_CONNECTION)
+            dogs = vx.get_collection("dog_embeddings")
             
             # Remove all documents
-            collection.delete_many({})
+            dogs.delete()
             
             # Insert valid dogs
             if valid_dogs:
-                collection.insert_many(valid_dogs)
+                records = [(dog['id'], dog['embedding'], dog) for dog in valid_dogs]
+                dogs.upsert(records)
             
             print(f"Updated database with {len(valid_dogs)} valid dogs.")
 
