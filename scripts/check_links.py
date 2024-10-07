@@ -8,6 +8,10 @@ import vecs
 from vecs.collection import Collection
 import os
 from dotenv import load_dotenv
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 DOG_FILE = 'data/petfinder/dog_metadata.json'
 load_dotenv()
@@ -117,27 +121,27 @@ async def main():
     removed = total - len(valid_dogs)
     success_percent = (len(valid_dogs) / total) * 100 if total > 0 else 0
 
-    print(f"1. Number of successes: {successes}")
-    print(f"2. Number of failures: {failures}")
-    print(f"3. Number of initial failures that worked the second time: {retry_successes}")
-    print(f"4. Number of successes whose 'image_url' didn't work: {image_failures}")
-    print(f"5. Percent successes: {success_percent:.2f}%")
-    print(f"6. Number of dogs removed: {removed}")
+    logging.info(f"1. Number of successes: {successes}")
+    logging.info(f"2. Number of failures: {failures}")
+    logging.info(f"3. Number of initial failures that worked the second time: {retry_successes}")
+    logging.info(f"4. Number of successes whose 'image_url' didn't work: {image_failures}")
+    logging.info(f"5. Percent successes: {success_percent:.2f}%")
+    logging.info(f"6. Number of dogs removed: {removed}")
 
-    print("\n5 examples of successes whose 'image_url' didn't work:")
+    logging.info("\n5 examples of successes whose 'image_url' didn't work:")
     for i, dog in enumerate(image_failure_examples, 1):
-        print(f"Example {i}:")
-        print(f"  Name: {dog.get('name', 'N/A')}")
-        print(f"  Adoption Link: {dog.get('adoption_link', 'N/A')}")
-        print(f"  Image URL: {dog.get('image_url', 'N/A')}")
-        print()
+        logging.info(f"Example {i}:")
+        logging.info(f"  Name: {dog.get('name', 'N/A')}")
+        logging.info(f"  Adoption Link: {dog.get('adoption_link', 'N/A')}")
+        logging.info(f"  Image URL: {dog.get('image_url', 'N/A')}")
+        logging.info("")
 
     if args.remove:
         if args.source == "file":
             # Save the updated JSON file with only valid dogs
             with open(DOG_FILE, "w") as f:
                 json.dump(valid_dogs, f, indent=2)
-            print(f"Updated {DOG_FILE} with {len(valid_dogs)} valid dogs.")
+            logging.info(f"Updated {DOG_FILE} with {len(valid_dogs)} valid dogs.")
         else:
             # Update the database with only valid dogs
             vx = vecs.create_client(DB_CONNECTION)
@@ -151,7 +155,7 @@ async def main():
                 records = [(dog['id'], dog['embedding'], dog) for dog in valid_dogs]
                 dogs.upsert(records)
             
-            print(f"Updated database with {len(valid_dogs)} valid dogs.")
+            logging.info(f"Updated database with {len(valid_dogs)} valid dogs.")
 
 if __name__ == "__main__":
     asyncio.run(main())
