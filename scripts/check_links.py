@@ -13,9 +13,9 @@ import logging
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-DOG_FILE = 'data/petfinder/dog_metadata.json'
 load_dotenv()
 DB_CONNECTION = os.getenv("SUPABASE_DB")
+DOG_FILE = 'data/petfinder/dog_metadata.json'
 
 async def check_link(session, dog, is_retry=False, max_retries=3):
     url = dog["adoption_link"]
@@ -53,7 +53,7 @@ async def check_links(dogs, is_retry=False):
 def get_dogs_from_db():
     vx = vecs.create_client(DB_CONNECTION)
     dogs = vx.get_collection("dog_embeddings")
-    return [record.metadata for record in dogs.query(query_vector=[0]*dogs.dimension, limit=None)]
+    return [record.metadata for record in dogs.query(data=[0]*dogs.dimension, limit=100000)]
 
 async def main():
     parser = argparse.ArgumentParser(description="Check adoption links and image URLs.")
@@ -121,20 +121,21 @@ async def main():
     removed = total - len(valid_dogs)
     success_percent = (len(valid_dogs) / total) * 100 if total > 0 else 0
 
-    logging.info(f"1. Number of successes: {successes}")
-    logging.info(f"2. Number of failures: {failures}")
-    logging.info(f"3. Number of initial failures that worked the second time: {retry_successes}")
-    logging.info(f"4. Number of successes whose 'image_url' didn't work: {image_failures}")
-    logging.info(f"5. Percent successes: {success_percent:.2f}%")
-    logging.info(f"6. Number of dogs removed: {removed}")
+    logging.info(f"1. Number of successes: {successes}"
+        f"2. Number of failures: {failures}"
+        f"3. Number of initial failures that worked the second time: {retry_successes}"
+        f"4. Number of successes whose 'image_url' didn't work: {image_failures}"
+        f"5. Percent successes: {success_percent:.2f}%")
+    if args.remove:
+        logging.info(f"6. Number of dogs removed: {removed}")
 
-    logging.info("\n5 examples of successes whose 'image_url' didn't work:")
+    logging.debug("\n5 examples of successes whose 'image_url' didn't work:")
     for i, dog in enumerate(image_failure_examples, 1):
-        logging.info(f"Example {i}:")
-        logging.info(f"  Name: {dog.get('name', 'N/A')}")
-        logging.info(f"  Adoption Link: {dog.get('adoption_link', 'N/A')}")
-        logging.info(f"  Image URL: {dog.get('image_url', 'N/A')}")
-        logging.info("")
+        logging.debug(f"Example {i}:"
+            f"  Name: {dog.get('name', 'N/A')}"
+            f"  Adoption Link: {dog.get('adoption_link', 'N/A')}"
+            f"  Image URL: {dog.get('image_url', 'N/A')}"
+            "")
 
     if args.remove:
         if args.source == "file":
