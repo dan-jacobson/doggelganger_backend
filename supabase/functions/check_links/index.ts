@@ -30,13 +30,24 @@ Deno.serve(async (req) => {
     const randomPrefix = Math.random().toString(16).substring(2, 6);
 
     // Query approximately 100 results from the database
-    const { data: dogs, error } = await supabase
+    let { data: dogs, error } = await supabase
       .from('dog_embeddings')
       .select()
-      .filter('id', 'gt', randomPrefix)
+      .or(`id.gt.${randomPrefix},id.lt.${randomPrefix}`)
       .limit(100);
 
     if (error) throw error;
+
+    // If we got fewer than 100 dogs, fetch more from the beginning
+    if (dogs.length < 100) {
+      const { data: moreDogs, error: moreError } = await supabase
+        .from('dog_embeddings')
+        .select()
+        .limit(100 - dogs.length);
+
+      if (moreError) throw moreError;
+      dogs = dogs.concat(moreDogs);
+    }
 
     const results = await Promise.all(dogs.map(async (dog) => {
       const adoptionValid = await checkAdoption(dog.adoption_link);
