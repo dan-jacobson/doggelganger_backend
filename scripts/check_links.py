@@ -4,8 +4,13 @@ import aiohttp
 import argparse
 from tqdm.asyncio import tqdm
 import random
+from pymongo import MongoClient
+from bson import ObjectId
 
 DOG_FILE = 'data/petfinder/dog_metadata.json'
+MONGODB_URI = "mongodb://localhost:27017"
+DB_NAME = "doggelganger"
+COLLECTION_NAME = "dog_embeddings"
 
 async def check_link(session, dog, is_retry=False, max_retries=3):
     url = dog["adoption_link"]
@@ -40,6 +45,12 @@ async def check_links(dogs, is_retry=False):
         tasks = [check_with_semaphore(dog) for dog in dogs]
         return await tqdm.gather(*tasks, desc="Checking links", total=len(dogs))
 
+def get_dogs_from_db():
+    client = MongoClient(MONGODB_URI)
+    db = client[DB_NAME]
+    collection = db[COLLECTION_NAME]
+    return list(collection.find({}))
+
 async def main():
     parser = argparse.ArgumentParser(description="Check adoption links and image URLs.")
     parser.add_argument("-N", type=int, help="Number of links to check.", default=None)
@@ -48,11 +59,21 @@ async def main():
         action="store_true",
         help="Remove dogs where either the adoption link or image failed to load.",
     )
+    parser.add_argument(
+        "--source",
+        choices=["file", "db"],
+        default="file",
+        help="Source of dog data (file or database)",
+    )
     args = parser.parse_args()
 
-    # Load the JSON file
-    with open(DOG_FILE, "r") as f:
-        dogs = json.load(f)
+    if args.source == "file":
+        # Load the JSON file
+        with open(DOG_FILE, "r") as f:
+            dogs = json.load(f)
+    else:
+        # Load dogs from the database
+        dogs = get_dogs_from_db()
 
     # Limit the number of dogs if N is specified
     if args.N is not None:
@@ -112,10 +133,25 @@ async def main():
         print()
 
     if args.remove:
-        # Save the updated JSON file with only valid dogs
-        with open(DOG_FILE, "w") as f:
-            json.dump(valid_dogs, f, indent=2)
-        print(f"Updated {DOG_FILE} with {len(valid_dogs)} valid dogs.")
+        if args.source == "file":
+            # Save the updated JSON file with only valid dogs
+            with open(DOG_FILE, "w") as f:
+                json.dump(valid_dogs, f, indent=2)
+            print(f"Updated {DOG_FILE} with {len(valid_dogs)} valid dogs.")
+        else:
+            # Update the database with only valid dogs
+            client = MongoClient(MONGODB_URI)
+            db = client[DB_NAME]
+            collection = db[COLLECTION_NAME]
+            
+            # Remove all documents
+            collection.delete_many({})
+            
+            # Insert valid dogs
+            if valid_dogs:
+                collection.insert_many(valid_dogs)
+            
+            print(f"Updated database with {len(valid_dogs)} valid dogs.")
 
 if __name__ == "__main__":
     asyncio.run(main())
