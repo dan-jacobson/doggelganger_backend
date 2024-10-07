@@ -26,35 +26,27 @@ async function checkImage(url: string): Promise<boolean> {
 
 Deno.serve(async (req) => {
   try {
-    // Get the total count of rows in the database
-    const { count, error: countError } = await supabase
-      .from('dog_embeddings')
-      .select('*', { count: 'exact', head: true });
+    // Generate a random 16-character hex string
+    const randomHash = Array.from({length: 16}, () => Math.floor(Math.random() * 16).toString(16)).join('');
 
-    if (countError) throw countError;
-
-    // Calculate the appropriate prefix length based on the total count
-    const prefixLength = Math.max(1, Math.min(8, Math.ceil(Math.log(count / 100) / Math.log(16))));
-
-    // Generate a random hex string prefix of the calculated length
-    const randomPrefix = Math.random().toString(16).substring(2, 2 + prefixLength);
-
-    // Query approximately 100 results from the database
+    // Query 100 results from the database, starting from the random hash
     let { data: dogs, error } = await supabase
       .from('dog_embeddings')
       .select()
-      .ilike('id', `${randomPrefix}%`)
+      .gt('id', randomHash)
+      .order('id')
       .limit(100);
 
     if (error) throw error;
 
-    // If we got fewer than 100 dogs, fetch more
+    // If we got fewer than 100 dogs, wrap around to the beginning
     if (dogs.length < 100) {
       const remainingCount = 100 - dogs.length;
       const { data: moreDogs, error: moreError } = await supabase
         .from('dog_embeddings')
         .select()
-        .not('id', 'ilike', `${randomPrefix}%`)
+        .lte('id', randomHash)
+        .order('id')
         .limit(remainingCount);
 
       if (moreError) throw moreError;
