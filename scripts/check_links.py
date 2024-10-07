@@ -5,6 +5,7 @@ import argparse
 from tqdm.asyncio import tqdm
 import random
 import vecs
+from vecs.collection import Collection
 import os
 from dotenv import load_dotenv
 
@@ -48,7 +49,7 @@ async def check_links(dogs, is_retry=False):
 def get_dogs_from_db():
     vx = vecs.create_client(DB_CONNECTION)
     dogs = vx.get_collection("dog_embeddings")
-    return [record.metadata for record in dogs.peek(limit=None)]
+    return [record.metadata for record in dogs.query(query_vector=[0]*dogs.dimension, limit=None)]
 
 async def main():
     parser = argparse.ArgumentParser(description="Check adoption links and image URLs.")
