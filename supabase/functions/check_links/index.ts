@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
       dogs = dogs.concat(moreDogs);
     }
 
-    const validDogs = [];
+    const failedDogs = [];
 
     for (const dog of dogs) {
       let adoptionValid = await checkLink(dog.adoption_link);
@@ -64,28 +64,43 @@ Deno.serve(async (req) => {
 
       const imageValid = await checkImage(dog.image_url);
 
-      if (adoptionValid && imageValid) {
-        validDogs.push({
-          id: dog.id,
-          name: dog.name,
-          adoption_link: dog.adoption_link,
-          image_url: dog.image_url
-        });
+      if (!adoptionValid || !imageValid) {
+        failedDogs.push(dog.id);
       }
     }
 
-    // Update the database with only valid dogs
-    const { error: deleteError } = await supabase
-      .from('dog_embeddings')
-      .delete()
-      .not('id', 'in', validDogs.map(dog => dog.id));
+    const failureRate = failedDogs.length / dogs.length;
 
-    if (deleteError) throw deleteError;
+    if (failureRate <= 0.33) {
+      // Update the database by removing failed dogs
+      const { error: deleteError } = await supabase
+        .from('dog_embeddings')
+        .delete()
+        .in('id', failedDogs);
 
-    return new Response(
-      JSON.stringify({ validDogs, totalChecked: dogs.length, validCount: validDogs.length }),
-      { headers: { "Content-Type": "application/json" } }
-    );
+      if (deleteError) throw deleteError;
+
+      return new Response(
+        JSON.stringify({ 
+          totalChecked: dogs.length, 
+          failedCount: failedDogs.length, 
+          failureRate: failureRate,
+          dogsRemoved: failedDogs
+        }),
+        { headers: { "Content-Type": "application/json" } }
+      );
+    } else {
+      // More than 33% failed, don't remove any dogs
+      return new Response(
+        JSON.stringify({ 
+          totalChecked: dogs.length, 
+          failedCount: failedDogs.length, 
+          failureRate: failureRate,
+          message: "More than 33% of dogs failed checks. No dogs were removed from the database."
+        }),
+        { headers: { "Content-Type": "application/json" } }
+      );
+    }
   } catch (error) {
     return new Response(
       JSON.stringify({ error: error.message }),
