@@ -6,18 +6,22 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_ANON_KEY") ?? ""
 )
 
-async function checkAdoption(url: string): Promise<boolean> {
-  try {
-    const response = await fetch(url, { method: 'HEAD' });
-    return response.ok;
-  } catch {
-    return false;
+async function checkLink(url: string, isRetry = false, maxRetries = 3): Promise<boolean> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, { method: 'HEAD', redirect: 'follow' });
+      return response.ok;
+    } catch {
+      if (attempt === maxRetries - 1 || isRetry) return false;
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000 + Math.random() * 1000));
+    }
   }
+  return false;
 }
 
 async function checkImage(url: string): Promise<boolean> {
   try {
-    const response = await fetch(url, { method: 'HEAD' });
+    const response = await fetch(url, { method: 'HEAD', redirect: 'follow' });
     return response.ok && response.headers.get('Content-Type')?.startsWith('image/');
   } catch {
     return false;
@@ -26,10 +30,8 @@ async function checkImage(url: string): Promise<boolean> {
 
 Deno.serve(async (req) => {
   try {
-    // Generate a random 16-character hex string
     const randomHash = Array.from({length: 16}, () => Math.floor(Math.random() * 16).toString(16)).join('');
 
-    // Query 100 results from the database, starting from the random hash
     let { data: dogs, error } = await supabase
       .from('dog_embeddings')
       .select()
@@ -39,7 +41,6 @@ Deno.serve(async (req) => {
 
     if (error) throw error;
 
-    // If we got fewer than 100 dogs, wrap around to the beginning
     if (dogs.length < 100) {
       const remainingCount = 100 - dogs.length;
       const { data: moreDogs, error: moreError } = await supabase
@@ -53,22 +54,36 @@ Deno.serve(async (req) => {
       dogs = dogs.concat(moreDogs);
     }
 
-    const results = await Promise.all(dogs.map(async (dog) => {
-      const adoptionValid = await checkAdoption(dog.adoption_link);
+    const validDogs = [];
+
+    for (const dog of dogs) {
+      let adoptionValid = await checkLink(dog.adoption_link);
+      if (!adoptionValid) {
+        adoptionValid = await checkLink(dog.adoption_link, true);
+      }
+
       const imageValid = await checkImage(dog.image_url);
 
-      return {
-        id: dog.id,
-        name: dog.name,
-        adoption_link: dog.adoption_link,
-        adoption_link_valid: adoptionValid,
-        image_url: dog.image_url,
-        image_url_valid: imageValid
-      };
-    }));
+      if (adoptionValid && imageValid) {
+        validDogs.push({
+          id: dog.id,
+          name: dog.name,
+          adoption_link: dog.adoption_link,
+          image_url: dog.image_url
+        });
+      }
+    }
+
+    // Update the database with only valid dogs
+    const { error: deleteError } = await supabase
+      .from('dog_embeddings')
+      .delete()
+      .not('id', 'in', validDogs.map(dog => dog.id));
+
+    if (deleteError) throw deleteError;
 
     return new Response(
-      JSON.stringify({ results }),
+      JSON.stringify({ validDogs, totalChecked: dogs.length, validCount: validDogs.length }),
       { headers: { "Content-Type": "application/json" } }
     );
   } catch (error) {
