@@ -130,9 +130,10 @@ def evaluate_model(model, X, y):
         "Top-10 Accuracy": top10_acc
     }
 
+# Use the training data for evaluation (X and y)
 results = {}
 for model_name, model in models.items():
-    results[model_name] = evaluate_model(model, X_test, y_test)
+    results[model_name] = evaluate_model(model, X, y)
 
 # Display results
 for model_name, metrics in results.items():
