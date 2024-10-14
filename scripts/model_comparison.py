@@ -77,12 +77,19 @@ def visualize_top_3_dogs(human_image_path, models, animal_embeddings):
         
         for i, idx in enumerate(top_3_indices, 1):
             animal_image_path = f"../data/train/animal/{idx:04d}"
-            try:
-                animal_image = Image.open(f"{animal_image_path}.png")
-                animal_image = Image.open(f"{animal_image_path}.jpg")
-                animal_image = Image.open(f"{animal_image_path}.jpeg")
-            top_3_images.append(animal_image)
-            top_3_titles.append(f"Top {i}")
+            animal_image = None
+            for ext in ['.png', '.jpg', '.jpeg']:
+                try:
+                    animal_image = Image.open(f"{animal_image_path}{ext}")
+                    break
+                except FileNotFoundError:
+                    continue
+            
+            if animal_image:
+                top_3_images.append(animal_image)
+                top_3_titles.append(f"Top {i}")
+            else:
+                print(f"Warning: Could not find image for index {idx}")
         
         plot_images(top_3_images, top_3_titles, f"{model_name} Model - Top 3 Dogs")
 
