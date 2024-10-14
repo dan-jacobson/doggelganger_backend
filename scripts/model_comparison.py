@@ -88,11 +88,14 @@ def visualize_top_3_dogs(human_image_path, models, animal_embeddings):
 
 # %%
 # Visualize top 3 dogs for a few sample human images
-sample_human_images = [
-    "../data/test/human/0001.png",
-    "../data/test/human/0002.jpeg",
-    "../data/test/human/0003.jpeg"
-]
+import glob
+
+sample_human_images = []
+for i in range(1, 4):  # Assuming you want to keep 3 sample images
+    pattern = f"../data/test/human/{i:04d}.*"
+    matching_files = glob.glob(pattern)
+    if matching_files:
+        sample_human_images.append(matching_files[0])
 
 for human_image_path in sample_human_images:
     visualize_top_3_dogs(human_image_path, models, y)
