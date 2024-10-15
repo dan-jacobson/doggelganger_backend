@@ -23,10 +23,24 @@ from src.doggelganger.train import make_training_data
 embedding_model = load_embedding_model()
 
 # Load the training data
-X, y = make_training_data("../data/train")
+X, _ = make_training_data("../data/train")
 
-# Load the test data (assuming you have a separate test set)
-# X_test, y_test = make_training_data("../data/test")
+# Create embeddings for dogs in carousel and example_dog_images
+import glob
+from tqdm import tqdm
+
+def create_dog_embeddings(folders):
+    dog_embeddings = []
+    for folder in folders:
+        image_paths = glob.glob(f"{folder}/*")
+        for image_path in tqdm(image_paths, desc=f"Processing {folder}"):
+            embedding = get_embedding(image_path, embedding_model)
+            dog_embeddings.append(embedding)
+    return np.array(dog_embeddings)
+
+y = create_dog_embeddings(["../data/carousel", "../data/example_dog_images"])
+
+print(f"Number of dog embeddings: {len(y)}")
 
 # Load the trained models
 linear_model = LinearRegressionModel.load("../weights/linear.json")
