@@ -108,10 +108,35 @@ def create_dog_embeddings_and_paths(folders):
     for folder in folders:
         image_paths = glob.glob(f"{folder}/*")
         for image_path in tqdm(image_paths, desc=f"Processing {folder}"):
-            embedding = get_embedding(image_path, embedding_model)
-            dog_embeddings.append(embedding)
-            dog_image_paths.append(image_path)
-    return np.array(dog_embeddings), dog_image_paths
+            try:
+                embedding = get_embedding(image_path, embedding_model)
+                if embedding is not None and len(embedding) > 0:
+                    dog_embeddings.append(embedding)
+                    dog_image_paths.append(image_path)
+                else:
+                    print(f"Warning: Empty embedding for {image_path}")
+            except Exception as e:
+                print(f"Error processing {image_path}: {str(e)}")
+    
+    if len(dog_embeddings) > 0:
+        # Find the most common embedding shape
+        shapes = [np.array(emb).shape for emb in dog_embeddings]
+        most_common_shape = max(set(shapes), key=shapes.count)
+        
+        # Filter embeddings to keep only those with the most common shape
+        filtered_embeddings = []
+        filtered_paths = []
+        for emb, path in zip(dog_embeddings, dog_image_paths):
+            if np.array(emb).shape == most_common_shape:
+                filtered_embeddings.append(emb)
+                filtered_paths.append(path)
+            else:
+                print(f"Warning: Discarding embedding with shape {np.array(emb).shape} for {path}")
+        
+        return np.array(filtered_embeddings), filtered_paths
+    else:
+        print("Warning: No valid embeddings found")
+        return np.array([]), []
 
 # Create embeddings and image paths for dogs in train dataset
 y_train, train_image_paths = create_dog_embeddings_and_paths(["../data/train/animal"])
