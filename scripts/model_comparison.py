@@ -32,7 +32,7 @@ from tqdm import tqdm
 def create_dog_embeddings(folders):
     dog_embeddings = []
     for folder in folders:
-        image_paths = glob.glob(f"{folder}/*")
+        image_paths = glob.glob(f"{folder}/*.png") + glob.glob(f"{folder}/*.jpg") + glob.glob(f"{folder}/*.jpeg")
         for image_path in tqdm(image_paths, desc=f"Processing {folder}"):
             embedding = get_embedding(image_path, embedding_model)
             dog_embeddings.append(embedding)
