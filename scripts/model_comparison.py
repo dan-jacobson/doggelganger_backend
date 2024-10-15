@@ -75,7 +75,7 @@ def plot_images(images, titles, main_title):
     plt.tight_layout()
     plt.show()
 
-def visualize_top_3_dogs(human_image_path, models, animal_embeddings):
+def visualize_top_3_dogs(human_image_path, models, animal_embeddings, animal_image_paths):
     human_embedding = get_embedding(human_image_path, embedding_model)
     human_embedding = np.array(human_embedding)
     
@@ -92,22 +92,35 @@ def visualize_top_3_dogs(human_image_path, models, animal_embeddings):
         top_3_titles = []
         
         for i, idx in enumerate(top_3_indices, 1):
-            animal_image_path = f"../data/train/animal/{idx:04d}"
-            animal_image = None
-            for ext in ['.png', '.jpg', '.jpeg']:
-                try:
-                    animal_image = Image.open(f"{animal_image_path}{ext}")
-                    break
-                except FileNotFoundError:
-                    continue
-            
-            if animal_image:
+            animal_image_path = animal_image_paths[idx]
+            try:
+                animal_image = Image.open(animal_image_path)
                 top_3_images.append(animal_image)
                 top_3_titles.append(f"Top {i} -- Similarity {similarities[idx]:.4f}")
-            else:
+            except FileNotFoundError:
                 print(f"Warning: Could not find image for index {idx}")
         
         plot_images(top_3_images, top_3_titles, f"{model_name} Model - Top 3 Dogs")
+
+def create_dog_embeddings_and_paths(folders):
+    dog_embeddings = []
+    dog_image_paths = []
+    for folder in folders:
+        image_paths = glob.glob(f"{folder}/*")
+        for image_path in tqdm(image_paths, desc=f"Processing {folder}"):
+            embedding = get_embedding(image_path, embedding_model)
+            dog_embeddings.append(embedding)
+            dog_image_paths.append(image_path)
+    return np.array(dog_embeddings), dog_image_paths
+
+# Create embeddings and image paths for dogs in train dataset
+y_train, train_image_paths = create_dog_embeddings_and_paths(["../data/train/animal"])
+
+# Create embeddings and image paths for dogs in carousel and example_dog_images
+y_carousel, carousel_image_paths = create_dog_embeddings_and_paths(["../data/carousel", "../data/example_dog_images"])
+
+print(f"Number of dog embeddings in train dataset: {len(y_train)}")
+print(f"Number of dog embeddings in carousel and example images: {len(y_carousel)}")
 
 # %%
 # Visualize top 3 dogs for a few sample human images
@@ -120,8 +133,13 @@ for i in range(1, 4):  # Assuming you want to keep 3 sample images
     if matching_files:
         sample_human_images.append(matching_files[0])
 
+print("Visualizing top 3 dogs using train dataset:")
 for human_image_path in sample_human_images:
-    visualize_top_3_dogs(human_image_path, models, y)
+    visualize_top_3_dogs(human_image_path, models, y_train, train_image_paths)
+
+print("\nVisualizing top 3 dogs using carousel and example dog images:")
+for human_image_path in sample_human_images:
+    visualize_top_3_dogs(human_image_path, models, y_carousel, carousel_image_paths)
 
 # %% [markdown]
 # ## Model Performance Comparison
