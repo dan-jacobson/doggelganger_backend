@@ -71,7 +71,8 @@ def visualize_top_3_dogs(human_image_path, models, animal_embeddings):
     
     for model_name, model in models.items():
         predicted_embedding = model.predict(human_embedding.reshape(1, -1))[0]
-        top_3_indices = get_top_k_dogs(predicted_embedding, animal_embeddings)
+        similarities = cosine_similarity(predicted_embedding.reshape(1, -1), animal_embeddings)[0]
+        top_3_indices = np.argsort(similarities)[-3:][::-1]
         
         top_3_images = []
         top_3_titles = []
@@ -88,7 +89,7 @@ def visualize_top_3_dogs(human_image_path, models, animal_embeddings):
             
             if animal_image:
                 top_3_images.append(animal_image)
-                top_3_titles.append(f"Top {i}")
+                top_3_titles.append(f"Top {i} -- Similarity {similarities[idx]:.4f}")
             else:
                 print(f"Warning: Could not find image for index {idx}")
         
