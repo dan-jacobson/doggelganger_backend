@@ -32,6 +32,7 @@ X, y = make_training_data("../data/train")
 linear_model = LinearRegressionModel.load("../weights/linear.json")
 xgb_model = XGBoostModel.load("../weights/xgb.json")
 resnet_model = ResNetModel.load("../weights/prodv0.2.pt", embedding_dim=X.shape[1])
+resnet_model.model.to('cpu')
 
 models = {
     "Linear": linear_model,
