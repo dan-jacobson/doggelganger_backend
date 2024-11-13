@@ -43,7 +43,6 @@ class PetfinderScraper:
         logging.info("Getting new token...")
         
         options = webdriver.ChromeOptions()
-        options.add_argument('--headless=new')  # Updated headless syntax
         options.add_argument('--disable-gpu')
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
@@ -105,8 +104,8 @@ class PetfinderScraper:
                         url = network_log['params']['request']['url']
                         if 'token=' in url and 'petfinder.com' in url:
                             token = url.split('token=')[1].split('&')[0]
-                            logging.info("Found token in network request")
-                            break
+                            logging.info(f"Found token in network request: {entry}")
+                            # break
                 except Exception as e:
                     logging.error(f"Error processing log entry: {str(e)}")
                     continue
@@ -167,17 +166,17 @@ class PetfinderScraper:
         }
 
         headers = {
-            "accept-language: en-US,en;q=0.9",
-            "priority: u=1, i",
-            "referer: https://www.petfinder.com/search/dogs-for-adoption/us/ny/11238/",
-            'sec-ch-ua: "Chromium";v="130", "Google Chrome";v="130", "Not?A_Brand";v="99"',
-            "sec-ch-ua-mobile: ?0",
-            'sec-ch-ua-platform: "macOS"',
-            "sec-fetch-dest: empty",
-            "sec-fetch-mode: cors",
-            "sec-fetch-site: same-origin",
-            "user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36", # noqa: E501
-            "x-requested-with: XMLHttpRequest",
+            "accept-language": "en-US,en;q=0.9",
+            "priority": "u=1, i",
+            "referer": "https://www.petfinder.com/search/dogs-for-adoption/us/ny/11238/",
+            'sec-ch-ua': '"Chromium";v="130", "Google Chrome";v="130", "Not?A_Brand";v="99"',
+            "sec-ch-ua-mobile": "?0",
+            'sec-ch-ua-platform': '"macOS"',
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-origin",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36", # noqa: E501
+            "x-requested-with": "XMLHttpRequest",
         }
 
         try:
