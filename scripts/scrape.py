@@ -43,7 +43,21 @@ class PetfinderScraper:
         logging.info("Getting new token...")
         options = webdriver.ChromeOptions()
         options.add_argument('--headless')
-        driver = webdriver.Chrome(options=options)
+        options.add_argument('--disable-gpu')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--window-size=1920,1080')
+        options.add_argument('--remote-debugging-port=9222')
+        options.add_argument('--verbose')
+        options.add_argument('--log-level=0')
+        
+        logging.info("Initializing Chrome driver...")
+        try:
+            driver = webdriver.Chrome(options=options)
+            logging.info("Chrome driver initialized successfully")
+        except Exception as e:
+            logging.error(f"Failed to initialize Chrome driver: {str(e)}")
+            raise
         
         try:
             # Store the requests
@@ -62,8 +76,22 @@ class PetfinderScraper:
             driver.execute_cdp_cmd('Network.setRequestInterception', {'patterns': [{'urlPattern': '*'}]})
             
             # Navigate to the page
-            driver.get('https://www.petfinder.com/search/dogs-for-adoption/us/ny/brooklyn/')
-            time.sleep(5)  # Wait for network activity
+            logging.info("Attempting to navigate to Petfinder...")
+            try:
+                driver.get('https://www.petfinder.com/search/dogs-for-adoption/us/ny/brooklyn/')
+                logging.info("Navigation successful")
+            except Exception as e:
+                logging.error(f"Failed to navigate to page: {str(e)}")
+                raise
+
+            # Wait for network activity and log page title/url
+            time.sleep(5)
+            try:
+                logging.info(f"Current URL: {driver.current_url}")
+                logging.info(f"Page title: {driver.title}")
+                logging.info(f"Page source length: {len(driver.page_source)}")
+            except Exception as e:
+                logging.error(f"Failed to get page info: {str(e)}")
             
             # Get all network requests
             logs = driver.get_log('performance')
