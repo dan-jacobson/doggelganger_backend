@@ -137,13 +137,17 @@ class PetfinderScraper:
             name=animal.get("name", ""),
             breed=animal.get("breeds_label", "Unknown"),
             age=animal.get("age", ""),
-            description=animal.get("description", ""),
+            sex=animal.get("sex", ""),
             location={
                 "city": location.get("address", {}).get("city", ""),
                 "state": location.get("address", {}).get("state", ""),
                 "postcode": location.get("address", {}).get("postcode", ""),
             },
+            description=animal.get("description", ""),
             url=animal.get("social_sharing", {}).get("email_url", ""),
+            primary_photo=animal.get("primary_photo_url", ""),
+            primary_photo_cropped=animal.get("primary_photo_url_cropped", ""),
+            photo_urls=animal.get("photo_urls", ""),
         )
 
     async def fetch_page(self, session: ClientSession, page: int) -> list[Animal]:
