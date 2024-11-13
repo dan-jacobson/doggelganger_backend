@@ -250,7 +250,7 @@ class PetfinderScraper:
         # Log progress
         pets_saved = len(self.collected_pets)
         self.total_pets += pets_saved
-        logging.info(f"Saved {pets_saved} pets to {output_path} (Total: {self.total_pets})")
+        logging.debug(f"Saved {pets_saved} pets to {output_path} (Total: {self.total_pets})")
         self.collected_pets = []  # Clear memory after saving
 
     async def scrape_all_pets(self, output_path: str, save_interval: int = 1000, smoke_test: bool = False):
@@ -285,8 +285,9 @@ class PetfinderScraper:
                 if len(self.collected_pets) >= save_interval:
                     self.save_progress(output_path)
 
-        self.save_progress(output_path)
-        logging.info("Scraping completed!")
+        if self.collected_pets:
+            self.save_progress(output_path)
+        logging.info(f"Scraping completed! Total pets saved: {self.total_pets}")
 
 
 async def main():
