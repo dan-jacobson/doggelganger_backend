@@ -41,10 +41,9 @@ class PetfinderScraper:
     async def get_new_token(self) -> str:
         """Get a new token using Selenium and CDP"""
         logging.info("Getting new token...")
-        service = Service(ChromeDriverManager().install())
         options = webdriver.ChromeOptions()
         options.add_argument('--headless')
-        driver = webdriver.Chrome(service=service, options=options)
+        driver = webdriver.Chrome(options=options)
         
         try:
             # Store the requests
@@ -63,7 +62,7 @@ class PetfinderScraper:
             driver.execute_cdp_cmd('Network.setRequestInterception', {'patterns': [{'urlPattern': '*'}]})
             
             # Navigate to the page
-            driver.get('https://www.petfinder.com/search/dogs-for-adoption/us/ny/brookly/?page=1')
+            driver.get('https://www.petfinder.com/search/dogs-for-adoption/us/ny/brooklyn/')
             time.sleep(5)  # Wait for network activity
             
             # Get all network requests
