@@ -5,6 +5,7 @@ import jsonlines
 import logging
 import time
 import os
+from tqdm.asyncio import tqdm
 from dataclasses import dataclass
 from typing import List, Tuple
 from datetime import datetime
@@ -270,7 +271,13 @@ class PetfinderScraper:
             batch_size = 10
             # If smoke test, only process first page
             total_pages = 1 if smoke_test else pagination_info.total_pages
-            for batch_start in range(1, total_pages + 1, batch_size):
+            total_batches = (total_pages + batch_size - 1) // batch_size
+            
+            async for batch_start in tqdm(
+                range(1, total_pages + 1, batch_size),
+                total=total_batches,
+                desc="Scraping pages"
+            ):
                 current_batch_size = min(batch_size, pagination_info.total_pages - batch_start + 1)
 
                 # Process batch
