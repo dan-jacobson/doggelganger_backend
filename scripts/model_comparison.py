@@ -54,9 +54,7 @@ models = {"Linear": linear_model, "XGBoost": xgb_model, "ResNet": resnet_model}
 
 # %%
 def get_top_k_dogs(human_embedding, animal_embeddings, k=3):
-    similarities = cosine_similarity(human_embedding.reshape(1, -1), animal_embeddings)[
-        0
-    ]
+    similarities = cosine_similarity(human_embedding.reshape(1, -1), animal_embeddings)[0]
     top_k_indices = np.argsort(similarities)[-k:][::-1]
     return top_k_indices
 
@@ -77,9 +75,7 @@ def plot_images(images, titles, main_title):
     plt.show()
 
 
-def visualize_top_3_dogs(
-    human_image_path, models, animal_embeddings, animal_image_paths
-):
+def visualize_top_3_dogs(human_image_path, models, animal_embeddings, animal_image_paths):
     human_embedding = get_embedding(human_image_path, embedding_model)
     human_embedding = np.array(human_embedding)
 
@@ -89,9 +85,7 @@ def visualize_top_3_dogs(
 
     for model_name, model in models.items():
         predicted_embedding = model.predict(human_embedding.reshape(1, -1))[0]
-        similarities = cosine_similarity(
-            predicted_embedding.reshape(1, -1), animal_embeddings
-        )[0]
+        similarities = cosine_similarity(predicted_embedding.reshape(1, -1), animal_embeddings)[0]
         top_3_indices = np.argsort(similarities)[-3:][::-1]
 
         top_3_images = []
@@ -138,9 +132,7 @@ def create_dog_embeddings_and_paths(folders):
                 filtered_embeddings.append(emb)
                 filtered_paths.append(path)
             else:
-                print(
-                    f"Warning: Discarding embedding with shape {np.array(emb).shape} for {path}"
-                )
+                print(f"Warning: Discarding embedding with shape {np.array(emb).shape} for {path}")
 
         return np.array(filtered_embeddings), filtered_paths
     else:
@@ -152,9 +144,7 @@ def create_dog_embeddings_and_paths(folders):
 y_train, train_image_paths = create_dog_embeddings_and_paths(["../data/train/animal"])
 
 # Create embeddings and image paths for dogs in carousel and example_dog_images
-y_carousel, carousel_image_paths = create_dog_embeddings_and_paths(
-    ["../data/carousel", "../data/example_dog_images"]
-)
+y_carousel, carousel_image_paths = create_dog_embeddings_and_paths(["../data/carousel", "../data/example_dog_images"])
 
 print(f"Number of dog embeddings in train dataset: {len(y_train)}")
 print(f"Number of dog embeddings in carousel and example images: {len(y_carousel)}")
@@ -185,9 +175,7 @@ load_dotenv()
 DOGGELGANGER_DB_CONNECTION = os.getenv("SUPABASE_DB")
 
 vx = vecs.create_client(DOGGELGANGER_DB_CONNECTION)
-dogs = vx.get_or_create_collection(
-    name="dog_embeddings", dimension=embedding_model.model.config.hidden_size
-)
+dogs = vx.get_or_create_collection(name="dog_embeddings", dimension=embedding_model.model.config.hidden_size)
 
 print("\nVisualizing top 3 dogs using prod dataset:")
 for human_image_path in sample_human_images:

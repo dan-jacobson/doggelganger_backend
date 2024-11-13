@@ -13,9 +13,7 @@ def parse_name(d: dict):
     d["breed"] = " ".join(name.split(",")[1].split()[2:])
     d["distance"] = name.split(",")[2].replace(".", "")
 
-    d["local_image"] = (
-        d["local_image"].replace(".", "", 1).replace(",", "").replace(" ", "_")
-    )
+    d["local_image"] = d["local_image"].replace(".", "", 1).replace(",", "").replace(" ", "_")
     return d
 
 
@@ -33,12 +31,8 @@ def update_image_paths(directory):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Parse dog metadata and update image paths."
-    )
-    parser.add_argument(
-        "directory", help="Directory containing images and dog_metadata.json"
-    )
+    parser = argparse.ArgumentParser(description="Parse dog metadata and update image paths.")
+    parser.add_argument("directory", help="Directory containing images and dog_metadata.json")
     args = parser.parse_args()
 
     metadata_path = os.path.join(args.directory, "dog_metadata.json")

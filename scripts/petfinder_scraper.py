@@ -54,49 +54,31 @@ def get_dog_data(driver, url, city):
         print(f"Fetching URL: {url}")
         driver.get(url)
 
-        WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located(
-                (By.CLASS_NAME, "petCard.petCard_searchResult")
-            )
-        )
+        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CLASS_NAME, "petCard.petCard_searchResult")))
 
         # Scroll the page in increments
         for scroll_percentage in [0.2, 0.4, 0.6, 0.8]:
-            driver.execute_script(
-                f"window.scrollTo(0, document.body.scrollHeight * {scroll_percentage});"
-            )
+            driver.execute_script(f"window.scrollTo(0, document.body.scrollHeight * {scroll_percentage});")
             time.sleep(2)  # Wait for content to load after each scroll
 
         dogs = []
-        dog_elements = driver.find_elements(
-            By.CLASS_NAME, "petCard.petCard_searchResult"
-        )
+        dog_elements = driver.find_elements(By.CLASS_NAME, "petCard.petCard_searchResult")
         print(f"Found {len(dog_elements)} dog elements on the page")
 
         for dog_element in dog_elements:
             try:
                 WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located(
-                        (By.CLASS_NAME, "petCard-body-details-hdg")
-                    )
+                    EC.presence_of_element_located((By.CLASS_NAME, "petCard-body-details-hdg"))
                 )
-                name_element = dog_element.find_element(
-                    By.CLASS_NAME, "petCard-body-details-hdg"
-                )
-                full_name = name_element.find_elements(By.TAG_NAME, "span")[
-                    1
-                ].text.strip()
+                name_element = dog_element.find_element(By.CLASS_NAME, "petCard-body-details-hdg")
+                full_name = name_element.find_elements(By.TAG_NAME, "span")[1].text.strip()
                 sanitized_full_name = sanitize_name(full_name)
                 parsed_name = parse_name(sanitized_full_name)
 
-                image_url = dog_element.find_element(By.TAG_NAME, "img").get_attribute(
-                    "src"
-                )
+                image_url = dog_element.find_element(By.TAG_NAME, "img").get_attribute("src")
                 sanitized_image_url = sanitize_image_url(image_url)
 
-                adoption_link = dog_element.find_element(
-                    By.CLASS_NAME, "petCard-link"
-                ).get_attribute("href")
+                adoption_link = dog_element.find_element(By.CLASS_NAME, "petCard-link").get_attribute("href")
 
                 if parsed_name["name"] and sanitized_image_url and adoption_link:
                     dog_data = {
@@ -242,17 +224,13 @@ def main():
                         if dog["adoption_link"] not in existing_dogs:
                             if args.download:
                                 filename = f"{dog['name']}_{city.replace(' ', '_')}.jpg"
-                                if download_image(
-                                    dog["image_url"], output_folder, filename
-                                ):
+                                if download_image(dog["image_url"], output_folder, filename):
                                     dog["local_image"] = filename
                             all_dogs.append(dog)
                             existing_dogs.add(dog["adoption_link"])
                             city_dogs += 1
                         else:
-                            print(
-                                f"Skipping dog with adoption link {dog['adoption_link']} (already in metadata)"
-                            )
+                            print(f"Skipping dog with adoption link {dog['adoption_link']} (already in metadata)")
 
                     # Save metadata incrementally after each page
                     save_metadata(all_dogs, output_folder)
