@@ -1,6 +1,6 @@
 import argparse
 import asyncio
-import json
+import jsonlines
 import logging
 import os
 import random
@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 
 load_dotenv()
 DB_CONNECTION = os.getenv("SUPABASE_DB")
-DOG_FILE = "data/petfinder/dog_metadata.json"
+DOG_FILE = "data/dogs_latest.jsonl"  # Default JSONL file path
 
 
 async def check_link(session, dog, is_retry=False, max_retries=3):
@@ -78,9 +78,11 @@ async def main():
     args = parser.parse_args()
 
     if args.source == "file":
-        # Load the JSON file
-        with open(DOG_FILE) as f:
-            dogs = json.load(f)
+        # Load the JSONL file
+        dogs = []
+        with jsonlines.open(DOG_FILE) as reader:
+            for dog in reader:
+                dogs.append(dog)
     else:
         # Load dogs from the database
         dogs = get_dogs_from_db()
@@ -149,9 +151,9 @@ async def main():
 
     if args.remove:
         if args.source == "file":
-            # Save the updated JSON file with only valid dogs
-            with open(DOG_FILE, "w") as f:
-                json.dump(valid_dogs, f, indent=2)
+            # Save the updated JSONL file with only valid dogs
+            with jsonlines.open(DOG_FILE, mode='w') as writer:
+                writer.write_all(valid_dogs)
             logging.info(f"Updated {DOG_FILE} with {len(valid_dogs)} valid dogs.")
         else:
             # Update the database with only valid dogs
