@@ -36,6 +36,9 @@ metadata.allow-direct-references = true
 
 [tool.uv]
 dev-dependencies = [
+    "aiohttp>=3.10.9",
+    "ipykernel>=6.29.5",
+    "matplotlib>=3.9.2",
     "pytest-mock>=3.14.0",
     "pytest>=8.3.3",
     "python-dotenv>=1.0.1",
@@ -45,3 +48,22 @@ dev-dependencies = [
 ]
 index-strategy = "unsafe-best-match"
 extra-index-url = ["https://download.pytorch.org/whl/cpu"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
