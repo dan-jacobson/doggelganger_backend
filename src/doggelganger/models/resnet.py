@@ -165,8 +165,8 @@ class ResNetModel(BaseModel):
         with torch.no_grad():
             X = torch.tensor(X, dtype=torch.float32)
             # Ensure the model and input are on the same device
-            X = X.to(self.model.device)
-            self.model = self.model.to(self.model.device)
+            X = X.to(self.device)
+            self.model = self.model.to(self.device)
             return self.model(X).cpu().numpy()
 
     def save(self, path: Path):

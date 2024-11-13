@@ -84,7 +84,7 @@ async def embed_image(
         # Query similar images
         results = dogs.query(
             data=aligned_embedding,
-            limit=10,  # Increase limit to have more options to check
+            limit=3,  # Increase limit to have more options to check
             include_metadata=True,
             include_value=True,
         )
