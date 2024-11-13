@@ -248,8 +248,9 @@ class PetfinderScraper:
                 writer.write(pet.__dict__)
 
         # Log progress
-        self.total_pets += len(self.collected_pets)
-        logging.info(f"Saved {len(self.collected_pets)} pets to {output_path} (Total: {self.total_pets})")
+        pets_saved = len(self.collected_pets)
+        self.total_pets += pets_saved
+        logging.info(f"Saved {pets_saved} pets to {output_path} (Total: {self.total_pets})")
         self.collected_pets = []  # Clear memory after saving
 
     async def scrape_all_pets(self, output_path: str, save_interval: int = 1000, smoke_test: bool = False):
@@ -275,14 +276,13 @@ class PetfinderScraper:
                 # Process batch
                 animals = await self.process_batch(session, batch_start, current_batch_size)
                 self.collected_pets.extend(animals)
-                self.total_pets = len(self.collected_pets)
 
                 logging.debug(
                     f"Processed pages {batch_start}-{batch_start + current_batch_size - 1}. "
                     f"Total pets collected: {self.total_pets}"
                 )
 
-                if self.total_pets >= save_interval:
+                if len(self.collected_pets) >= save_interval:
                     self.save_progress(output_path)
 
         self.save_progress(output_path)
