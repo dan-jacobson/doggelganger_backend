@@ -1,7 +1,9 @@
 import asyncio
+import argparse
 import json
 import logging
 import time
+import os
 from dataclasses import dataclass
 from typing import List, Tuple
 from datetime import datetime
@@ -234,10 +236,11 @@ class PetfinderScraper:
         # Return the flattened list of animals and the first pagination info
         return [animal for animals in animals_lists for animal in animals]
 
-    def save_progress(self):
+    def save_progress(self, output_path: str):
         """Save collected pets to file"""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"pets_data_{timestamp}.json"
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        
 
         # Convert dataclass objects to dictionaries
         pets_data = [
@@ -252,13 +255,13 @@ class PetfinderScraper:
             for pet in self.collected_pets
         ]
 
-        with open(filename, "w") as f:
+        with open(output_path, "w") as f:
             json.dump({"total_pets": self.total_pets, "pets": pets_data}, f, indent=2)
 
-        logging.info(f"Saved {self.total_pets} pets to {filename}")
+        logging.info(f"Saved {self.total_pets} pets to {output_path}")
         self.collected_pets = []  # Clear memory after saving
 
-    async def scrape_all_pets(self, save_interval: int = 1000):
+    async def scrape_all_pets(self, output_path: str, save_interval: int = 1000, smoke_test: bool = False):
         """Main function to scrape all pets"""
         logging.info("Starting pet scraping...")
 
@@ -273,7 +276,9 @@ class PetfinderScraper:
             logging.info(f"Total pets: {pagination_info.total_count}, Total pages: {pagination_info.total_pages}")
 
             batch_size = 10
-            for batch_start in range(1, pagination_info.total_pages + 1, batch_size):
+            # If smoke test, only process first page
+            total_pages = 1 if smoke_test else pagination_info.total_pages
+            for batch_start in range(1, total_pages + 1, batch_size):
                 current_batch_size = min(batch_size, pagination_info.total_pages - batch_start + 1)
 
                 # Process batch
@@ -287,15 +292,26 @@ class PetfinderScraper:
                 )
 
                 if self.total_pets >= save_interval:
-                    self.save_progress()
+                    self.save_progress(output_path)
 
-        self.save_progress()
+        self.save_progress(output_path)
         logging.info("Scraping completed!")
 
 
 async def main():
+    parser = argparse.ArgumentParser(description='Scrape Petfinder for dogs')
+    parser.add_argument('--smoke-test', action='store_true', help='Only scrape first page')
+    parser.add_argument('--output-file', 
+                      default=f'../data/dogs_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json',
+                      help='Output file path')
+    
+    args = parser.parse_args()
+    
     scraper = PetfinderScraper()
-    await scraper.scrape_all_pets()
+    await scraper.scrape_all_pets(
+        output_path=args.output_file,
+        smoke_test=args.smoke_test
+    )
 
 
 if __name__ == "__main__":
