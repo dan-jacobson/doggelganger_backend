@@ -15,7 +15,6 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 
 load_dotenv()
 DB_CONNECTION = os.getenv("SUPABASE_DB")
-DOG_FILE = "data/dogs_latest.jsonl"  # Default JSONL file path
 
 
 async def check_link(session, dog, is_retry=False, max_retries=3):
@@ -69,21 +68,23 @@ async def main():
         action="store_true",
         help="Remove dogs where either the adoption link or image failed to load.",
     )
-    parser.add_argument(
-        "--source",
-        choices=["file", "db"],
-        default="file",
-        help="Source of dog data (file or database)",
+    
+    # Create mutually exclusive group for data source
+    source_group = parser.add_mutually_exclusive_group()
+    source_group.add_argument(
+        "--db",
+        action="store_true",
+        help="Use database as data source",
+    )
+    source_group.add_argument(
+        "--file",
+        type=str,
+        default="data/dogs_latest.jsonl",
+        help="Path to JSONL file (default: data/dogs_latest.jsonl)",
     )
     args = parser.parse_args()
 
-    if args.source == "file":
-        # Load the JSONL file
-        dogs = []
-        with jsonlines.open(DOG_FILE) as reader:
-            for dog in reader:
-                dogs.append(dog)
-    else:
+    if args.db:
         # Load dogs from the database
         dogs = get_dogs_from_db()
 
@@ -150,11 +151,11 @@ async def main():
         )
 
     if args.remove:
-        if args.source == "file":
+        if not args.db:
             # Save the updated JSONL file with only valid dogs
-            with jsonlines.open(DOG_FILE, mode='w') as writer:
+            with jsonlines.open(args.file, mode='w') as writer:
                 writer.write_all(valid_dogs)
-            logging.info(f"Updated {DOG_FILE} with {len(valid_dogs)} valid dogs.")
+            logging.info(f"Updated {args.file} with {len(valid_dogs)} valid dogs.")
         else:
             # Update the database with only valid dogs
             vx = vecs.create_client(DB_CONNECTION)
