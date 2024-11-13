@@ -296,6 +296,10 @@ async def main():
     parser.add_argument('--output-file', 
                       default=f'../data/dogs_{datetime.now().strftime("%Y%m%d_%H%M%S")}.jsonl',
                       help='Output file path')
+    parser.add_argument('--log-level',
+                      default='INFO',
+                      choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+                      help='Set the logging level')
     
     args = parser.parse_args()
     
@@ -307,5 +311,8 @@ async def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+    logging.basicConfig(
+        level=getattr(logging, args.log_level.upper()),
+        format="%(asctime)s - %(levelname)s - %(message)s"
+    )
     asyncio.run(main())
