@@ -244,15 +244,7 @@ class PetfinderScraper:
 
         # Convert dataclass objects to dictionaries
         pets_data = [
-            {
-                "id": pet.id,
-                "name": pet.name,
-                "breed": pet.breed,
-                "age": pet.age,
-                "location": pet.location,
-                "url": pet.url,
-            }
-            for pet in self.collected_pets
+                pet.__dict__ for pet in self.collected_pets
         ]
 
         with open(output_path, "w") as f:
