@@ -41,6 +41,7 @@ class PetfinderScraper:
     async def get_new_token(self) -> str:
         """Get a new token using Selenium and CDP"""
         logging.info("Getting new token...")
+        
         options = webdriver.ChromeOptions()
         options.add_argument('--headless')
         options.add_argument('--disable-gpu')
@@ -48,8 +49,14 @@ class PetfinderScraper:
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--window-size=1920,1080')
         options.add_argument('--remote-debugging-port=9222')
-        options.add_argument('--verbose')
-        options.add_argument('--log-level=0')
+        
+        # Add logging preferences directly to options
+        options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
+        options.add_experimental_option('w3c', False)
+        options.add_experimental_option('perfLoggingPrefs', {
+            'enableNetwork': True,
+            'enablePage': False,
+        })
         
         logging.info("Initializing Chrome driver...")
         try:
@@ -60,20 +67,8 @@ class PetfinderScraper:
             raise
         
         try:
-            # Store the requests
-            request_log = []
-            
-            # Create CDP listener for network requests
-            def network_listener(driver):
-                def log_request(requestId, request):
-                    request_log.append(request)
-                
-                driver.execute_cdp_cmd('Network.enable', {})
-                return log_request
-                
-            # Add event listener using CDP
+            # Enable CDP Network domain
             driver.execute_cdp_cmd('Network.enable', {})
-            driver.execute_cdp_cmd('Network.setRequestInterception', {'patterns': [{'urlPattern': '*'}]})
             
             # Navigate to the page
             logging.info("Attempting to navigate to Petfinder...")
@@ -83,8 +78,8 @@ class PetfinderScraper:
             except Exception as e:
                 logging.error(f"Failed to navigate to page: {str(e)}")
                 raise
-
-            # Wait for network activity and log page title/url
+                
+            # Wait for network activity and log page info
             time.sleep(5)
             try:
                 logging.info(f"Current URL: {driver.current_url}")
@@ -95,6 +90,7 @@ class PetfinderScraper:
             
             # Get all network requests
             logs = driver.get_log('performance')
+            logging.info(f"Captured {len(logs)} network log entries")
             
             # Process logs to find token
             token = None
@@ -104,15 +100,17 @@ class PetfinderScraper:
                     network_log = json.loads(entry['message'])['message']
                     
                     # Look for request with token
-                    if ('params' in network_log and 
+                    if ('Network.requestWillBeSent' == network_log['method'] and 
                         'request' in network_log['params'] and 
                         'url' in network_log['params']['request']):
                         
                         url = network_log['params']['request']['url']
                         if 'token=' in url and 'petfinder.com' in url:
                             token = url.split('token=')[1].split('&')[0]
+                            logging.info("Found token in network request")
                             break
-                except:
+                except Exception as e:
+                    logging.error(f"Error processing log entry: {str(e)}")
                     continue
             
             if token:
@@ -121,10 +119,14 @@ class PetfinderScraper:
                 logging.info("New token acquired")
                 return token
             else:
+                logging.error("No token found in network requests")
+                logging.debug("Network logs captured:", logs)
                 raise Exception("Token not found in network requests")
                 
         finally:
             driver.quit()
+
+
 
     async def check_token(self):
         """Check if token needs refresh"""
