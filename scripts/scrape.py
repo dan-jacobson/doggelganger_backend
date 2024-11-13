@@ -93,22 +93,18 @@ class PetfinderScraper:
             token = None
             for entry in logs:
                 try:
-                    # Parse log entry
                     network_log = json.loads(entry['message'])['message']
                     
-                    # Look for request with token
                     if ('Network.requestWillBeSent' == network_log['method'] and 
-                        'request' in network_log['params'] and 
-                        'url' in network_log['params']['request']):
+                        'request' in network_log['params']):
                         
-                        url = network_log['params']['request']['url']
-                        if 'token=' in url and 'petfinder.com' in url:
+                        url = network_log['params']['request'].get('url', '')
+                        if 'https://www.petfinder.com/search/' in url and 'token=' in url:
                             token = url.split('token=')[1].split('&')[0]
-                            logging.info(f"Found token in network request: {entry}")
-                            # break
+                            logging.info("Found Petfinder token")
+                            break
                 except Exception as e:
                     logging.error(f"Error processing log entry: {str(e)}")
-                    continue
             
             if token:
                 self.token = token
