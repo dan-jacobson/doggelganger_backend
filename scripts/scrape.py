@@ -3,6 +3,7 @@ import json
 import logging
 import time
 from dataclasses import dataclass
+from typing import List, Tuple
 from datetime import datetime
 
 import aiohttp
@@ -11,6 +12,14 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
+
+@dataclass
+class PaginationInfo:
+    """Data class to store pagination information"""
+    count_per_page: int
+    total_count: int
+    current_page: int
+    total_pages: int
 
 @dataclass
 class Animal:
@@ -150,8 +159,12 @@ class PetfinderScraper:
             photo_urls=animal.get("photo_urls", ""),
         )
 
-    async def fetch_page(self, session: ClientSession, page: int) -> list[Animal]:
-        """Fetch and parse a single page of results"""
+    async def fetch_page(self, session: ClientSession, page: int) -> Tuple[PaginationInfo, List[Animal]]:
+        """Fetch and parse a single page of results
+        
+        Returns:
+            Tuple containing pagination info and list of animals
+        """
         await self.check_token()
 
         url = "https://www.petfinder.com/search/"
@@ -184,20 +197,29 @@ class PetfinderScraper:
                 if response.status == 200:
                     data = await response.json()
 
-                    # Extract animals from nested JSON structure
+                    # Extract pagination and animals from nested JSON structure
                     try:
-                        animals = data.get("result", {}).get("animals", [])
-                        return [self.parse_animal_data(animal) for animal in animals]
+                        result = data.get("result", {})
+                        pagination = result.get("pagination", {})
+                        pagination_info = PaginationInfo(
+                            count_per_page=pagination.get("count_per_page", 0),
+                            total_count=pagination.get("total_count", 0),
+                            current_page=pagination.get("current_page", 0),
+                            total_pages=pagination.get("total_pages", 0)
+                        )
+                        
+                        animals = result.get("animals", [])
+                        return pagination_info, [self.parse_animal_data(animal) for animal in animals]
                     except KeyError as e:
                         logging.error(f"Unexpected JSON structure: {e}")
                         logging.debug(f"Received data: {data}")
-                        return []
+                        return PaginationInfo(0, 0, 0, 0), []
                 else:
                     logging.error(f"Error fetching page {page}: Status {response.status}")
-                    return []
+                    return PaginationInfo(0, 0, 0, 0), []
         except Exception as e:
             logging.error(f"Exception fetching page {page}: {str(e)}")
-            return []
+            return PaginationInfo(0, 0, 0, 0), []
 
     async def process_batch(self, session: ClientSession, start_page: int, batch_size: int) -> list[Animal]:
         """Process a batch of pages"""
@@ -206,9 +228,11 @@ class PetfinderScraper:
             tasks.append(self.fetch_page(session, page))
             await asyncio.sleep(1 / self.rate_limit)
 
-        results = await asyncio.gather(*tasks)
-        # Flatten the list of lists into a single list of animals
-        return [animal for page_results in results for animal in page_results]
+        batch_results = await asyncio.gather(*tasks)
+        # Unzip the pagination info and animals
+        pagination_infos, animals_lists = zip(*batch_results)
+        # Return the flattened list of animals and the first pagination info
+        return [animal for animals in animals_lists for animal in animals]
 
     def save_progress(self):
         """Save collected pets to file"""
@@ -241,20 +265,16 @@ class PetfinderScraper:
         await self.get_new_token()
 
         async with aiohttp.ClientSession(connector=TCPConnector(limit=50)) as session:
-            first_page = await self.fetch_page(session, 1)
-            if not first_page:
+            # Get pagination info from first page
+            pagination_info, first_page_animals = await self.fetch_page(session, 1)
+            if not pagination_info.total_count:
                 raise Exception("Failed to fetch first page")
 
-            # Get the total count from the first response
-            first_response = await self.fetch_page(session, 1)
-            total_results = len(first_response)  # You might need to adjust this based on the actual API response
-            total_pages = (total_results + 99) // 100
-
-            logging.info(f"Total pets: {total_results}, Total pages: {total_pages}")
+            logging.info(f"Total pets: {pagination_info.total_count}, Total pages: {pagination_info.total_pages}")
 
             batch_size = 10
-            for batch_start in range(1, total_pages + 1, batch_size):
-                current_batch_size = min(batch_size, total_pages - batch_start + 1)
+            for batch_start in range(1, pagination_info.total_pages + 1, batch_size):
+                current_batch_size = min(batch_size, pagination_info.total_pages - batch_start + 1)
 
                 # Process batch
                 animals = await self.process_batch(session, batch_start, current_batch_size)
