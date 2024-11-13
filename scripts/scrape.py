@@ -241,16 +241,27 @@ class PetfinderScraper:
         # Ensure directory exists
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         
+        # Load existing data if file exists
+        existing_data = {"total_pets": 0, "pets": []}
+        if os.path.exists(output_path):
+            try:
+                with open(output_path, "r") as f:
+                    existing_data = json.load(f)
+            except json.JSONDecodeError:
+                logging.warning(f"Could not read existing file {output_path}, starting fresh")
 
-        # Convert dataclass objects to dictionaries
-        pets_data = [
-                pet.__dict__ for pet in self.collected_pets
-        ]
+        # Convert new pets to dictionaries
+        new_pets_data = [pet.__dict__ for pet in self.collected_pets]
+        
+        # Combine existing and new data
+        all_pets = existing_data["pets"] + new_pets_data
+        total_pets = len(all_pets)
 
+        # Save combined data
         with open(output_path, "w") as f:
-            json.dump({"total_pets": self.total_pets, "pets": pets_data}, f, indent=2)
+            json.dump({"total_pets": total_pets, "pets": all_pets}, f, indent=2)
 
-        logging.info(f"Saved {self.total_pets} pets to {output_path}")
+        logging.info(f"Saved {total_pets} total pets to {output_path}")
         self.collected_pets = []  # Clear memory after saving
 
     async def scrape_all_pets(self, output_path: str, save_interval: int = 1000, smoke_test: bool = False):
