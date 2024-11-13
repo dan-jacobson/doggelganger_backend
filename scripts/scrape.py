@@ -52,7 +52,7 @@ class PetfinderScraper:
 
     async def get_new_token(self) -> str:
         """Get a new token using Selenium and CDP"""
-        logging.info("Getting new token...")
+        logging.debug("Getting new token...")
         
         options = webdriver.ChromeOptions()
         options.add_argument('--disable-gpu')
@@ -67,10 +67,10 @@ class PetfinderScraper:
             'enablePage': False,
         })
         
-        logging.info("Initializing Chrome driver...")
+        logging.debug("Initializing Chrome driver...")
         try:
             driver = webdriver.Chrome(options=options)
-            logging.info("Chrome driver initialized successfully")
+            logging.debug("Chrome driver initialized successfully")
         except Exception as e:
             logging.error(f"Failed to initialize Chrome driver: {str(e)}")
             raise
@@ -80,10 +80,10 @@ class PetfinderScraper:
             driver.execute_cdp_cmd('Network.enable', {})
             
             # Navigate to the page
-            logging.info("Attempting to navigate to Petfinder...")
+            logging.debug("Attempting to navigate to Petfinder...")
             try:
                 driver.get('https://www.petfinder.com/search/dogs-for-adoption/us/ny/brooklyn/')
-                logging.info("Navigation successful")
+                logging.debug("Navigation successful")
             except Exception as e:
                 logging.error(f"Failed to navigate to page: {str(e)}")
                 raise
@@ -91,15 +91,15 @@ class PetfinderScraper:
             # Wait for network activity and log page info
             time.sleep(5)
             try:
-                logging.info(f"Current URL: {driver.current_url}")
-                logging.info(f"Page title: {driver.title}")
-                logging.info(f"Page source length: {len(driver.page_source)}")
+                logging.debug(f"Current URL: {driver.current_url}")
+                logging.debug(f"Page title: {driver.title}")
+                logging.debug(f"Page source length: {len(driver.page_source)}")
             except Exception as e:
                 logging.error(f"Failed to get page info: {str(e)}")
             
             # Get all network requests
             logs = driver.get_log('performance')
-            logging.info(f"Captured {len(logs)} network log entries")
+            logging.debug(f"Captured {len(logs)} network log entries")
             
             # Process logs to find token
             token = None
@@ -113,7 +113,7 @@ class PetfinderScraper:
                         url = network_log['params']['request'].get('url', '')
                         if 'https://www.petfinder.com/search/' in url and 'token=' in url:
                             token = url.split('token=')[1].split('&')[0]
-                            logging.info("Found Petfinder token")
+                            logging.debug("Found Petfinder token")
                             break
                 except Exception as e:
                     logging.error(f"Error processing log entry: {str(e)}")
@@ -121,7 +121,7 @@ class PetfinderScraper:
             if token:
                 self.token = token
                 self.token_timestamp = time.time()
-                logging.info("New token acquired")
+                logging.debug("New token acquired")
                 return token
             else:
                 logging.error("No token found in network requests")
@@ -277,7 +277,7 @@ class PetfinderScraper:
                 self.collected_pets.extend(animals)
                 self.total_pets = len(self.collected_pets)
 
-                logging.info(
+                logging.debug(
                     f"Processed pages {batch_start}-{batch_start + current_batch_size - 1}. "
                     f"Total pets collected: {self.total_pets}"
                 )
