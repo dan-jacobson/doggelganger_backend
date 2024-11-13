@@ -303,6 +303,11 @@ async def main():
     
     args = parser.parse_args()
     
+    logging.basicConfig(
+        level=getattr(logging, args.log_level.upper()),
+        format="%(asctime)s - %(levelname)s - %(message)s"
+    )
+    
     scraper = PetfinderScraper()
     await scraper.scrape_all_pets(
         output_path=args.output_file,
@@ -311,8 +316,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=getattr(logging, args.log_level.upper()),
-        format="%(asctime)s - %(levelname)s - %(message)s"
-    )
     asyncio.run(main())
