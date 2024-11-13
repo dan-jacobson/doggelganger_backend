@@ -1,9 +1,15 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
+const options = {
+  db: {
+    schema: 'vecs',
+  },
+}
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
-  Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+  Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+  options
 )
 
 async function checkLink(url: string, isRetry = false, maxRetries = 3): Promise<boolean> {
@@ -71,6 +77,7 @@ Deno.serve(async (req) => {
 
     const failureRate = failedDogs.length / dogs.length;
 
+    // Set a threshold so some sort of network failure doesn't make us drop our db
     if (failureRate <= 0.33) {
       // Update the database by removing failed dogs
       const { error: deleteError } = await supabase
