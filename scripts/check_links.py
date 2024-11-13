@@ -1,21 +1,24 @@
-import json
-import asyncio
-import aiohttp
 import argparse
-from tqdm.asyncio import tqdm
-import random
-import vecs
-from vecs.collection import Collection
-import os
-from dotenv import load_dotenv
+import asyncio
+import json
 import logging
+import os
+import random
+
+import aiohttp
+import vecs
+from dotenv import load_dotenv
+from tqdm.asyncio import tqdm
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 load_dotenv()
 DB_CONNECTION = os.getenv("SUPABASE_DB")
-DOG_FILE = 'data/petfinder/dog_metadata.json'
+DOG_FILE = "data/petfinder/dog_metadata.json"
+
 
 async def check_link(session, dog, is_retry=False, max_retries=3):
     url = dog["adoption_link"]
@@ -27,33 +30,42 @@ async def check_link(session, dog, is_retry=False, max_retries=3):
                     # Check image_url if adoption_link is successful
                     image_url = dog.get("image_url")
                     if image_url:
-                        async with session.get(image_url, timeout=10, allow_redirects=True) as img_response:
+                        async with session.get(
+                            image_url, timeout=10, allow_redirects=True
+                        ) as img_response:
                             img_success = img_response.status == 200
                             if img_success:
                                 # Check if the Content-Type is an image
-                                content_type = img_response.headers.get("Content-Type", "")
+                                content_type = img_response.headers.get(
+                                    "Content-Type", ""
+                                )
                                 img_success = content_type.startswith("image/")
                             return success, img_success, dog
                 return success, None, dog
-        except (asyncio.TimeoutError, aiohttp.ClientError):
+        except (TimeoutError, aiohttp.ClientError):
             if attempt == max_retries - 1:
                 return False, None, dog
-            await asyncio.sleep(2 ** attempt + random.uniform(0, 1))
+            await asyncio.sleep(2**attempt + random.uniform(0, 1))
     return False, None, dog
+
 
 async def check_links(dogs, is_retry=False):
     async with aiohttp.ClientSession() as session:
         semaphore = asyncio.Semaphore(10)  # Limit to 10 concurrent requests
+
         async def check_with_semaphore(dog):
             async with semaphore:
                 return await check_link(session, dog, is_retry)
+
         tasks = [check_with_semaphore(dog) for dog in dogs]
         return await tqdm.gather(*tasks, desc="Checking links", total=len(dogs))
+
 
 def get_dogs_from_db():
     vx = vecs.create_client(DB_CONNECTION)
     dogs = vx.get_collection("dog_embeddings")
-    return [record.metadata for record in dogs.query(data=[0]*dogs.dimension, limit=100000)]
+    return [record.metadata for record in dogs.query(data=[0] * dogs.dimension)]
+
 
 async def main():
     parser = argparse.ArgumentParser(description="Check adoption links and image URLs.")
@@ -73,7 +85,7 @@ async def main():
 
     if args.source == "file":
         # Load the JSON file
-        with open(DOG_FILE, "r") as f:
+        with open(DOG_FILE) as f:
             dogs = json.load(f)
     else:
         # Load dogs from the database
@@ -121,21 +133,25 @@ async def main():
     removed = total - len(valid_dogs)
     success_percent = (len(valid_dogs) / total) * 100 if total > 0 else 0
 
-    logging.info(f"1. Number of successes: {successes}"
-        f"2. Number of failures: {failures}"
-        f"3. Number of initial failures that worked the second time: {retry_successes}"
-        f"4. Number of successes whose 'image_url' didn't work: {image_failures}"
-        f"5. Percent successes: {success_percent:.2f}%")
+    logging.info(
+        f"1. Number of successes: {successes}"
+        f"\n2. Number of failures: {failures}"
+        f"\n3. Number of initial failures that worked the second time: {retry_successes}"
+        f"\n4. Number of successes whose 'image_url' didn't work: {image_failures}"
+        f"\n5. Percent successes: {success_percent:.2f}%"
+    )
     if args.remove:
-        logging.info(f"6. Number of dogs removed: {removed}")
+        logging.info(f"\n6. Number of dogs removed: {removed}")
 
     logging.debug("\n5 examples of successes whose 'image_url' didn't work:")
     for i, dog in enumerate(image_failure_examples, 1):
-        logging.debug(f"Example {i}:"
-            f"  Name: {dog.get('name', 'N/A')}"
-            f"  Adoption Link: {dog.get('adoption_link', 'N/A')}"
-            f"  Image URL: {dog.get('image_url', 'N/A')}"
-            "")
+        logging.debug(
+            f"Example {i}:"
+            f"\n  Name: {dog.get('name', 'N/A')}"
+            f"\n  Adoption Link: {dog.get('adoption_link', 'N/A')}"
+            f"\n  Image URL: {dog.get('image_url', 'N/A')}"
+            ""
+        )
 
     if args.remove:
         if args.source == "file":
@@ -147,16 +163,17 @@ async def main():
             # Update the database with only valid dogs
             vx = vecs.create_client(DB_CONNECTION)
             dogs = vx.get_collection("dog_embeddings")
-            
+
             # Remove all documents
             dogs.delete()
-            
+
             # Insert valid dogs
             if valid_dogs:
-                records = [(dog['id'], dog['embedding'], dog) for dog in valid_dogs]
+                records = [(dog["id"], dog["embedding"], dog) for dog in valid_dogs]
                 dogs.upsert(records)
-            
+
             logging.info(f"Updated database with {len(valid_dogs)} valid dogs.")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -1,15 +1,16 @@
+import argparse
 import json
 import os
-import time
-import argparse
 import random
+import time
+
+import requests
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
-import requests
 
 
 def sanitize_name(name):
@@ -145,7 +146,7 @@ def save_metadata(dogs, output_folder):
 def load_metadata(output_folder):
     metadata_file = os.path.join(output_folder, "dog_metadata.json")
     if os.path.exists(metadata_file):
-        with open(metadata_file, "r") as f:
+        with open(metadata_file) as f:
             return json.load(f)
     return []
 

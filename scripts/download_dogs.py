@@ -1,6 +1,7 @@
-import requests
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import requests
 
 folder = "example_dog_images"
 N = 2000
