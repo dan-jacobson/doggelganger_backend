@@ -43,16 +43,14 @@ class PetfinderScraper:
         logging.info("Getting new token...")
         
         options = webdriver.ChromeOptions()
-        options.add_argument('--headless')
+        options.add_argument('--headless=new')  # Updated headless syntax
         options.add_argument('--disable-gpu')
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--window-size=1920,1080')
-        options.add_argument('--remote-debugging-port=9222')
         
-        # Add logging preferences directly to options
+        # Set logging preferences properly
         options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
-        options.add_experimental_option('w3c', False)
         options.add_experimental_option('perfLoggingPrefs', {
             'enableNetwork': True,
             'enablePage': False,
