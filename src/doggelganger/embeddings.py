@@ -23,14 +23,10 @@ def generate_id(metadata):
     return hashlib.md5(id_string.encode()).hexdigest()
 
 
-def process_dog(dog, data_dir, pipe):
+def process_dog(dog, pipe):
     try:
-        # Determine image source
-        if "local_image" in dog and dog["local_image"]:
-            image_path = Path(data_dir, dog["local_image"])
-            embedding = get_embedding(image_path, pipe)
-        else:
-            embedding = get_embedding(dog["primary_photo_cropped"], pipe)
+        # Get embedding from primary photo
+        embedding = get_embedding(dog["primary_photo_cropped"], pipe)
 
         if embedding is not None:
             # Generate ID
@@ -44,7 +40,7 @@ def process_dog(dog, data_dir, pipe):
         return None
 
 
-def process_dogs(data_dir, metadata_path, drop_existing=False):
+def process_dogs(metadata_path, drop_existing=False):
     pipe = load_model()
 
     # Load metadata
@@ -64,7 +60,7 @@ def process_dogs(data_dir, metadata_path, drop_existing=False):
     )
 
     # Process dogs in parallel
-    process_dog_partial = partial(process_dog, data_dir=data_dir, pipe=pipe)
+    process_dog_partial = partial(process_dog, pipe=pipe)
     
     batch_size = 100
     total_processed = 0
@@ -95,6 +91,7 @@ def process_dogs(data_dir, metadata_path, drop_existing=False):
 
 def main():
     parser = argparse.ArgumentParser(description="Process dog embeddings and upload to Supabase.")
+    parser.add_argument('--file', required=True, help='Path to the dog metadata JSON file')
     parser.add_argument('--drop', action='store_true', help='Drop existing collection before processing')
     args = parser.parse_args()
 
@@ -103,10 +100,7 @@ def main():
         level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
     )
 
-    data_dir = "./data/petfinder"
-    metadata_path = "./data/petfinder/dog_metadata.json"
-
-    process_dogs(data_dir, metadata_path, drop_existing=args.drop)
+    process_dogs(args.file, drop_existing=args.drop)
     logging.info("Embeddings processing completed.")
 
 
