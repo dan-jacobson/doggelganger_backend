@@ -20,7 +20,7 @@ DB_CONNECTION = os.getenv("SUPABASE_DB")
 
 def generate_id(metadata):
     # Create a unique ID based on the dog's adoption link
-    id_string = f"{metadata['adoption_link']}"
+    id_string = f"{metadata['url']}"
     return hashlib.md5(id_string.encode()).hexdigest()
 
 
