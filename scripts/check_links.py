@@ -3,9 +3,7 @@ import asyncio
 import jsonlines
 import logging
 import os
-import random
-import time
-from fake_useragent import UserAgent
+from datetime import datetime, timedelta
 
 import aiohttp
 import vecs
@@ -19,35 +17,56 @@ load_dotenv()
 DB_CONNECTION = os.getenv("SUPABASE_DB")
 
 
-async def check_link(session, dog, is_retry=False, max_retries=3):
+PETFINDER_API_KEY = os.getenv("PETFINDER_API_KEY")
+PETFINDER_SECRET = os.getenv("PETFINDER_SECRET")
+
+class PetfinderAPI:
+    def __init__(self):
+        self.access_token = None
+        self.token_expires = None
+        
+    async def get_token(self, session):
+        if self.access_token and datetime.now() < self.token_expires:
+            return self.access_token
+            
+        async with session.post(
+            'https://api.petfinder.com/v2/oauth2/token',
+            data={
+                'grant_type': 'client_credentials',
+                'client_id': PETFINDER_API_KEY,
+                'client_secret': PETFINDER_SECRET
+            }
+        ) as response:
+            if response.status == 200:
+                data = await response.json()
+                self.access_token = data['access_token']
+                self.token_expires = datetime.now() + timedelta(seconds=data['expires_in'])
+                return self.access_token
+            else:
+                raise Exception(f"Failed to get token: {response.status}")
+
+    async def check_animal(self, session, animal_id):
+        token = await self.get_token(session)
+        headers = {'Authorization': f'Bearer {token}'}
+        
+        async with session.get(
+            f'https://api.petfinder.com/v2/animals/{animal_id}',
+            headers=headers
+        ) as response:
+            return response.status == 200
+
+async def check_link(session, dog, petfinder_api, is_retry=False, max_retries=3):
     url = dog["url"]
-    ua = UserAgent()
-    headers = {
-        'User-Agent': ua.random,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Connection': 'keep-alive',
-        'sec-ch-ua': '"Google Chrome";v="119", "Chromium";v="119", "Not?A_Brand";v="24"',
-        'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"macOS"',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-User': '?1',
-        'Upgrade-Insecure-Requests': '1',
-        'Cache-Control': 'max-age=0'
-    }
+    # Extract the animal ID from the URL
+    try:
+        animal_id = url.split("/dog/")[1].split("/")[1]
+    except IndexError:
+        logging.error(f"Could not extract animal ID from URL: {url}")
+        return False, None, dog
     for attempt in range(max_retries):
         try:
-            # Add a small random delay
-            await asyncio.sleep(random.uniform(1, 3))
-            
-            async with session.get(url, timeout=10, allow_redirects=True, headers=headers) as response:
-                if response.status == 403:
-                    logging.error(f"403 Forbidden for URL: {url}")
-                    logging.error(f"Response headers: {dict(response.headers)}")
-                success = response.status == 200
+            await asyncio.sleep(0.5)  # Respect rate limits
+            success = await petfinder_api.check_animal(session, animal_id)
                 if success and not is_retry:
                     # Check image_url if adoption_link is successful
                     image_url = dog.get("primary_photo")
@@ -69,11 +88,12 @@ async def check_link(session, dog, is_retry=False, max_retries=3):
 
 async def check_links(dogs, is_retry=False):
     async with aiohttp.ClientSession() as session:
-        semaphore = asyncio.Semaphore(10)  # Limit to 10 concurrent requests
+        semaphore = asyncio.Semaphore(5)  # Reduce concurrent requests
+        petfinder_api = PetfinderAPI()
 
         async def check_with_semaphore(dog):
             async with semaphore:
-                return await check_link(session, dog, is_retry)
+                return await check_link(session, dog, petfinder_api, is_retry)
 
         tasks = [check_with_semaphore(dog) for dog in dogs]
         return await tqdm.gather(*tasks, desc=f"{'Retrying failed links' if is_retry else 'Checking links'}", total=len(dogs))
