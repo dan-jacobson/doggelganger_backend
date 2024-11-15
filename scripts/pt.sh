@@ -11,5 +11,4 @@ curl 'https://www.petfinder.com/search/?page=1&limit\[\]=40&status=adoptable&tok
   -H 'sec-fetch-site: same-origin' \
   -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36' \
   -H 'x-requested-with: XMLHttpRequest' \
-  | jq " .result.pagination "
- # | jq ' .result.animals.[1] ' #| { id: .id, name: .name, breed: .breeds_label, age: .age, sex: .sex, size: .size }'
+  | jq '.result.animals | map(select(.primary_photo != null)) | length'
