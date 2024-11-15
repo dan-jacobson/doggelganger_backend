@@ -19,9 +19,16 @@ DB_CONNECTION = os.getenv("SUPABASE_DB")
 
 async def check_link(session, dog, is_retry=False, max_retries=3):
     url = dog["url"]
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive'
+    }
     for attempt in range(max_retries):
         try:
-            async with session.get(url, timeout=10, allow_redirects=True) as response:
+            async with session.get(url, timeout=10, allow_redirects=True, headers=headers) as response:
                 success = response.status == 200
                 if success and not is_retry:
                     # Check image_url if adoption_link is successful
