@@ -51,14 +51,19 @@ def load_metadata(metadata_path):
         with open(metadata_path, "r") as f:
             return json.load(f)
 
-def process_dogs(metadata_path, drop_existing=False):
+def process_dogs(metadata_path, drop_existing=False, smoke_test=False):
     pipe = load_model()
 
     # Load metadata
     metadata = load_metadata(metadata_path)
-
-    # Initialize Supabase client
-    vx = vecs.create_client(DB_CONNECTION)
+    
+    if smoke_test:
+        metadata = metadata[:10]
+        logging.info(f"SMOKE TEST: Processing first {len(metadata)} dogs only")
+    
+    if not smoke_test:
+        # Initialize Supabase client
+        vx = vecs.create_client(DB_CONNECTION)
     
     if drop_existing:
         vx.delete_collection("dog_embeddings")
@@ -89,20 +94,27 @@ def process_dogs(metadata_path, drop_existing=False):
                     successfully_pushed += 1
                 total_processed += 1
 
-            if records:
+            if records and not smoke_test:
                 dogs.upsert(records)
 
-            logging.info(f"Processed {total_processed} dogs, successfully pushed {successfully_pushed}")
+            logging.info(f"Processed {total_processed} dogs, successfully processed {successfully_pushed}")
 
-    dogs.create_index()
-    logging.info(f"Total dogs processed: {total_processed}")
-    logging.info(f"Successfully pushed to Supabase: {successfully_pushed}")
+    if not smoke_test:
+        dogs.create_index()
+        logging.info(f"Total dogs processed: {total_processed}")
+        logging.info(f"Successfully pushed to Supabase: {successfully_pushed}")
+    else:
+        logging.info("SMOKE TEST RESULTS:")
+        logging.info(f"Total dogs processed: {total_processed}")
+        logging.info(f"Successfully generated embeddings: {successfully_pushed}")
+        logging.info("No data was written to the database")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Process dog embeddings and upload to Supabase.")
     parser.add_argument('--file', required=True, help='Path to the dog metadata file (JSON or JSONL format)')
     parser.add_argument('--drop', action='store_true', help='Drop existing collection before processing')
+    parser.add_argument('--smoke-test', action='store_true', help='Process first 10 dogs only and print results without writing to DB')
     args = parser.parse_args()
 
     # Set up logging
@@ -110,7 +122,7 @@ def main():
         level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
     )
 
-    process_dogs(args.file, drop_existing=args.drop)
+    process_dogs(args.file, drop_existing=args.drop, smoke_test=args.smoke_test)
     logging.info("Embeddings processing completed.")
 
 
