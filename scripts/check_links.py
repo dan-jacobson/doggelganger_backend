@@ -4,6 +4,8 @@ import jsonlines
 import logging
 import os
 import random
+import time
+from fake_useragent import UserAgent
 
 import aiohttp
 import vecs
@@ -19,16 +21,32 @@ DB_CONNECTION = os.getenv("SUPABASE_DB")
 
 async def check_link(session, dog, is_retry=False, max_retries=3):
     url = dog["url"]
+    ua = UserAgent()
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+        'User-Agent': ua.random,
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
         'Accept-Encoding': 'gzip, deflate, br',
-        'Connection': 'keep-alive'
+        'Connection': 'keep-alive',
+        'sec-ch-ua': '"Google Chrome";v="119", "Chromium";v="119", "Not?A_Brand";v="24"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"macOS"',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
+        'Cache-Control': 'max-age=0'
     }
     for attempt in range(max_retries):
         try:
+            # Add a small random delay
+            await asyncio.sleep(random.uniform(1, 3))
+            
             async with session.get(url, timeout=10, allow_redirects=True, headers=headers) as response:
+                if response.status == 403:
+                    logging.error(f"403 Forbidden for URL: {url}")
+                    logging.error(f"Response headers: {dict(response.headers)}")
                 success = response.status == 200
                 if success and not is_retry:
                     # Check image_url if adoption_link is successful
