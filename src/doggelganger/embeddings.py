@@ -30,7 +30,7 @@ def process_dog(dog, data_dir, pipe):
             image_path = Path(data_dir, dog["local_image"])
             embedding = get_embedding(image_path, pipe)
         else:
-            embedding = get_embedding(dog["image_url"], pipe)
+            embedding = get_embedding(dog["primary_photo_cropped"], pipe)
 
         if embedding is not None:
             # Generate ID
