@@ -18,14 +18,14 @@ DB_CONNECTION = os.getenv("SUPABASE_DB")
 
 
 async def check_link(session, dog, is_retry=False, max_retries=3):
-    url = dog["adoption_link"]
+    url = dog["url"]
     for attempt in range(max_retries):
         try:
             async with session.get(url, timeout=10, allow_redirects=True) as response:
                 success = response.status == 200
                 if success and not is_retry:
                     # Check image_url if adoption_link is successful
-                    image_url = dog.get("image_url")
+                    image_url = dog.get("primary_photo")
                     if image_url:
                         async with session.get(image_url, timeout=10, allow_redirects=True) as img_response:
                             img_success = img_response.status == 200
@@ -51,7 +51,7 @@ async def check_links(dogs, is_retry=False):
                 return await check_link(session, dog, is_retry)
 
         tasks = [check_with_semaphore(dog) for dog in dogs]
-        return await tqdm.gather(*tasks, desc="Checking links", total=len(dogs))
+        return await tqdm.gather(*tasks, desc=f"{'Retrying failed links' if is_retry else 'Checking links'}", total=len(dogs))
 
 
 def get_dogs_from_db():
@@ -83,6 +83,14 @@ async def main():
         help="Path to JSONL file (default: data/dogs_latest.jsonl)",
     )
     args = parser.parse_args()
+
+    if args.file:
+        if not args.file.endswith('.jsonl'):
+            raise ValueError(f"File must be .jsonl. Got: {args.file.split(".")[-1]}")
+        dogs = []
+        with jsonlines.open(args.file) as reader:
+            for dog in reader:
+                dogs.append(dog)
 
     if args.db:
         # Load dogs from the database
@@ -134,19 +142,19 @@ async def main():
         f"1. Number of successes: {successes}"
         f"\n2. Number of failures: {failures}"
         f"\n3. Number of initial failures that worked the second time: {retry_successes}"
-        f"\n4. Number of successes whose 'image_url' didn't work: {image_failures}"
+        f"\n4. Number of successes whose 'primary_photo' didn't work: {image_failures}"
         f"\n5. Percent successes: {success_percent:.2f}%"
     )
     if args.remove:
         logging.info(f"\n6. Number of dogs removed: {removed}")
 
-    logging.debug("\n5 examples of successes whose 'image_url' didn't work:")
+    logging.debug("\n5 examples of successes whose 'primary_photo' didn't work:")
     for i, dog in enumerate(image_failure_examples, 1):
         logging.debug(
             f"Example {i}:"
             f"\n  Name: {dog.get('name', 'N/A')}"
-            f"\n  Adoption Link: {dog.get('adoption_link', 'N/A')}"
-            f"\n  Image URL: {dog.get('image_url', 'N/A')}"
+            f"\n  Adoption Link: {dog.get('url', 'N/A')}"
+            f"\n  Image URL: {dog.get('primary_photo', 'N/A')}"
             ""
         )
 
