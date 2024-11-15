@@ -225,17 +225,18 @@ class PetfinderScraper:
             logging.error(f"Exception fetching page {page}: {str(e)}")
             return PaginationInfo(0, 0, 0, 0), []
     
-    def sanitize_animals(animals: list[Animal]):
+    def sanitize_animals(self, animals: list[Animal]) -> list[Animal]:
+        """Filter and sanitize animal photo fields"""
         sanitized_animals = []
         for animal in animals:
             if not animal.primary_photo_cropped and animal.primary_photo:
                 animal.primary_photo_cropped = animal.primary_photo
             
             # Only keep animals that have at least one photo and a url
-            if animal.primary_photo and animal.primary_photo_cropped and animal.url :
+            if animal.primary_photo and animal.primary_photo_cropped and animal.url:
                 sanitized_animals.append(animal)
-            
-            return sanitized_animals 
+        
+        return sanitized_animals
 
 
     async def process_batch(self, session: ClientSession, start_page: int, batch_size: int) -> list[Animal]:
@@ -253,7 +254,7 @@ class PetfinderScraper:
         all_animals = [animal for animals in animals_lists for animal in animals]
         
         # Filter and sanitize photo fields
-        sanitized_animals = sanitize_animals(all_animals)
+        sanitized_animals = self.sanitize_animals(all_animals)
         
         return sanitized_animals
 
