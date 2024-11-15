@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import json
+import jsonlines
 import logging
 from tqdm import tqdm
 import vecs
@@ -40,12 +41,21 @@ def process_dog(dog, pipe):
         return None
 
 
+def load_metadata(metadata_path):
+    """Load metadata from either JSON or JSONL file."""
+    suffix = Path(metadata_path).suffix.lower()
+    if suffix == '.jsonl':
+        with jsonlines.open(metadata_path) as reader:
+            return list(reader)
+    else:  # Assume .json for all other cases
+        with open(metadata_path, "r") as f:
+            return json.load(f)
+
 def process_dogs(metadata_path, drop_existing=False):
     pipe = load_model()
 
     # Load metadata
-    with open(metadata_path, "r") as f:
-        metadata = json.load(f)
+    metadata = load_metadata(metadata_path)
 
     # Initialize Supabase client
     vx = vecs.create_client(DB_CONNECTION)
@@ -91,7 +101,7 @@ def process_dogs(metadata_path, drop_existing=False):
 
 def main():
     parser = argparse.ArgumentParser(description="Process dog embeddings and upload to Supabase.")
-    parser.add_argument('--file', required=True, help='Path to the dog metadata JSON file')
+    parser.add_argument('--file', required=True, help='Path to the dog metadata file (JSON or JSONL format)')
     parser.add_argument('--drop', action='store_true', help='Drop existing collection before processing')
     args = parser.parse_args()
 
