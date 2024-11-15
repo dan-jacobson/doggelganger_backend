@@ -235,8 +235,21 @@ class PetfinderScraper:
         batch_results = await asyncio.gather(*tasks)
         # Unzip the pagination info and animals
         pagination_infos, animals_lists = zip(*batch_results)
-        # Return the flattened list of animals and the first pagination info
-        return [animal for animals in animals_lists for animal in animals]
+        
+        # Flatten the list of animals
+        all_animals = [animal for animals in animals_lists for animal in animals]
+        
+        # Filter and sanitize photo fields
+        sanitized_animals = []
+        for animal in all_animals:
+            if not animal.primary_photo_cropped and animal.primary_photo:
+                animal.primary_photo_cropped = animal.primary_photo
+            
+            # Only keep animals that have at least one photo
+            if animal.primary_photo or animal.primary_photo_cropped:
+                sanitized_animals.append(animal)
+        
+        return sanitized_animals
 
     def save_progress(self, output_path: str):
         """Save collected pets to file"""
