@@ -50,6 +50,7 @@ class PetfinderScraper:
         self.token_expiry = 3600  # Per the API docs
         self.total_pets = 0
         self.collected_pets: list[Animal] = []
+        self.seen_animals = set()  # Track unique animals
 
     async def get_new_token(self) -> str:
         """Get a new token using Selenium and CDP"""
@@ -258,20 +259,33 @@ class PetfinderScraper:
         
         return sanitized_animals
 
+    def get_animal_signature(self, animal: Animal) -> str:
+        """Create a unique signature for an animal based on name, breed, and description"""
+        return f"{animal.name}|{animal.breed}|{animal.description}"
+
     def save_progress(self, output_path: str):
-        """Save collected pets to file"""
+        """Save collected pets to file, filtering duplicates"""
         # Ensure directory exists
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         
+        # Filter and save unique pets
+        unique_pets = []
+        for pet in self.collected_pets:
+            signature = self.get_animal_signature(pet)
+            if signature not in self.seen_animals:
+                self.seen_animals.add(signature)
+                unique_pets.append(pet)
+        
         # Convert pets to dictionaries and append to file
         with jsonlines.open(output_path, mode='a') as writer:
-            for pet in self.collected_pets:
+            for pet in unique_pets:
                 writer.write(pet.__dict__)
 
         # Log progress
-        pets_saved = len(self.collected_pets)
+        pets_saved = len(unique_pets)
         self.total_pets += pets_saved
-        logging.debug(f"Saved {pets_saved} pets to {output_path} (Total: {self.total_pets})")
+        duplicates = len(self.collected_pets) - pets_saved
+        logging.debug(f"Saved {pets_saved} pets to {output_path} (Total: {self.total_pets}, Duplicates filtered: {duplicates})")
         self.collected_pets = []  # Clear memory after saving
 
     async def scrape_all_pets(self, output_path: str, save_interval: int = 1000, smoke_test: bool = False):
