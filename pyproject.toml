@@ -5,6 +5,7 @@ description = "Find you canine look alike!"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "fake-useragent>=1.5.1",
     "jsonlines>=4.0.0",
     "litestar[standard]>=2.11.0",
     "pillow>=10.4.0",

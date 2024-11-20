@@ -340,6 +340,7 @@ name = "doggelganger"
 version = "0.1.1"
 source = { editable = "." }
 dependencies = [
+    { name = "fake-useragent" },
     { name = "jsonlines" },
     { name = "litestar", extra = ["standard"] },
     { name = "pillow" },
@@ -374,6 +375,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "fake-useragent", specifier = ">=1.5.1" },
     { name = "jsonlines", specifier = ">=4.0.0" },
     { name = "litestar", extras = ["standard"], specifier = ">=2.11.0" },
     { name = "optuna", marker = "extra == 'train'", specifier = ">=4.0.0" },
@@ -415,6 +417,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/8c/e3/7d45f492c2c4a0e8e0fad57d081a7c8a0286cdd86372b070cca1ec0caa1e/executing-2.1.0.tar.gz", hash = "sha256:8ea27ddd260da8150fa5a708269c4a10e76161e2496ec3e587da9e3c0fe4b9ab", size = 977485 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b5/fd/afcd0496feca3276f509df3dbd5dae726fcc756f1a08d9e25abe1733f962/executing-2.1.0-py2.py3-none-any.whl", hash = "sha256:8d63781349375b5ebccc3142f4b30350c0cd9c79f921cde38be2be4637e98eaf", size = 25805 },
+]
+
+[[package]]
+name = "fake-useragent"
+version = "1.5.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/24/a1/1f662631ab153975fa8dbf09296324ecbaf53370dce922054e8de6b57370/fake-useragent-1.5.1.tar.gz", hash = "sha256:6387269f5a2196b5ba7ed8935852f75486845a1c95c50e72460e6a8e762f5c49", size = 22631 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e4/99/60d8cf1b26938c2e0a57e232f7f15641dfcd6f8deda454d73e4145910ff6/fake_useragent-1.5.1-py3-none-any.whl", hash = "sha256:57415096557c8a4e23b62a375c21c55af5fd4ba30549227f562d2c4f5b60e3b3", size = 17190 },
 ]
 
 [[package]]
