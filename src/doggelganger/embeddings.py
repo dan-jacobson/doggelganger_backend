@@ -61,18 +61,17 @@ def process_dogs(metadata_path, drop_existing=False, smoke_test=False):
         metadata = metadata[:10]
         logging.info(f"SMOKE TEST: Processing first {len(metadata)} dogs only")
     
-    if not smoke_test:
-        # Initialize Supabase client
-        vx = vecs.create_client(DB_CONNECTION)
-    
-    if drop_existing:
-        vx.delete_collection("dog_embeddings")
-        logging.info("Existing 'dog_embeddings' collection dropped.")
+    else:
+        vx = vecs.create_client(DB_CONNECTION) 
 
-    dogs = vx.get_or_create_collection(
-        name="dog_embeddings",
-        dimension=pipe.model.config.hidden_size,
-    )
+        if drop_existing:
+            vx.delete_collection("dog_embeddings")
+            logging.info("Existing 'dog_embeddings' collection dropped.")
+
+        dogs = vx.get_or_create_collection(
+            name="dog_embeddings",
+            dimension=pipe.model.config.hidden_size,
+        )
 
     # Process dogs in parallel
     process_dog_partial = partial(process_dog, pipe=pipe)
@@ -99,16 +98,15 @@ def process_dogs(metadata_path, drop_existing=False, smoke_test=False):
 
             logging.info(f"Processed {total_processed} dogs, successfully processed {successfully_pushed}")
 
-    if not smoke_test:
-        dogs.create_index()
-        logging.info(f"Total dogs processed: {total_processed}")
-        logging.info(f"Successfully pushed to Supabase: {successfully_pushed}")
-    else:
+    if smoke_test:
         logging.info("SMOKE TEST RESULTS:")
         logging.info(f"Total dogs processed: {total_processed}")
         logging.info(f"Successfully generated embeddings: {successfully_pushed}")
         logging.info("No data was written to the database")
-
+    else:
+        dogs.create_index()
+        logging.info(f"Total dogs processed: {total_processed}")
+        logging.info(f"Successfully pushed to Supabase: {successfully_pushed}")
 
 def main():
     parser = argparse.ArgumentParser(description="Process dog embeddings and upload to Supabase.")
