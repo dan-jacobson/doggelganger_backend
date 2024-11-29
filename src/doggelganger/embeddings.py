@@ -91,7 +91,8 @@ def process_dogs(metadata_path, drop_existing: bool=False, N: int|bool=False, sm
         N = len(metadata)
 
     with ProcessPoolExecutor() as executor:
-        for i in range(0, N, batch_size):
+        progress_bar = tqdm(range(0, N, batch_size), desc="Processing dogs")
+        for i in progress_bar:
             batch = metadata[i:i+batch_size]
             futures = [executor.submit(process_dog_partial, dog) for dog in batch]
             
@@ -102,11 +103,11 @@ def process_dogs(metadata_path, drop_existing: bool=False, N: int|bool=False, sm
                     records.append(result)
                     successfully_pushed += 1
                 total_processed += 1
-
+            
             if records and not smoke_test:
                 dogs.upsert(records)
-
-            logging.info(f"Processed {total_processed} dogs, successfully processed {successfully_pushed}")
+            
+            progress_bar.set_postfix({'success': successfully_pushed, 'total': total_processed})
 
     if smoke_test:
         logging.info("SMOKE TEST RESULTS:")
