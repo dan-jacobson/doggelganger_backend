@@ -1,6 +1,7 @@
+import json
+
 import numpy as np
 from sklearn.linear_model import LinearRegression
-import json
 
 from doggelganger.models.base import BaseModel
 
@@ -25,7 +26,7 @@ class LinearRegressionModel(BaseModel):
 
     @staticmethod
     def load(path):
-        with open(path, "r") as f:
+        with open(path) as f:
             model_params = json.load(f)
         model = LinearRegressionModel()
         model.model.coef_ = np.array(model_params["coef"])

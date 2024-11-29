@@ -1,10 +1,11 @@
-import os
-import torch
 import json
+import os
+
 import numpy as np
+import torch
 from PIL import Image
-from transformers import CLIPProcessor, CLIPModel
 from tqdm import tqdm
+from transformers import CLIPModel, CLIPProcessor
 
 # path to folder of dog images
 dogs_folder = "example_dog_images"
@@ -27,15 +28,11 @@ def get_embedding(image_path, model, processor, device):
 
 def calculate_dog_embeddings(folder_path):
     embeddings = {}
-    image_files = [
-        f for f in os.listdir(folder_path) if f.lower().endswith(image_types)
-    ]
+    image_files = [f for f in os.listdir(folder_path) if f.lower().endswith(image_types)]
 
     for image_file in tqdm(image_files, desc="Calculating dog embeddings"):
         image_path = os.path.join(folder_path, image_file)
-        embedding = get_embedding(
-            image_path, model=model, processor=processor, device=device
-        )
+        embedding = get_embedding(image_path, model=model, processor=processor, device=device)
         embeddings[image_file] = embedding
 
     return embeddings
@@ -53,7 +50,7 @@ if __name__ == "__main__":
 
     cache_path = os.path.join(dogs_folder, embeddings_cache)
     if os.path.exists(cache_path):
-        with open(cache_path, "r") as f:
+        with open(cache_path) as f:
             dog_embeddings = json.load(f)
             # Convert loaded lists back to numpy arrays
             dog_embeddings = {k: np.array(v) for k, v in dog_embeddings.items()}

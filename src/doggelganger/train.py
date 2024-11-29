@@ -1,20 +1,20 @@
-import numpy as np
-from sklearn.model_selection import KFold
-from sklearn.metrics import mean_squared_error, r2_score, pairwise_distances
-from sklearn.linear_model import LinearRegression
-import os
 import argparse
 import logging
+import os
 from pathlib import Path
+
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, pairwise_distances, r2_score
+from sklearn.model_selection import KFold
 from tqdm import tqdm
 
-from doggelganger.utils import get_embedding, load_model as load_embedding_model
-from doggelganger.models import model_classes, ResNetModel
+from doggelganger.models import ResNetModel, model_classes
+from doggelganger.utils import get_embedding
+from doggelganger.utils import load_model as load_embedding_model
 
 # Set up logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -33,16 +33,10 @@ def calculate_accuracies(y, preds):
 
     top1_accuracy = np.mean(np.argmax(cosine_similarities, axis=1) == np.arange(len(y)))
     top3_accuracy = np.mean(
-        [
-            np.isin(i, indices[:3]).any()
-            for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))
-        ]
+        [np.isin(i, indices[:3]).any() for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))]
     )
     top10_accuracy = np.mean(
-        [
-            np.isin(i, indices[:10]).any()
-            for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))
-        ]
+        [np.isin(i, indices[:10]).any() for i, indices in enumerate(np.argsort(-cosine_similarities, axis=1))]
     )
 
     return top1_accuracy, top3_accuracy, top10_accuracy
@@ -111,13 +105,8 @@ def train_model(model_class, X, y):
         ValueError: If no matching embeddings are found between human and animal datasets.
     """
     if X.shape[0] == 0 or y.shape[0] == 0:
-        raise ValueError(
-            "No matching embeddings found between human and animal datasets"
-        )
-    if issubclass(model_class, ResNetModel):
-        model = model_class(embedding_dim=X.shape[1])
-    else:
-        model = model_class()
+        raise ValueError("No matching embeddings found between human and animal datasets")
+    model = model_class(embedding_dim=X.shape[1]) if issubclass(model_class, ResNetModel) else model_class()
     model.fit(X, y)
     return model
 
@@ -154,8 +143,7 @@ def print_model_stats(model, X_train, y_train, X_test, y_test):
     )
     if isinstance(model.model, LinearRegression):
         logger.debug(
-            f"  Coefficient shape: {model.model.coef_.shape}\n"
-            f"  Intercept shape: {model.model.intercept_.shape}"
+            f"  Coefficient shape: {model.model.coef_.shape}\n" f"  Intercept shape: {model.model.intercept_.shape}"
         )
 
     # Accuracy check using cosine similarity
@@ -202,9 +190,7 @@ def print_model_stats(model, X_train, y_train, X_test, y_test):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Train the alignment model for Doggelganger"
-    )
+    parser = argparse.ArgumentParser(description="Train the alignment model for Doggelganger")
     parser.add_argument(
         "--seed",
         type=int,
@@ -295,18 +281,12 @@ def main():
 
         # Save the best alignment model
         if args.save:
-            model_path = (
-                args.save
-                if isinstance(args.save, str)
-                else f"weights/alignment_model_{args.model}.pt"
-            )
+            model_path = args.save if isinstance(args.save, str) else f"weights/alignment_model_{args.model}.pt"
             if not best_model:
                 best_model = train_model(model_class, X, y)
             best_model.save(model_path)
 
-            logger.info(
-                f"\nBest alignment model trained and saved. Used {num_images} image pairs."
-            )
+            logger.info(f"\nBest alignment model trained and saved. Used {num_images} image pairs.")
             if best_score > 0:
                 logger.info(f"Best model R-squared score: {best_score:.4f}")
             logger.info("This model now aligns human embeddings to animal embeddings.")

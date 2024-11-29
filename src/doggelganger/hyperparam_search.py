@@ -1,18 +1,16 @@
-import torch
 import argparse
 import logging
-from sklearn.model_selection import train_test_split
+
 from ray import tune
 from ray.train import RunConfig, report
 from ray.tune.search.optuna import OptunaSearch
+from sklearn.model_selection import train_test_split
 
-from doggelganger.train import make_training_data, calculate_accuracies
 from doggelganger.models.resnet import ResNetModel
+from doggelganger.train import calculate_accuracies, make_training_data
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -32,9 +30,7 @@ def train_model(config, X, y):
     init_method = config["init_method"]
 
     # Split the data
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.15, random_state=1234
-    )
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.15, random_state=1234)
     embedding_dim = X.shape[1]
 
     # Create and train the model
@@ -104,9 +100,7 @@ def hyperparameter_search(X, y, num_samples=10, max_num_epochs=200, name=None):
             search_alg=algo,
         ),
         param_space=config,
-        run_config=RunConfig(
-            storage_path="/Users/drj/code/doggelganger_backend/ray_results", name=name
-        ),
+        run_config=RunConfig(storage_path="/Users/drj/code/doggelganger_backend/ray_results", name=name),
     )
     result = tuner.fit()
 
@@ -120,12 +114,8 @@ def hyperparameter_search(X, y, num_samples=10, max_num_epochs=200, name=None):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Run hyperparameter search for ResNet model."
-    )
-    parser.add_argument(
-        "--name", type=str, default=None, help="Name for the Ray experiment"
-    )
+    parser = argparse.ArgumentParser(description="Run hyperparameter search for ResNet model.")
+    parser.add_argument("--name", type=str, default=None, help="Name for the Ray experiment")
     parser.add_argument(
         "--num_samples",
         type=int,
@@ -141,9 +131,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     X, y = make_training_data("data/train")
-    best_params = hyperparameter_search(
-        X, y, num_samples=args.num_samples, name=args.name
-    )
+    best_params = hyperparameter_search(X, y, num_samples=args.num_samples, name=args.name)
 
     if args.save:
         best_model = ResNetModel(

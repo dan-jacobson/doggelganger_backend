@@ -1,8 +1,10 @@
+import io
+from unittest.mock import patch
+
 import pytest
 from litestar.testing import TestClient
-from unittest.mock import patch
 from PIL import Image
-import io
+
 from doggelganger.serve import app, is_valid_link
 
 
@@ -20,9 +22,7 @@ def test_health_check(test_client):
 @patch("doggelganger.serve.get_embedding")
 @patch("doggelganger.serve.dogs.query")
 @patch("doggelganger.serve.is_valid_link")
-def test_embed_image_success(
-    mock_is_valid_link, mock_query, mock_get_embedding, test_client
-):
+def test_embed_image_success(mock_is_valid_link, mock_query, mock_get_embedding, test_client):
     # Mock the embedding
     mock_get_embedding.return_value = [0.1, 0.2, 0.3]
 
@@ -40,29 +40,19 @@ def test_embed_image_success(
     img.save(img_byte_arr, format="PNG")
     img_byte_arr = img_byte_arr.getvalue()
 
-    response = test_client.post(
-        "/embed", files={"data": ("test.png", img_byte_arr, "image/png")}
-    )
+    response = test_client.post("/embed", files={"data": ("test.png", img_byte_arr, "image/png")})
 
     print(f"Response content: {response.content}")
-    assert (
-        response.status_code == 200
-    ), f"Unexpected status code: {response.status_code}, content: {response.content}"
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code}, content: {response.content}"
     response_json = response.json()
-    assert (
-        "embedding" in response_json
-    ), f"'embedding' not found in response: {response_json}"
-    assert (
-        "similar_image" in response_json
-    ), f"'similar_image' not found in response: {response_json}"
+    assert "embedding" in response_json, f"'embedding' not found in response: {response_json}"
+    assert "similar_image" in response_json, f"'similar_image' not found in response: {response_json}"
 
 
 @patch("doggelganger.serve.get_embedding")
 @patch("doggelganger.serve.dogs.query")
 @patch("doggelganger.serve.is_valid_link")
-def test_embed_image_no_valid_links(
-    mock_is_valid_link, mock_query, mock_get_embedding, test_client
-):
+def test_embed_image_no_valid_links(mock_is_valid_link, mock_query, mock_get_embedding, test_client):
     # Mock the embedding
     mock_get_embedding.return_value = [0.1, 0.2, 0.3]
 
@@ -80,9 +70,7 @@ def test_embed_image_no_valid_links(
     img.save(img_byte_arr, format="PNG")
     img_byte_arr = img_byte_arr.getvalue()
 
-    response = test_client.post(
-        "/embed", files={"data": ("test.png", img_byte_arr, "image/png")}
-    )
+    response = test_client.post("/embed", files={"data": ("test.png", img_byte_arr, "image/png")})
 
     assert response.status_code == 404
     assert "error" in response.json()

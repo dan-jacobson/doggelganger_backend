@@ -1,15 +1,16 @@
+from pathlib import Path
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-from doggelganger.models.base import BaseModel
 from tqdm import tqdm
 
-from pathlib import Path
+from doggelganger.models.base import BaseModel
 
 
 class ResidualBlock(nn.Module):
     def __init__(self, dim):
-        super(ResidualBlock, self).__init__()
+        super().__init__()
         self.fc1 = nn.Linear(dim, dim)
         self.fc2 = nn.Linear(dim, dim)
         self.relu = nn.ReLU()
@@ -21,10 +22,8 @@ class ResidualBlock(nn.Module):
 
 class MinimalPerturbationNetwork(nn.Module):
     def __init__(self, embedding_dim, num_blocks=3, init_method="default"):
-        super(MinimalPerturbationNetwork, self).__init__()
-        self.blocks = nn.ModuleList(
-            [ResidualBlock(embedding_dim) for _ in range(num_blocks)]
-        )
+        super().__init__()
+        self.blocks = nn.ModuleList([ResidualBlock(embedding_dim) for _ in range(num_blocks)])
         self.num_blocks = num_blocks
         self.embedding_dim = embedding_dim
 
@@ -69,8 +68,7 @@ class MinimalPerturbationNetwork(nn.Module):
                 nn.init.normal_(
                     m.weight,
                     mean=0,
-                    std=np.sqrt(2 / (m.weight.shape[0] * np.prod(m.weight.shape[1:])))
-                    * self.num_blocks ** (-0.5),
+                    std=np.sqrt(2 / (m.weight.shape[0] * np.prod(m.weight.shape[1:]))) * self.num_blocks ** (-0.5),
                 )
                 nn.init.constant_(m.bias, 0)
 
@@ -99,12 +97,8 @@ class ResNetModel(BaseModel):
         init_method="default",
     ):
         self.num_blocks = num_blocks
-        self.model = MinimalPerturbationNetwork(
-            embedding_dim, num_blocks, init_method=init_method
-        )
-        self.device = torch.device(
-            "mps" if torch.backends.mps.is_available() else "cpu"
-        )
+        self.model = MinimalPerturbationNetwork(embedding_dim, num_blocks, init_method=init_method)
+        self.device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
         self.model.to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
         self.criterion = nn.MSELoss()
@@ -116,7 +110,7 @@ class ResNetModel(BaseModel):
         y = torch.tensor(y, dtype=torch.float32).to(self.device)
 
         global_step = 0
-        for epoch in tqdm(range(num_epochs)):
+        for _epoch in tqdm(range(num_epochs)):
             epoch_loss = 0
             for i in range(0, len(X), batch_size):
                 batch_X = X[i : i + batch_size]
@@ -137,11 +131,7 @@ class ResNetModel(BaseModel):
                         - torch.eye(self.model.embedding_dim).to(self.device)
                     )
 
-                loss = (
-                    loss_main
-                    + self.lambda_delta * loss_delta
-                    + self.lambda_ortho * loss_ortho
-                )
+                loss = loss_main + self.lambda_delta * loss_delta + self.lambda_ortho * loss_ortho
 
                 loss.backward()
                 self.optimizer.step()

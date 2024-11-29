@@ -1,7 +1,12 @@
-from typing import Annotated
-import logging
 import argparse
+import io
+import logging
+import os
+from typing import Annotated
 
+import requests
+import vecs
+from dotenv import load_dotenv
 from litestar import Litestar, get, post
 from litestar.datastructures import UploadFile
 from litestar.enums import RequestEncodingType
@@ -12,15 +17,11 @@ from litestar.status_codes import (
     HTTP_404_NOT_FOUND,
     HTTP_500_INTERNAL_SERVER_ERROR,
 )
-import io
 from PIL import Image
-import vecs
-import os
-import requests
-from dotenv import load_dotenv
 
-from doggelganger.utils import get_embedding, load_model as load_embedding_pipeline
 from doggelganger.models import model_classes
+from doggelganger.utils import get_embedding
+from doggelganger.utils import load_model as load_embedding_pipeline
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -41,9 +42,7 @@ alignment_model = model_class.load(path=MODEL_WEIGHTS, embedding_dim=embedding_d
 
 # Initialize vecs client
 vx = vecs.create_client(DOGGELGANGER_DB_CONNECTION)
-dogs = vx.get_or_create_collection(
-    name="dog_embeddings", dimension=pipe.model.config.hidden_size
-)
+dogs = vx.get_or_create_collection(name="dog_embeddings", dimension=pipe.model.config.hidden_size)
 
 
 def align_embedding(embedding):
@@ -98,9 +97,7 @@ async def embed_image(
                     "similarity": 1 - score,  # converts cosine distance to similarity
                     "dog_data": metadata,
                 }
-                logger.debug(
-                    f"Valid link after {i + 1} tries: {metadata.get("adoption_link")}"
-                )
+                logger.debug(f"Valid link after {i + 1} tries: {metadata.get("adoption_link")}")
                 break
             else:
                 logger.debug(f"Invalid adoption link: {metadata.get("adoption_link")}")
@@ -121,9 +118,7 @@ async def embed_image(
         )
 
     except Exception as e:
-        return Response(
-            content={"error": str(e)}, status_code=HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        return Response(content={"error": str(e)}, status_code=HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 app = Litestar([embed_image, health_check])
@@ -132,9 +127,7 @@ app = Litestar([embed_image, health_check])
 def main():
     import uvicorn
 
-    parser = argparse.ArgumentParser(
-        description="Serve the Doggelganger backend as a uvicorn app."
-    )
+    parser = argparse.ArgumentParser(description="Serve the Doggelganger backend as a uvicorn app.")
     parser.add_argument(
         "--host",
         type=str,

@@ -1,9 +1,10 @@
-import pytest
 import numpy as np
+import pytest
+
 from doggelganger.train import (
-    make_embeddings,
     align_animal_to_human_embeddings,
     align_embedding,
+    make_embeddings,
 )
 
 

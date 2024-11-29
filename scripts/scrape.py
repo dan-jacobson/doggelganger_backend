@@ -1,29 +1,28 @@
-import asyncio
 import argparse
+import asyncio
 import json
-import jsonlines
 import logging
-import time
 import os
-from tqdm.asyncio import tqdm
+import time
 from dataclasses import dataclass
-from typing import List, Tuple
 from datetime import datetime
 
 import aiohttp
+import jsonlines
 from aiohttp import ClientSession, TCPConnector
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
+from tqdm.asyncio import tqdm
 
 
 @dataclass
 class PaginationInfo:
     """Data class to store pagination information"""
+
     count_per_page: int
     total_count: int
     current_page: int
     total_pages: int
+
 
 @dataclass
 class Animal:
@@ -55,20 +54,23 @@ class PetfinderScraper:
     async def get_new_token(self) -> str:
         """Get a new token using Selenium and CDP"""
         logging.debug("Getting new token...")
-        
+
         options = webdriver.ChromeOptions()
-        options.add_argument('--disable-gpu')
-        options.add_argument('--no-sandbox')
-        options.add_argument('--disable-dev-shm-usage')
-        options.add_argument('--window-size=1920,1080')
-        
+        options.add_argument("--disable-gpu")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--window-size=1920,1080")
+
         # Set logging preferences properly
-        options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
-        options.add_experimental_option('perfLoggingPrefs', {
-            'enableNetwork': True,
-            'enablePage': False,
-        })
-        
+        options.set_capability("goog:loggingPrefs", {"performance": "ALL"})
+        options.add_experimental_option(
+            "perfLoggingPrefs",
+            {
+                "enableNetwork": True,
+                "enablePage": False,
+            },
+        )
+
         logging.debug("Initializing Chrome driver...")
         try:
             driver = webdriver.Chrome(options=options)
@@ -76,20 +78,20 @@ class PetfinderScraper:
         except Exception as e:
             logging.error(f"Failed to initialize Chrome driver: {str(e)}")
             raise
-        
+
         try:
             # Enable CDP Network domain
-            driver.execute_cdp_cmd('Network.enable', {})
-            
+            driver.execute_cdp_cmd("Network.enable", {})
+
             # Navigate to the page
             logging.debug("Attempting to navigate to Petfinder...")
             try:
-                driver.get('https://www.petfinder.com/search/dogs-for-adoption/us/ny/brooklyn/')
+                driver.get("https://www.petfinder.com/search/dogs-for-adoption/us/ny/brooklyn/")
                 logging.debug("Navigation successful")
             except Exception as e:
                 logging.error(f"Failed to navigate to page: {str(e)}")
                 raise
-                
+
             # Wait for network activity and log page info
             time.sleep(5)
             try:
@@ -98,28 +100,26 @@ class PetfinderScraper:
                 logging.debug(f"Page source length: {len(driver.page_source)}")
             except Exception as e:
                 logging.error(f"Failed to get page info: {str(e)}")
-            
+
             # Get all network requests
-            logs = driver.get_log('performance')
+            logs = driver.get_log("performance")
             logging.debug(f"Captured {len(logs)} network log entries")
-            
+
             # Process logs to find token
             token = None
             for entry in logs:
                 try:
-                    network_log = json.loads(entry['message'])['message']
-                    
-                    if ('Network.requestWillBeSent' == network_log['method'] and 
-                        'request' in network_log['params']):
-                        
-                        url = network_log['params']['request'].get('url', '')
-                        if 'https://www.petfinder.com/search/' in url and 'token=' in url:
-                            token = url.split('token=')[1].split('&')[0]
+                    network_log = json.loads(entry["message"])["message"]
+
+                    if network_log["method"] == "Network.requestWillBeSent" and "request" in network_log["params"]:
+                        url = network_log["params"]["request"].get("url", "")
+                        if "https://www.petfinder.com/search/" in url and "token=" in url:
+                            token = url.split("token=")[1].split("&")[0]
                             logging.debug("Found Petfinder token")
                             break
                 except Exception as e:
                     logging.error(f"Error processing log entry: {str(e)}")
-            
+
             if token:
                 self.token = token
                 self.token_timestamp = time.time()
@@ -129,11 +129,9 @@ class PetfinderScraper:
                 logging.error("No token found in network requests")
                 logging.debug("Network logs captured:", logs)
                 raise Exception("Token not found in network requests")
-                
+
         finally:
             driver.quit()
-
-
 
     async def check_token(self):
         """Check if token needs refresh"""
@@ -164,9 +162,9 @@ class PetfinderScraper:
             photo_urls=animal.get("photo_urls", ""),
         )
 
-    async def fetch_page(self, session: ClientSession, page: int) -> Tuple[PaginationInfo, List[Animal]]:
+    async def fetch_page(self, session: ClientSession, page: int) -> tuple[PaginationInfo, list[Animal]]:
         """Fetch and parse a single page of results
-        
+
         Returns:
             Tuple containing pagination info and list of animals
         """
@@ -187,13 +185,13 @@ class PetfinderScraper:
             "accept-language": "en-US,en;q=0.9",
             "priority": "u=1, i",
             "referer": "https://www.petfinder.com/search/dogs-for-adoption/us/ny/11238/",
-            'sec-ch-ua': '"Chromium";v="130", "Google Chrome";v="130", "Not?A_Brand";v="99"',
+            "sec-ch-ua": '"Chromium";v="130", "Google Chrome";v="130", "Not?A_Brand";v="99"',
             "sec-ch-ua-mobile": "?0",
-            'sec-ch-ua-platform': '"macOS"',
+            "sec-ch-ua-platform": '"macOS"',
             "sec-fetch-dest": "empty",
             "sec-fetch-mode": "cors",
             "sec-fetch-site": "same-origin",
-            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36", # noqa: E501
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",  # noqa: E501
             "x-requested-with": "XMLHttpRequest",
         }
 
@@ -210,9 +208,9 @@ class PetfinderScraper:
                             count_per_page=pagination.get("count_per_page", 0),
                             total_count=pagination.get("total_count", 0),
                             current_page=pagination.get("current_page", 0),
-                            total_pages=pagination.get("total_pages", 0)
+                            total_pages=pagination.get("total_pages", 0),
                         )
-                        
+
                         animals = result.get("animals", [])
                         return pagination_info, [self.parse_animal_data(animal) for animal in animals]
                     except KeyError as e:
@@ -225,20 +223,19 @@ class PetfinderScraper:
         except Exception as e:
             logging.error(f"Exception fetching page {page}: {str(e)}")
             return PaginationInfo(0, 0, 0, 0), []
-    
+
     def sanitize_animals(self, animals: list[Animal]) -> list[Animal]:
         """Filter and sanitize animal photo fields"""
         sanitized_animals = []
         for animal in animals:
             if not animal.primary_photo_cropped and animal.primary_photo:
                 animal.primary_photo_cropped = animal.primary_photo
-            
+
             # Only keep animals that have at least one photo and a url
             if animal.primary_photo and animal.primary_photo_cropped and animal.url:
                 sanitized_animals.append(animal)
-        
-        return sanitized_animals
 
+        return sanitized_animals
 
     async def process_batch(self, session: ClientSession, start_page: int, batch_size: int) -> list[Animal]:
         """Process a batch of pages"""
@@ -249,14 +246,14 @@ class PetfinderScraper:
 
         batch_results = await asyncio.gather(*tasks)
         # Unzip the pagination info and animals
-        pagination_infos, animals_lists = zip(*batch_results)
-        
+        pagination_infos, animals_lists = zip(*batch_results, strict=False)
+
         # Flatten the list of animals
         all_animals = [animal for animals in animals_lists for animal in animals]
-        
+
         # Filter and sanitize photo fields
         sanitized_animals = self.sanitize_animals(all_animals)
-        
+
         return sanitized_animals
 
     def get_animal_signature(self, animal: Animal) -> str:
@@ -267,7 +264,7 @@ class PetfinderScraper:
         """Save collected pets to file, filtering duplicates"""
         # Ensure directory exists
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        
+
         # Filter and save unique pets
         unique_pets = []
         for pet in self.collected_pets:
@@ -275,9 +272,9 @@ class PetfinderScraper:
             if signature not in self.seen_animals:
                 self.seen_animals.add(signature)
                 unique_pets.append(pet)
-        
+
         # Convert pets to dictionaries and append to file
-        with jsonlines.open(output_path, mode='a') as writer:
+        with jsonlines.open(output_path, mode="a") as writer:
             for pet in unique_pets:
                 writer.write(pet.__dict__)
 
@@ -285,7 +282,9 @@ class PetfinderScraper:
         pets_saved = len(unique_pets)
         self.total_pets += pets_saved
         duplicates = len(self.collected_pets) - pets_saved
-        logging.debug(f"Saved {pets_saved} pets to {output_path} (Total: {self.total_pets}, Duplicates filtered: {duplicates})")
+        logging.debug(
+            f"Saved {pets_saved} pets to {output_path} (Total: {self.total_pets}, Duplicates filtered: {duplicates})"
+        )
         self.collected_pets = []  # Clear memory after saving
 
     async def scrape_all_pets(self, output_path: str, save_interval: int = 1000, smoke_test: bool = False):
@@ -306,11 +305,9 @@ class PetfinderScraper:
             # If smoke test, only process first page
             total_pages = 1 if smoke_test else pagination_info.total_pages
             total_batches = (total_pages + batch_size - 1) // batch_size
-            
+
             async for batch_start in tqdm(
-                range(1, total_pages + 1, batch_size),
-                total=total_batches,
-                desc="Scraping pages"
+                range(1, total_pages + 1, batch_size), total=total_batches, desc="Scraping pages"
             ):
                 current_batch_size = min(batch_size, pagination_info.total_pages - batch_start + 1)
 
@@ -332,28 +329,26 @@ class PetfinderScraper:
 
 
 async def main():
-    parser = argparse.ArgumentParser(description='Scrape Petfinder for dogs')
-    parser.add_argument('--smoke-test', action='store_true', help='Only scrape first page')
-    parser.add_argument('--output-file', 
-                      default=f'data/dogs_{datetime.now().strftime("%Y%m%d_%H%M%S")}.jsonl',
-                      help='Output file path')
-    parser.add_argument('--log-level',
-                      default='INFO',
-                      choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-                      help='Set the logging level')
-    
+    parser = argparse.ArgumentParser(description="Scrape Petfinder for dogs")
+    parser.add_argument("--smoke-test", action="store_true", help="Only scrape first page")
+    parser.add_argument(
+        "--output-file", default=f'data/dogs_{datetime.now().strftime("%Y%m%d_%H%M%S")}.jsonl', help="Output file path"
+    )
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Set the logging level",
+    )
+
     args = parser.parse_args()
-    
+
     logging.basicConfig(
-        level=getattr(logging, args.log_level.upper()),
-        format="%(asctime)s - %(levelname)s - %(message)s"
+        level=getattr(logging, args.log_level.upper()), format="%(asctime)s - %(levelname)s - %(message)s"
     )
-    
+
     scraper = PetfinderScraper()
-    await scraper.scrape_all_pets(
-        output_path=args.output_file,
-        smoke_test=args.smoke_test
-    )
+    await scraper.scrape_all_pets(output_path=args.output_file, smoke_test=args.smoke_test)
 
 
 if __name__ == "__main__":
