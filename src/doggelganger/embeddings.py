@@ -15,7 +15,8 @@ from doggelganger.utils import load_model, get_embedding
 
 
 load_dotenv()
-DB_CONNECTION = os.getenv("SUPABASE_DB")
+DB_CONNECTION = os.getenv("SUPABASE_DB_TEST")
+DOG_EMBEDDINGS_TABLE = os.getenv("DOG_EMBEDDINGS_TABLE")
 
 
 def generate_id(metadata):
@@ -51,11 +52,13 @@ def load_metadata(metadata_path):
         with open(metadata_path, "r") as f:
             return json.load(f)
 
-def process_dogs(metadata_path, drop_existing=False, smoke_test=False):
+def process_dogs(metadata_path, drop_existing: bool=False, N: int|bool=False, smoke_test: bool=False):
     pipe = load_model()
 
     # Load metadata
     metadata = load_metadata(metadata_path)
+    logging.debug(f"Processing metadata file: {metadata_path}")
+    logging.debug(f"Number of dogs found in file: {len(metadata)}")
     
     if smoke_test:
         metadata = metadata[:10]
@@ -65,11 +68,11 @@ def process_dogs(metadata_path, drop_existing=False, smoke_test=False):
         vx = vecs.create_client(DB_CONNECTION) 
 
         if drop_existing:
-            vx.delete_collection("dog_embeddings")
-            logging.info("Existing 'dog_embeddings' collection dropped.")
+            vx.delete_collection(DOG_EMBEDDINGS_TABLE)
+            logging.info(f"Existing '{DOG_EMBEDDINGS_TABLE}' collection dropped.")
 
         dogs = vx.get_or_create_collection(
-            name="dog_embeddings",
+            name=DOG_EMBEDDINGS_TABLE,
             dimension=pipe.model.config.hidden_size,
         )
 
@@ -80,8 +83,15 @@ def process_dogs(metadata_path, drop_existing=False, smoke_test=False):
     total_processed = 0
     successfully_pushed = 0
 
+    if N > len(metadata):
+        N = len(metadata)
+        logging.warning(f"--N flag set to {N}, but only {len(metadata)} dogs found in file. Processing {len(metadata)} dogs.")        
+
+    if not N:
+        N = len(metadata)
+
     with ProcessPoolExecutor() as executor:
-        for i in range(0, len(metadata), batch_size):
+        for i in range(0, N, batch_size):
             batch = metadata[i:i+batch_size]
             futures = [executor.submit(process_dog_partial, dog) for dog in batch]
             
@@ -112,6 +122,7 @@ def main():
     parser = argparse.ArgumentParser(description="Process dog embeddings and upload to Supabase.")
     parser.add_argument('--file', required=True, help='Path to the dog metadata file (JSON or JSONL format)')
     parser.add_argument('--drop', action='store_true', help='Drop existing collection before processing')
+    parser.add_argument('--N', default=False, help='Number of embeddings to process')
     parser.add_argument('--smoke-test', action='store_true', help='Process first 10 dogs only and print results without writing to DB')
     args = parser.parse_args()
 
@@ -120,7 +131,7 @@ def main():
         level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
     )
 
-    process_dogs(args.file, drop_existing=args.drop, smoke_test=args.smoke_test)
+    process_dogs(args.file, drop_existing=args.drop, smoke_test=args.smoke_test, N=int(args.N))
     logging.info("Embeddings processing completed.")
 
 
