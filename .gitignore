@@ -30,3 +30,7 @@ weights/
 
 # ray dir
 ray_results/
+
+# data files
+*.sql
+*.jsonl
