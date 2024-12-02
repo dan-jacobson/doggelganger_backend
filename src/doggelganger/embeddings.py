@@ -80,7 +80,7 @@ def process_dogs(metadata_path, drop_existing: bool = False, N: int | bool = Fal
     # Process dogs in parallel
     process_dog_partial = partial(process_dog, pipe=pipe)
 
-    batch_size = 1000
+    batch_size = 100
     total_processed = 0
     successfully_pushed = 0
 
