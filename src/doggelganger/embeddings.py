@@ -77,6 +77,11 @@ def process_dogs(metadata_path, drop_existing: bool = False, N: int | bool = Fal
             dimension=pipe.model.config.hidden_size,
         )
 
+        # if we dropped and recreated the table, we need to make an index. we choose ivfflat
+        # because it's currently the best performing, and we can create the index *before* adding records.
+        if not dogs.index:
+            dogs.create_index(vecs.IndexMethod.ivfflat)
+
     # Process dogs in parallel
     process_dog_partial = partial(process_dog, pipe=pipe)
 
