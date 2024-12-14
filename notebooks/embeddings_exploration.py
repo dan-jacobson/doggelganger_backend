@@ -53,7 +53,10 @@ umap_df = pl.DataFrame({
     'y': umap_embedding[:, 1],
     'z': umap_embedding[:, 2],
     'id': embeddings['id'],
-    'metadata': embeddings['metadata']
+    'breed': embeddings['breed'],
+    'age': embeddings['age'],
+    'sex': embeddings['sex'],
+    'name': embeddings['name']
 })
 
 # Interactive 3D scatter plot
@@ -64,11 +67,12 @@ fig = go.Figure(data=[go.Scatter3d(
     mode='markers',
     marker=dict(
         size=5,
-        color=umap_df['id'],  # You can change this to color by metadata or other column
+        color=umap_df['breed'].cast(pl.Categorical).to_physical(),  # Convert breeds to numeric categories
         colorscale='Viridis',
         opacity=0.8
     ),
-    text=[f"ID: {id}\nMetadata: {meta}" for id, meta in zip(umap_df['id'], umap_df['metadata'])],
+    text=[f"ID: {id}<br>Breed: {breed}<br>Name: {name}<br>Age: {age}<br>Sex: {sex}" 
+          for id, breed, name, age, sex in zip(umap_df['id'], umap_df['breed'], umap_df['name'], umap_df['age'], umap_df['sex'])],
     hoverinfo='text'
 )])
 
