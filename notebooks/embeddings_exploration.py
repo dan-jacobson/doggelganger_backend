@@ -6,28 +6,43 @@ import polars as pl
 import sqlalchemy as sa
 
 uri = os.getenv("SUPABASE_DB")
-query = "SELECT * FROM vecs.dog_embeddings"
+# Add LIMIT and OFFSET to query for pagination
+base_query = "SELECT * FROM vecs.dog_embeddings ORDER BY id LIMIT {} OFFSET {}"
 
-# Create the engine
-engine = sa.create_engine(uri)
+# Create the engine with increased timeout
+engine = sa.create_engine(uri, connect_args={'connect_timeout': 60})
 
-# Execute the query
+# Initialize empty list for all data
+data = []
+batch_size = 1000
+offset = 0
+
+# Execute the query with pagination
 with engine.connect() as connection:
-    # Execute the query and fetch all results
-    result = connection.execute(sa.text(query))
-
-    # Convert to a list of dictionaries
-    data = [
-        {
-            "id": row.id,
-            "vec": ast.literal_eval(row.vec),
-            "age": row.metadata.get("age"),
-            "sex": row.metadata.get("sex"),
-            "name": row.metadata.get("name"),
-            "breed": row.metadata.get("breed"),
-        }
-        for row in result
-    ]
+    while True:
+        query = sa.text(base_query.format(batch_size, offset))
+        result = connection.execute(query)
+        
+        # Convert batch to list of dictionaries
+        batch_data = [
+            {
+                "id": row.id,
+                "vec": ast.literal_eval(row.vec),
+                "age": row.metadata.get("age"),
+                "sex": row.metadata.get("sex"),
+                "name": row.metadata.get("name"),
+                "breed": row.metadata.get("breed"),
+            }
+            for row in result
+        ]
+        
+        # If no more results, break
+        if not batch_data:
+            break
+            
+        data.extend(batch_data)
+        offset += batch_size
+        print(f"Fetched {len(data)} records so far...")
 
 # Create Polars DataFrame
 embeddings = pl.DataFrame(data)
