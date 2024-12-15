@@ -7,6 +7,9 @@ from typing import Annotated
 import requests
 import vecs
 from litestar import Litestar, get, post
+from litestar.config.app import DEFAULT_LOGGING_CONFIG
+
+logger = logging.getLogger(__name__)
 from litestar.datastructures import UploadFile
 from litestar.enums import RequestEncodingType
 from litestar.logging import LoggingConfig
@@ -26,15 +29,6 @@ from doggelganger.utils import load_model as load_embedding_pipeline
 DOGGELGANGER_DB_CONNECTION = os.getenv("SUPABASE_DB")
 MODEL_CLASS = os.getenv("DOGGELGANGER_ALIGNMENT_MODEL")
 MODEL_WEIGHTS = os.getenv("DOGGELGANGER_ALIGNMENT_WEIGHTS")
-
-# Configure logging
-logging_config = LoggingConfig(
-    root={"level": "INFO", "handlers": ["queue_listener"]},
-    formatters={
-        "standard": {"format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"}
-    },
-    log_exceptions="always",
-)
 
 # Initialize the image feature extraction pipeline
 pipe = load_embedding_pipeline()
@@ -153,13 +147,28 @@ def main():
     )
     args = parser.parse_args()
 
-    logging.basicConfig(
-        level=args.log_level.upper(), 
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    # Configure Litestar logging
+    logging_config = LoggingConfig(
+        root={"level": args.log_level.upper(), "handlers": ["queue_listener"]},
+        formatters={
+            "standard": {"format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"}
+        },
+        log_exceptions="always",
     )
 
-    # Pass lowercase level to uvicorn
-    uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)
+    # Create new app instance with updated logging config
+    app_instance = Litestar(
+        route_handlers=[embed_image, health_check], 
+        logging_config=logging_config
+    )
+
+    # Run with uvicorn
+    uvicorn.run(
+        app_instance, 
+        host=args.host, 
+        port=args.port, 
+        log_level=args.log_level.lower()
+    )
 
 
 if __name__ == "__main__":
