@@ -144,13 +144,15 @@ def main():
     )
     args = parser.parse_args()
 
-    # Convert log level to uppercase for consistency
-    log_level = args.log_level.upper()
-    
-    # Configure logging before anything else
-    logging.basicConfig(level=log_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    # Configure application logging with uppercase level
+    log_level_upper = args.log_level.upper()
+    logging.basicConfig(
+        level=log_level_upper, 
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
 
-    uvicorn.run(app, host=args.host, port=args.port, log_level=log_level)
+    # Pass lowercase level to uvicorn
+    uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level.lower())
 
 
 if __name__ == "__main__":
