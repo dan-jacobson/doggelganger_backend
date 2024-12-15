@@ -8,6 +8,7 @@ dependencies = [
     "fake-useragent>=1.5.1",
     "jsonlines>=4.0.0",
     "litestar[standard]>=2.11.0",
+    "llvmlite==0.43.0",
     "pillow>=10.4.0",
     "scikit-learn>=1.5.2",
     "torch==2.4.1",
@@ -39,16 +40,20 @@ metadata.allow-direct-references = true
 
 [tool.uv]
 dev-dependencies = [
+    "adbc-driver-postgresql>=1.3.0",
     "aiohttp>=3.10.9",
     "connectorx>=0.4.0",
     "ipykernel>=6.29.5",
     "matplotlib>=3.9.2",
+    "nbformat>=5.10.4",
+    "plotly>=5.24.1",
     "polars>=1.16.0",
     "pytest-mock>=3.14.0",
     "pytest>=8.3.3",
     "python-dotenv>=1.0.1",
     "ruff>=0.6.5",
     "selenium>=4.25.0",
+    "umap-learn>=0.5.7",
     "webdriver-manager>=4.0.2",
 ]
 index-strategy = "unsafe-best-match"
