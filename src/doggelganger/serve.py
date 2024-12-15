@@ -6,7 +6,6 @@ from typing import Annotated
 
 import requests
 import vecs
-from dotenv import load_dotenv
 from litestar import Litestar, get, post
 from litestar.datastructures import UploadFile
 from litestar.enums import RequestEncodingType
@@ -136,18 +135,19 @@ def main():
         default=8000,
         help="Port to pass to uvicorn (default: 8000)",
     )
-    parser.add_argument('-l', '--log-level', default='DEBUG', 
-                    choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-                    help='Set the logging level (default: DEBUG)')
+    parser.add_argument(
+        "-l",
+        "--log-level",
+        default="debug",
+        choices=["debug", "info", "warning", "error", "critical"],
+        help="Set the logging level (default: debug)",
+    )
     args = parser.parse_args()
 
     # Configure logging before anything else
-    logging.basicConfig(
-        level=args.log_level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
+    logging.basicConfig(level=args.log_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
-    uvicorn.run(app, host=args.host, port=args.port)
+    uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)
 
 
 if __name__ == "__main__":
