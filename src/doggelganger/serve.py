@@ -67,12 +67,12 @@ async def embed_image(
     data: Annotated[UploadFile, Body(media_type=RequestEncodingType.MULTI_PART)],
 ) -> Response:
     try:
-        logger.debug(f"Received file: {data.filename}")
+        logger.info(f"Received file: {data.filename}")
         # Read the image file
         contents = await data.read()
-        logger.debug(f"File size: {len(contents)} bytes")
+        logger.info(f"File size: {len(contents)} bytes")
         img = Image.open(io.BytesIO(contents))
-        logger.debug(f"Image size: {img.size}")
+        logger.info(f"Image size: {img.size}")
 
         # Extract features
         embedding = get_embedding(img, pipe=pipe)
@@ -140,9 +140,10 @@ def main():
         default=8000,
         help="Port to pass to uvicorn (default: 8000)",
     )
+    parser.add_argument("--reload", action="store_true")
     args = parser.parse_args()
 
-    uvicorn.run(app, host=args.host, port=args.port)
+    uvicorn.run(app, host=args.host, port=args.port, log_level="debug", reload=args.reload)
 
 
 if __name__ == "__main__":
