@@ -140,7 +140,12 @@ def main():
         default=8000,
         help="Port to pass to uvicorn (default: 8000)",
     )
+    parser.add_argument('-l', '--log-level', default='INFO', 
+                    choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+                    help='Set the logging level')
     args = parser.parse_args()
+
+    logging.basicConfig(level=args.log_level)
 
     uvicorn.run(app, host=args.host, port=args.port)
 
