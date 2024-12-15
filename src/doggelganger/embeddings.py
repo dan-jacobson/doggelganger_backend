@@ -15,7 +15,7 @@ from tqdm import tqdm
 from doggelganger.utils import get_embedding, load_model
 
 load_dotenv()
-DB_CONNECTION = os.getenv("SUPABASE_DB_TEST")
+DB_CONNECTION = os.getenv("SUPABASE_DB")
 DOG_EMBEDDINGS_TABLE = os.getenv("DOG_EMBEDDINGS_TABLE")
 
 
@@ -65,22 +65,20 @@ def process_dogs(metadata_path, drop_existing: bool = False, N: int | bool = Fal
         metadata = metadata[:10]
         logging.info(f"SMOKE TEST: Processing first {len(metadata)} dogs only")
 
-    else:
-        vx = vecs.create_client(DB_CONNECTION)
+    vx = vecs.create_client(DB_CONNECTION)
 
-        if drop_existing:
-            vx.delete_collection(DOG_EMBEDDINGS_TABLE)
-            logging.info(f"Existing '{DOG_EMBEDDINGS_TABLE}' collection dropped.")
+    if drop_existing:
+        vx.delete_collection(DOG_EMBEDDINGS_TABLE)
+        logging.info(f"Existing '{DOG_EMBEDDINGS_TABLE}' collection dropped.")
 
-        dogs = vx.get_or_create_collection(
-            name=DOG_EMBEDDINGS_TABLE,
-            dimension=pipe.model.config.hidden_size,
-        )
-
-        # if we dropped and recreated the table, we need to make an index. we choose ivfflat
-        # because it's currently the best performing, and we can create the index *before* adding records.
-        if not dogs.index:
-            dogs.create_index(vecs.IndexMethod.ivfflat)
+    dogs = vx.get_or_create_collection(
+        name=DOG_EMBEDDINGS_TABLE,
+        dimension=pipe.model.config.hidden_size,
+    )
+    # if we dropped and recreated the table, we need to make an index. we choose ivfflat
+    # because it's currently the best performing, and we can create the index *before* adding records.
+    if not dogs.index:
+        dogs.create_index(method=vecs.IndexMethod.hnsw)
 
     # Process dogs in parallel
     process_dog_partial = partial(process_dog, pipe=pipe)
@@ -123,7 +121,6 @@ def process_dogs(metadata_path, drop_existing: bool = False, N: int | bool = Fal
         logging.info(f"Successfully generated embeddings: {successfully_pushed}")
         logging.info("No data was written to the database")
     else:
-        dogs.create_index()
         logging.info(f"Total dogs processed: {total_processed}")
         logging.info(f"Successfully pushed to Supabase: {successfully_pushed}")
 
