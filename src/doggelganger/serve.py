@@ -119,9 +119,6 @@ async def embed_image(
         return Response(content={"error": str(e)}, status_code=HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-app = Litestar(route_handlers=[embed_image, health_check], logging_config=logging_config)
-
-
 def main():
     import uvicorn
 
