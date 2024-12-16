@@ -165,6 +165,18 @@ def main():
     log_config["formatters"]["access"]["fmt"] = "%(asctime)s - %(levelname)s - %(message)s"
     log_config["formatters"]["default"]["fmt"] = "%(asctime)s - %(levelname)s - %(message)s"
     
+    # Ensure loggers are set to appropriate level
+    log_config["loggers"]["uvicorn"]["level"] = args.log_level.upper()
+    log_config["loggers"]["uvicorn.access"]["level"] = args.log_level.upper()
+    log_config["loggers"]["uvicorn.error"]["level"] = args.log_level.upper()
+    
+    # Add our application logger to uvicorn config
+    log_config["loggers"]["doggelganger"] = {
+        "handlers": ["default"],
+        "level": args.log_level.upper(),
+        "propagate": False
+    }
+    
     uvicorn.run(
         app,
         host=args.host,
