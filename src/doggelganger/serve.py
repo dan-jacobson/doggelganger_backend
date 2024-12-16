@@ -67,12 +67,12 @@ async def embed_image(
     data: Annotated[UploadFile, Body(media_type=RequestEncodingType.MULTI_PART)],
 ) -> Response:
     try:
-        logger.info(f"Received file: {data.filename}")
+        logger.debug(f"Received file: {data.filename}")
         # Read the image file
         contents = await data.read()
-        logger.info(f"File size: {len(contents)} bytes")
+        logger.debug(f"File size: {len(contents)} bytes")
         img = Image.open(io.BytesIO(contents))
-        logger.info(f"Image size: {img.size}")
+        logger.debug(f"Image size: {img.size}")
 
         # Extract features
         embedding = get_embedding(img, pipe=pipe)
@@ -91,16 +91,17 @@ async def embed_image(
         # Find the first result with a valid adoption link
         valid_result = None
         for i, (id, score, metadata) in enumerate(results):
-            if is_valid_link(metadata.get("adoption_link", "")):
+            url = metadata["primary_photo"]
+            if is_valid_link(url):
                 valid_result = {
+                    **metadata,
                     "id": id,
                     "similarity": 1 - score,  # converts cosine distance to similarity
-                    "dog_data": metadata,
                 }
-                logger.debug(f"Valid link after {i + 1} tries: {metadata.get("adoption_link")}")
+                logger.debug(f"Valid link after {i + 1} tries: {url}")
                 break
             else:
-                logger.debug(f"Invalid adoption link: {metadata.get("adoption_link")}")
+                logger.debug(f"Invalid adoption link: {url}")
 
         if valid_result is None:
             return Response(
@@ -140,10 +141,9 @@ def main():
         default=8000,
         help="Port to pass to uvicorn (default: 8000)",
     )
-    parser.add_argument("--reload", action="store_true")
     args = parser.parse_args()
 
-    uvicorn.run(app, host=args.host, port=args.port, log_level="debug", reload=args.reload)
+    uvicorn.run(app, host=args.host, port=args.port)
 
 
 if __name__ == "__main__":

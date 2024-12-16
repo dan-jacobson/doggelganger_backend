@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from pathlib import Path
 
 from huggingface_hub import snapshot_download
@@ -5,6 +6,23 @@ from PIL import Image
 from transformers import pipeline
 
 HUGGINGFACE_MODEL = "facebook/dinov2-small"
+
+
+@dataclass
+class Animal:
+    """Data class to store relevant animal fields"""
+
+    id: str
+    name: str
+    breed: str
+    age: str
+    sex: str
+    location: dict
+    description: str
+    url: str
+    primary_photo: str
+    primary_photo_cropped: str
+    photo_urls: list[str]
 
 
 def download_model_weights():
