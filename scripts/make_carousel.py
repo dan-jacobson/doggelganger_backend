@@ -96,7 +96,7 @@ def main():
                 print(f"Successfully downloaded to {local_path}")
                 
                 # Update the entry with local path
-                entry['primary_photo'] = str(local_path)
+                entry['primary_photo'] = local_path.name
                 processed_entries.append(entry)
                 print(f"Progress: {len(processed_entries)}/{args.N} images")
             except Exception as e:
