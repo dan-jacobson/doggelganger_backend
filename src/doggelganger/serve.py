@@ -141,9 +141,27 @@ def main():
         default=8000,
         help="Port to pass to uvicorn (default: 8000)",
     )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        default="debug",
+        choices=["debug", "info", "warning", "error", "critical"],
+        help="Logging level (default: debug)",
+    )
     args = parser.parse_args()
 
-    uvicorn.run(app, host=args.host, port=args.port)
+    # Configure uvicorn logging
+    log_config = uvicorn.config.LOGGING_CONFIG
+    log_config["formatters"]["access"]["fmt"] = "%(asctime)s - %(levelname)s - %(message)s"
+    log_config["formatters"]["default"]["fmt"] = "%(asctime)s - %(levelname)s - %(message)s"
+    
+    uvicorn.run(
+        app,
+        host=args.host,
+        port=args.port,
+        log_level=args.log_level,
+        log_config=log_config
+    )
 
 
 if __name__ == "__main__":
