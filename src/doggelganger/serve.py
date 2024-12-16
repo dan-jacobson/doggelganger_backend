@@ -94,7 +94,7 @@ async def embed_image(
             url = metadata["primary_photo"]
             if is_valid_link(url):
                 valid_result = {
-                    **metadata,
+                    **metadata,    
                     "id": id,
                     "similarity": 1 - score,  # converts cosine distance to similarity
                 }
@@ -113,7 +113,7 @@ async def embed_image(
             content={
                 "message": "Image processed successfully",
                 "embedding": embedding,
-                **valid_result,
+                "result": valid_result,
             },
             status_code=HTTP_200_OK,
         )
