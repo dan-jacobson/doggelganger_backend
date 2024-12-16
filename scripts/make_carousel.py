@@ -25,7 +25,7 @@ def create_safe_filename(entry):
 def parse_args():
     parser = argparse.ArgumentParser(description='Create a carousel of dog images')
     parser.add_argument('--file', type=str, required=True, help='Input JSONL file')
-    parser.add_argument('--N', type=int, default=10, help='Number of images to select')
+    parser.add_argument('--N', type=int, default=20, help='Number of images to select')
     return parser.parse_args()
 
 def read_jsonl(file_path):
