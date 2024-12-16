@@ -11,7 +11,7 @@ uri = os.getenv("SUPABASE_DB")
 base_query = "SELECT * FROM vecs.dog_embeddings ORDER BY id LIMIT {} OFFSET {}"
 
 # Create the engine with increased timeout
-engine = sa.create_engine(uri, connect_args={'connect_timeout': 60})
+engine = sa.create_engine(uri, connect_args={"connect_timeout": 60})
 
 # Initialize empty list for all data
 data = []
@@ -23,7 +23,7 @@ with engine.connect() as connection:
     while True:
         query = sa.text(base_query.format(batch_size, offset))
         result = connection.execute(query)
-        
+
         # Convert batch to list of dictionaries
         batch_data = [
             {
@@ -36,11 +36,11 @@ with engine.connect() as connection:
             }
             for row in result
         ]
-        
+
         # If no more results, break
         if not batch_data:
             break
-            
+
         data.extend(batch_data)
         offset += batch_size
         print(f"Fetched {len(data)} records so far...")
@@ -51,7 +51,6 @@ embeddings = pl.DataFrame(data)
 embeddings[:5]
 # %%
 import plotly.graph_objs as go
-import polars as pl
 import umap
 
 # Assuming your dataframe is called 'embeddings'

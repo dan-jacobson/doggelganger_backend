@@ -1,11 +1,11 @@
 import argparse
 import asyncio
-import jsonlines
 import logging
 import os
 from datetime import datetime, timedelta
 
 import aiohttp
+import jsonlines
 import vecs
 from dotenv import load_dotenv
 from tqdm.asyncio import tqdm
@@ -20,40 +20,39 @@ DB_CONNECTION = os.getenv("SUPABASE_DB")
 PETFINDER_API_KEY = os.getenv("PETFINDER_API_KEY")
 PETFINDER_SECRET = os.getenv("PETFINDER_SECRET")
 
+
 class PetfinderAPI:
     def __init__(self):
         self.access_token = None
         self.token_expires = None
-        
+
     async def get_token(self, session):
         if self.access_token and datetime.now() < self.token_expires:
             return self.access_token
-            
+
         async with session.post(
-            'https://api.petfinder.com/v2/oauth2/token',
+            "https://api.petfinder.com/v2/oauth2/token",
             data={
-                'grant_type': 'client_credentials',
-                'client_id': PETFINDER_API_KEY,
-                'client_secret': PETFINDER_SECRET
-            }
+                "grant_type": "client_credentials",
+                "client_id": PETFINDER_API_KEY,
+                "client_secret": PETFINDER_SECRET,
+            },
         ) as response:
             if response.status == 200:
                 data = await response.json()
-                self.access_token = data['access_token']
-                self.token_expires = datetime.now() + timedelta(seconds=data['expires_in'])
+                self.access_token = data["access_token"]
+                self.token_expires = datetime.now() + timedelta(seconds=data["expires_in"])
                 return self.access_token
             else:
                 raise Exception(f"Failed to get token: {response.status}")
 
     async def check_animal(self, session, animal_id):
         token = await self.get_token(session)
-        headers = {'Authorization': f'Bearer {token}'}
-        
-        async with session.get(
-            f'https://api.petfinder.com/v2/animals/{animal_id}',
-            headers=headers
-        ) as response:
+        headers = {"Authorization": f"Bearer {token}"}
+
+        async with session.get(f"https://api.petfinder.com/v2/animals/{animal_id}", headers=headers) as response:
             return response.status == 200
+
 
 async def check_link(session, dog, petfinder_api, is_retry=False, max_retries=3):
     url = dog["url"]
@@ -67,17 +66,17 @@ async def check_link(session, dog, petfinder_api, is_retry=False, max_retries=3)
         try:
             await asyncio.sleep(0.5)  # Respect rate limits
             success = await petfinder_api.check_animal(session, animal_id)
-                if success and not is_retry:
-                    # Check image_url if adoption_link is successful
-                    image_url = dog.get("primary_photo")
-                    if image_url:
-                        async with session.get(image_url, timeout=10, allow_redirects=True) as img_response:
-                            img_success = img_response.status == 200
-                            if img_success:
-                                # Check if the Content-Type is an image
-                                content_type = img_response.headers.get("Content-Type", "")
-                                img_success = content_type.startswith("image/")
-                            return success, img_success, dog
+            if success and not is_retry:
+                # Check image_url if adoption_link is successful
+                image_url = dog.get("primary_photo")
+                if image_url:
+                    async with session.get(image_url, timeout=10, allow_redirects=True) as img_response:
+                        img_success = img_response.status == 200
+                        if img_success:
+                            # Check if the Content-Type is an image
+                            content_type = img_response.headers.get("Content-Type", "")
+                            img_success = content_type.startswith("image/")
+                        return success, img_success, dog
                 return success, None, dog
         except (TimeoutError, aiohttp.ClientError):
             if attempt == max_retries - 1:
@@ -96,7 +95,9 @@ async def check_links(dogs, is_retry=False):
                 return await check_link(session, dog, petfinder_api, is_retry)
 
         tasks = [check_with_semaphore(dog) for dog in dogs]
-        return await tqdm.gather(*tasks, desc=f"{'Retrying failed links' if is_retry else 'Checking links'}", total=len(dogs))
+        return await tqdm.gather(
+            *tasks, desc=f"{'Retrying failed links' if is_retry else 'Checking links'}", total=len(dogs)
+        )
 
 
 def get_dogs_from_db():
@@ -113,7 +114,7 @@ async def main():
         action="store_true",
         help="Remove dogs where either the adoption link or image failed to load.",
     )
-    
+
     # Create mutually exclusive group for data source
     source_group = parser.add_mutually_exclusive_group()
     source_group.add_argument(
@@ -130,7 +131,7 @@ async def main():
     args = parser.parse_args()
 
     if args.file:
-        if not args.file.endswith('.jsonl'):
+        if not args.file.endswith(".jsonl"):
             raise ValueError(f"File must be .jsonl. Got: {args.file.split(".")[-1]}")
         dogs = []
         with jsonlines.open(args.file) as reader:
@@ -206,7 +207,7 @@ async def main():
     if args.remove:
         if not args.db:
             # Save the updated JSONL file with only valid dogs
-            with jsonlines.open(args.file, mode='w') as writer:
+            with jsonlines.open(args.file, mode="w") as writer:
                 writer.write_all(valid_dogs)
             logging.info(f"Updated {args.file} with {len(valid_dogs)} valid dogs.")
         else:

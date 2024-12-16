@@ -13,6 +13,8 @@ from aiohttp import ClientSession, TCPConnector
 from selenium import webdriver
 from tqdm.asyncio import tqdm
 
+from doggelganger.utils import Animal
+
 
 @dataclass
 class PaginationInfo:
@@ -22,23 +24,6 @@ class PaginationInfo:
     total_count: int
     current_page: int
     total_pages: int
-
-
-@dataclass
-class Animal:
-    """Data class to store relevant animal fields"""
-
-    id: str
-    name: str
-    breed: str
-    age: str
-    sex: str
-    location: dict
-    description: str
-    url: str
-    primary_photo: str
-    primary_photo_cropped: str
-    photo_urls: list[str]
 
 
 class PetfinderScraper:
