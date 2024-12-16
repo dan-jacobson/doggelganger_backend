@@ -24,8 +24,15 @@ from doggelganger.utils import get_embedding
 from doggelganger.utils import load_model as load_embedding_pipeline
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
+
+# Ensure Litestar logging is properly configured
+litestar_logger = logging.getLogger("litestar")
+litestar_logger.setLevel(logging.DEBUG)
 
 load_dotenv()
 DOGGELGANGER_DB_CONNECTION = os.getenv("SUPABASE_DB")
@@ -122,7 +129,10 @@ async def embed_image(
         return Response(content={"error": str(e)}, status_code=HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-app = Litestar(route_handlers=[embed_image, health_check])
+app = Litestar(
+    route_handlers=[embed_image, health_check],
+    debug=True,  # Enable debug mode
+)
 
 
 def main():
