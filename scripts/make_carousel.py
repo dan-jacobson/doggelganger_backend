@@ -35,16 +35,30 @@ def read_jsonl(file_path):
             entries.append(json.loads(line.strip()))
     return entries
 
-def download_image(url, output_dir, entry):
+def download_image(url: str, output_dir: Path, entry: dict) -> Path:
+    """Download an image from URL to output_dir with filename based on entry data.
+    
+    Args:
+        url: The URL of the image to download
+        output_dir: Path object for the output directory
+        entry: Dictionary containing dog metadata
+        
+    Returns:
+        Path object for the downloaded file
+    """
     # Create filename from entry data
     base_filename = create_safe_filename(entry)
-    # Get extension from URL
-    ext = os.path.splitext(url.split('?')[0])[1] or '.jpg'
-    filename = f"{base_filename}{ext}"
-    output_path = output_dir / filename
+    
+    # Get extension from URL, defaulting to .jpg
+    url_path = Path(url.split('?')[0])  # Remove query parameters
+    ext = url_path.suffix or '.jpg'
+    
+    # Create output path
+    output_path = output_dir / f"{base_filename}{ext}"
     
     # Download the image
     urllib.request.urlretrieve(url, output_path)
+    
     return output_path
 
 def main():
