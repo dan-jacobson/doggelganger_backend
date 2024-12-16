@@ -6,10 +6,13 @@ from typing import Annotated
 
 import requests
 import vecs
-from dotenv import load_dotenv
 from litestar import Litestar, get, post
+from litestar.config.app import DEFAULT_LOGGING_CONFIG
+
+logger = logging.getLogger(__name__)
 from litestar.datastructures import UploadFile
 from litestar.enums import RequestEncodingType
+from litestar.logging import LoggingConfig
 from litestar.params import Body
 from litestar.response import Response
 from litestar.status_codes import (
