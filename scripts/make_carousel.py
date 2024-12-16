@@ -73,19 +73,20 @@ def main():
         entry_index += 1
         
         print(f"Processing entry {entry_index}/{len(entries)}")
-        if 'photo' in entry and 'url' in entry['photo']:
-            print(f"Found photo URL: {entry['photo']['url']}")
+        if 'primary_photo' in entry:
+            url = entry['primary_photo']
+            print(f"Found photo URL: {url}")
             try:
                 # Download the image with entry data
-                local_path = download_image(entry['photo']['url'], output_dir, entry)
+                local_path = download_image(url, output_dir, entry)
                 print(f"Successfully downloaded to {local_path}")
                 
                 # Update the entry with local path
-                entry['photo']['local_path'] = str(local_path)
+                entry['primary_photo'] = str(local_path)
                 processed_entries.append(entry)
                 print(f"Progress: {len(processed_entries)}/{args.N} images")
             except Exception as e:
-                print(f"Error processing {entry['photo']['url']}: {e}")
+                print(f"Error processing {url}: {e}")
                 continue
     
     # Save processed entries
