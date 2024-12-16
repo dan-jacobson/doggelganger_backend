@@ -36,13 +36,18 @@ def main():
     output_dir = Path('data/carousel')
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # Read and sample entries
+    # Read entries
     entries = read_jsonl(args.file)
-    selected_entries = random.sample(entries, min(args.N, len(entries)))
+    random.shuffle(entries)  # Shuffle in place
     
-    # Process each selected entry
+    # Process entries until we get N successful downloads
     processed_entries = []
-    for entry in selected_entries:
+    entry_index = 0
+    
+    while len(processed_entries) < args.N and entry_index < len(entries):
+        entry = entries[entry_index]
+        entry_index += 1
+        
         if 'photo' in entry and 'url' in entry['photo']:
             try:
                 # Download the image
@@ -53,6 +58,7 @@ def main():
                 processed_entries.append(entry)
             except Exception as e:
                 print(f"Error processing {entry['photo']['url']}: {e}")
+                continue
     
     # Save processed entries
     output_file = output_dir / 'dog_metadata.jsonl'
