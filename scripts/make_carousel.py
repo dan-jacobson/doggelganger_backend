@@ -49,6 +49,7 @@ def download_image(url, output_dir, entry):
 
 def main():
     args = parse_args()
+    print(f"Starting process with N={args.N}")
     
     # Delete and recreate output directory
     output_dir = Path('data/carousel')
@@ -60,6 +61,7 @@ def main():
     
     # Read entries
     entries = read_jsonl(args.file)
+    print(f"Read {len(entries)} entries from {args.file}")
     random.shuffle(entries)  # Shuffle in place
     
     # Process entries until we get N successful downloads
@@ -70,14 +72,18 @@ def main():
         entry = entries[entry_index]
         entry_index += 1
         
+        print(f"Processing entry {entry_index}/{len(entries)}")
         if 'photo' in entry and 'url' in entry['photo']:
+            print(f"Found photo URL: {entry['photo']['url']}")
             try:
                 # Download the image with entry data
                 local_path = download_image(entry['photo']['url'], output_dir, entry)
+                print(f"Successfully downloaded to {local_path}")
                 
                 # Update the entry with local path
                 entry['photo']['local_path'] = str(local_path)
                 processed_entries.append(entry)
+                print(f"Progress: {len(processed_entries)}/{args.N} images")
             except Exception as e:
                 print(f"Error processing {entry['photo']['url']}: {e}")
                 continue
