@@ -50,9 +50,13 @@ def download_image(url, output_dir, entry):
 def main():
     args = parse_args()
     
-    # Create output directory if it doesn't exist
+    # Delete and recreate output directory
     output_dir = Path('data/carousel')
-    output_dir.mkdir(parents=True, exist_ok=True)
+    if output_dir.exists():
+        for file in output_dir.iterdir():
+            file.unlink()  # Delete all files in directory
+        output_dir.rmdir()  # Delete the directory
+    output_dir.mkdir(parents=True)
     
     # Read entries
     entries = read_jsonl(args.file)
