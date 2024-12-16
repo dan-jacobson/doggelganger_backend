@@ -6,6 +6,21 @@ import random
 from pathlib import Path
 import urllib.request
 import os
+import re
+
+def create_safe_filename(entry):
+    """Create a safe filename from entry data."""
+    # Extract fields, defaulting to 'unknown' if missing
+    name = entry.get('name', 'unknown')
+    breed = entry.get('breed', 'unknown')
+    location = entry.get('location', {})
+    city = location.get('city', 'unknown')
+    
+    # Create base filename and sanitize it
+    base = f"{name}_{breed}_{city}"
+    # Replace unsafe chars with underscore
+    safe = re.sub(r'[^\w\-_.]', '_', base)
+    return safe.lower()
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Create a carousel of dog images')
@@ -20,9 +35,12 @@ def read_jsonl(file_path):
             entries.append(json.loads(line.strip()))
     return entries
 
-def download_image(url, output_dir):
-    # Create a filename from the URL
-    filename = os.path.basename(url.split('?')[0])  # Remove query parameters
+def download_image(url, output_dir, entry):
+    # Create filename from entry data
+    base_filename = create_safe_filename(entry)
+    # Get extension from URL
+    ext = os.path.splitext(url.split('?')[0])[1] or '.jpg'
+    filename = f"{base_filename}{ext}"
     output_path = output_dir / filename
     
     # Download the image
@@ -50,8 +68,8 @@ def main():
         
         if 'photo' in entry and 'url' in entry['photo']:
             try:
-                # Download the image
-                local_path = download_image(entry['photo']['url'], output_dir)
+                # Download the image with entry data
+                local_path = download_image(entry['photo']['url'], output_dir, entry)
                 
                 # Update the entry with local path
                 entry['photo']['local_path'] = str(local_path)
