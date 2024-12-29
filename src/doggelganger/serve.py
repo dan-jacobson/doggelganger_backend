@@ -11,6 +11,7 @@ from litestar import Litestar, get, post
 from litestar.datastructures import UploadFile
 from litestar.enums import RequestEncodingType
 from litestar.params import Body
+from litestar.logging import LoggingConfig
 from litestar.response import Response
 from litestar.status_codes import (
     HTTP_200_OK,
@@ -24,11 +25,20 @@ from doggelganger.utils import get_embedding
 from doggelganger.utils import load_model as load_embedding_pipeline
 
 # Configure logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# logging.basicConfig(
+#     level=logging.DEBUG,
+#     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# )
+# logger = logging.getLogger(__name__)
+logging_config = LoggingConfig(
+    root={"level": "INFO", "handlers": ["queue_listener"]},
+    formatters={
+        "standard": {"format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"}
+    },
+    log_exceptions="always",
 )
-logger = logging.getLogger(__name__)
+
+logger = logging_config.configure()()
 
 load_dotenv()
 DOGGELGANGER_DB_CONNECTION = os.getenv("SUPABASE_DB")
@@ -127,6 +137,7 @@ async def embed_image(
 
 app = Litestar(
     route_handlers=[embed_image, health_check],
+    logging_config=logging_config
 )
 
 
@@ -138,20 +149,20 @@ def main():
         "--host",
         type=str,
         default="0.0.0.0",
-        help="Host to pass to uvicorn (default: 0.0.0.0)",
+        help="Host to bind to",
     )
     parser.add_argument(
         "--port",
         type=int,
         default=8000,
-        help="Port to pass to uvicorn (default: 8000)",
+        help="Port to bind to",
     )
     parser.add_argument(
         "--log-level",
         type=str,
-        default="debug",
+        default="info",
         choices=["debug", "info", "warning", "error", "critical"],
-        help="Logging level (default: debug)",
+        help="Logging level",
     )
     args = parser.parse_args()   
 
