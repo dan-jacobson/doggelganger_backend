@@ -30,16 +30,8 @@ DOGGELGANGER_DB_CONNECTION = os.getenv("SUPABASE_DB")
 MODEL_CLASS = os.getenv("DOGGELGANGER_ALIGNMENT_MODEL")
 MODEL_WEIGHTS = os.getenv("DOGGELGANGER_ALIGNMENT_WEIGHTS")
 
-# Configure Logging
-logging_config = LoggingConfig(
-    root={"level": "INFO", "handlers": ["queue_listener"]},
-    formatters={
-        "standard": {"format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"}
-    },
-    log_exceptions="always",
-)
-
-logger = logging_config.configure()()
+# Configure Logging -- I'm just using uvicorn's. I tried so many other things and they didn't work :(
+logger = logging.getLogger("uvicorn.error")
 
 # Initialize the image feature extraction pipeline
 pipe = load_embedding_pipeline()
@@ -133,7 +125,6 @@ async def embed_image(
 
 app = Litestar(
     route_handlers=[embed_image, health_check],
-    logging_config=logging_config
 )
 
 
@@ -160,11 +151,7 @@ def main():
         choices=["debug", "info", "warning", "error", "critical"],
         help="Logging level",
     )
-    args = parser.parse_args()   
-
-    # Set default level to INFO, but allow override from command line
-    log_level = getattr(logging, args.log_level.upper(), logging.INFO)
-    logger.setLevel(log_level)
+    args = parser.parse_args()
 
     uvicorn.run(
         app,
