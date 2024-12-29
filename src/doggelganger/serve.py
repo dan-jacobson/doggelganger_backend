@@ -6,13 +6,10 @@ from typing import Annotated
 
 import requests
 import vecs
+from dotenv import load_dotenv
 from litestar import Litestar, get, post
-from litestar.config.app import DEFAULT_LOGGING_CONFIG
-
-logger = logging.getLogger(__name__)
 from litestar.datastructures import UploadFile
 from litestar.enums import RequestEncodingType
-from litestar.logging import LoggingConfig
 from litestar.params import Body
 from litestar.response import Response
 from litestar.status_codes import (
@@ -32,10 +29,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-# Ensure Litestar logging is properly configured
-litestar_logger = logging.getLogger("litestar")
-litestar_logger.setLevel(logging.DEBUG)
 
 load_dotenv()
 DOGGELGANGER_DB_CONNECTION = os.getenv("SUPABASE_DB")
@@ -134,7 +127,6 @@ async def embed_image(
 
 app = Litestar(
     route_handlers=[embed_image, health_check],
-    debug=True,  # Enable debug mode
 )
 
 
@@ -161,31 +153,13 @@ def main():
         choices=["debug", "info", "warning", "error", "critical"],
         help="Logging level (default: debug)",
     )
-    args = parser.parse_args()
+    args = parser.parse_args()   
 
-    # Configure uvicorn logging
-    log_config = uvicorn.config.LOGGING_CONFIG
-    log_config["formatters"]["access"]["fmt"] = "%(asctime)s - %(levelname)s - %(message)s"
-    log_config["formatters"]["default"]["fmt"] = "%(asctime)s - %(levelname)s - %(message)s"
-    
-    # Ensure loggers are set to appropriate level
-    log_config["loggers"]["uvicorn"]["level"] = args.log_level.upper()
-    log_config["loggers"]["uvicorn.access"]["level"] = args.log_level.upper()
-    log_config["loggers"]["uvicorn.error"]["level"] = args.log_level.upper()
-    
-    # Add our application logger to uvicorn config
-    log_config["loggers"]["doggelganger"] = {
-        "handlers": ["default"],
-        "level": args.log_level.upper(),
-        "propagate": False
-    }
-    
     uvicorn.run(
         app,
         host=args.host,
         port=args.port,
         log_level=args.log_level,
-        log_config=log_config
     )
 
 
