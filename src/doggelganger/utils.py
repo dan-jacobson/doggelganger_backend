@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -5,7 +6,7 @@ from huggingface_hub import snapshot_download
 from PIL import Image
 from transformers import pipeline
 
-HUGGINGFACE_MODEL = "facebook/dinov2-small"
+HUGGINGFACE_MODEL = os.getenv("DOGGELGANGER_HUGGINGFACE_MODEL", "facebook/dinov2-small")
 
 
 @dataclass
@@ -33,12 +34,14 @@ def download_model_weights():
 
 
 def load_model():
+    '''Convenience function to load the image embedding model.'''
     pipe = pipeline(task="image-feature-extraction", model=HUGGINGFACE_MODEL, pool=True)
 
     return pipe
 
 
 def get_embedding(img, pipe):
+    '''Convenience function allowing pipelines to handle pathlib `Path` objects.'''
     try:
         if isinstance(img, Path):
             img = Image.open(img)
