@@ -33,4 +33,4 @@ EXPOSE $PORT
 ENTRYPOINT []
 
 # Run the Litestar application
-CMD uv run serve --host 0.0.0.0 --port $PORT
+CMD uv run serve --port $PORT
