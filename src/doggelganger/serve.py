@@ -24,12 +24,13 @@ from doggelganger.models import model_classes
 from doggelganger.utils import get_embedding
 from doggelganger.utils import load_model as load_embedding_pipeline
 
-# Configure logging
-# logging.basicConfig(
-#     level=logging.DEBUG,
-#     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-# )
-# logger = logging.getLogger(__name__)
+
+load_dotenv()
+DOGGELGANGER_DB_CONNECTION = os.getenv("SUPABASE_DB")
+MODEL_CLASS = os.getenv("DOGGELGANGER_ALIGNMENT_MODEL")
+MODEL_WEIGHTS = os.getenv("DOGGELGANGER_ALIGNMENT_WEIGHTS")
+
+# Configure Logging
 logging_config = LoggingConfig(
     root={"level": "INFO", "handlers": ["queue_listener"]},
     formatters={
@@ -39,11 +40,6 @@ logging_config = LoggingConfig(
 )
 
 logger = logging_config.configure()()
-
-load_dotenv()
-DOGGELGANGER_DB_CONNECTION = os.getenv("SUPABASE_DB")
-MODEL_CLASS = os.getenv("DOGGELGANGER_ALIGNMENT_MODEL")
-MODEL_WEIGHTS = os.getenv("DOGGELGANGER_ALIGNMENT_WEIGHTS")
 
 # Initialize the image feature extraction pipeline
 pipe = load_embedding_pipeline()
@@ -165,6 +161,8 @@ def main():
         help="Logging level",
     )
     args = parser.parse_args()   
+
+    logger.setLevel(args.log_level)
 
     uvicorn.run(
         app,
