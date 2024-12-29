@@ -162,7 +162,9 @@ def main():
     )
     args = parser.parse_args()   
 
-    logger.setLevel(args.log_level)
+    # Set default level to INFO, but allow override from command line
+    log_level = getattr(logging, args.log_level.upper(), logging.INFO)
+    logger.setLevel(log_level)
 
     uvicorn.run(
         app,
