@@ -62,5 +62,5 @@ jobs:
             us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
             us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:latest
           push: true
-          platform: linux/amd64 
+          platforms: linux/amd64 
           provenance: false

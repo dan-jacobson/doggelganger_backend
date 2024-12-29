@@ -14,7 +14,7 @@ WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --frozen --no-install-project --no-dev --index-strategy unsafe-best-match
+    uv sync --frozen --no-install-project --no-dev
 
 # Copy files and build project
 ADD . /app
