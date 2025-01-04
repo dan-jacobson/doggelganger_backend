@@ -207,7 +207,7 @@ for human_image_path in sample_human_images:
                 top_3_images.append(animal_image)
                 top_3_titles.append(f"Top {i} -- Similarity {1 - score:.4f}")
             except FileNotFoundError:
-                print(f"Warning: Could not find image for index {idx}")
+                print(f"Warning: Could not find image for index {i}")
 
         plot_images(top_3_images, top_3_titles, f"{model_name} Model")
 

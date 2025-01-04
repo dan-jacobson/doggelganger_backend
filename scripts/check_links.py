@@ -3,6 +3,7 @@ import asyncio
 import logging
 import os
 from datetime import datetime, timedelta
+from random import random
 
 import aiohttp
 import jsonlines

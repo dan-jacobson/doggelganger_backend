@@ -11,7 +11,6 @@ from litestar import Litestar, get, post
 from litestar.datastructures import UploadFile
 from litestar.enums import RequestEncodingType
 from litestar.params import Body
-from litestar.logging import LoggingConfig
 from litestar.response import Response
 from litestar.status_codes import (
     HTTP_200_OK,
@@ -23,7 +22,6 @@ from PIL import Image
 from doggelganger.models import model_classes
 from doggelganger.utils import get_embedding
 from doggelganger.utils import load_model as load_embedding_pipeline
-
 
 load_dotenv()
 DOGGELGANGER_DB_CONNECTION = os.getenv("SUPABASE_DB")
@@ -95,7 +93,7 @@ async def embed_image(
             url = metadata["primary_photo"]
             if is_valid_link(url):
                 valid_result = {
-                    **metadata,    
+                    **metadata,
                     "id": id,
                     "similarity": 1 - score,  # converts cosine distance to similarity
                 }

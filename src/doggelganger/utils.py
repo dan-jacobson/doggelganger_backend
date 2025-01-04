@@ -34,14 +34,14 @@ def download_model_weights():
 
 
 def load_model():
-    '''Convenience function to load the image embedding model.'''
+    """Convenience function to load the image embedding model."""
     pipe = pipeline(task="image-feature-extraction", model=HUGGINGFACE_MODEL, pool=True)
 
     return pipe
 
 
 def get_embedding(img, pipe):
-    '''Convenience function allowing pipelines to handle pathlib `Path` objects.'''
+    """Convenience function allowing pipelines to handle pathlib `Path` objects."""
     try:
         if isinstance(img, Path):
             img = Image.open(img)
