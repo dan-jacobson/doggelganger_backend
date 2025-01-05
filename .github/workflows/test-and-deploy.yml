@@ -57,7 +57,7 @@ jobs:
         name: Build and Push
         uses: docker/build-push-action@v6
         with:
-          file: serve.Dockerfile
+          file: Dockerfile
           tags: |
             us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:${{ github.ref_name }}
             us-east4-docker.pkg.dev/doggelganger/doggelganger/serve:latest

@@ -1,11 +1,9 @@
-# Pull python image, install uv
-FROM python:3.12-slim-bookworm
+FROM python:3.12-slim-bookworm AS builder
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
 # Enable bytecode compilation
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
-ENV UV_PROJECT_ENVIRONMENT="/usr/local/"
 
 # Set working directory
 WORKDIR /app
@@ -21,16 +19,20 @@ ADD . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
-# Set HF cache dir and download weights
-ENV HF_HOME=.cache/huggingface
-RUN python -c "from doggelganger.utils import download_model_weights; download_model_weights()"
+FROM python:3.12-slim-bookworm
+
+COPY --from=builder --chown=app:app /app /app
+ENV PATH="/app/.venv/bin:$PATH"
 
 # Set port as env var, necessary for Cloud Run as I understand it
 ENV PORT=8000
 EXPOSE $PORT
 
-# Override base image entrypoint
-ENTRYPOINT []
+# Copy in alignment model
+COPY weights/prod /app/weights
 
-# Run the Litestar application
-CMD uv run serve --port $PORT
+# Set HF cache dir and download weights
+ENV HF_HOME=/app/.cache/huggingface
+RUN /app/.venv/bin/python -c "from doggelganger.utils import download_model_weights; download_model_weights()"
+
+CMD ["litestar", "--app", "api.app:app", "run", "--host", "0.0.0.0", "--port", "$PORT"]
