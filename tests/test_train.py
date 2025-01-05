@@ -35,11 +35,15 @@ def mock_embeddings():
 
 
 def test_make_training_data(mock_data_dir, mocker):
+    # Mock both the model loading and embedding generation
+    mock_load_model = mocker.patch("doggelganger.utils.load_model")
     mock_get_embedding = mocker.patch("doggelganger.utils.get_embedding")
+    
+    # Set up the embedding side effects
     mock_get_embedding.side_effect = [
         np.array([0.1, 0.2, 0.3]),
-        np.array([0.4, 0.5, 0.6]),
         np.array([0.7, 0.8, 0.9]),
+        np.array([0.4, 0.5, 0.6]),
         np.array([1.0, 1.1, 1.2]),
     ]
 
