@@ -21,6 +21,7 @@ __pycache__/
 # data
 data/
 archive/
+weights/
 
 # non-source files
 notebooks/
