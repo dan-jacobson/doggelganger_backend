@@ -4,6 +4,7 @@ from pathlib import Path
 
 from huggingface_hub import snapshot_download
 from PIL import Image
+import requests
 from transformers import pipeline
 
 HUGGINGFACE_MODEL = os.getenv("DOGGELGANGER_HUGGINGFACE_MODEL", "facebook/dinov2-small")
@@ -49,3 +50,10 @@ def get_embedding(img, pipe):
     except Exception as e:
         print(f"Error processing image {img}: {str(e)}")
         return None
+
+def valid_link(url):
+    try:
+        response = requests.head(url, timeout=5)
+        return response.status_code == 200
+    except requests.RequestException:
+        return False

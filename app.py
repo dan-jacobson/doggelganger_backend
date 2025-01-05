@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 from typing import Annotated
 
-import requests
 import vecs
 from dotenv import load_dotenv
 from litestar import Litestar, get, post
@@ -20,7 +19,7 @@ from litestar.status_codes import (
 from PIL import Image
 
 from doggelganger.models import model_classes
-from doggelganger.utils import get_embedding
+from doggelganger.utils import get_embedding, valid_link
 from doggelganger.utils import load_model as load_embedding_pipeline
 
 load_dotenv()
@@ -42,15 +41,6 @@ alignment_model = model_class.load(path=MODEL_WEIGHTS, embedding_dim=embedding_d
 # Initialize vecs client
 vx = vecs.create_client(DOGGELGANGER_DB_CONNECTION)
 dogs = vx.get_or_create_collection(name="dog_embeddings", dimension=pipe.model.config.hidden_size)
-
-
-def is_valid_link(url):
-    try:
-        response = requests.head(url, timeout=5)
-        return response.status_code == 200
-    except requests.RequestException:
-        return False
-
 
 @get(path="/")
 async def health_check() -> str:
@@ -87,7 +77,7 @@ async def embed_image(
         valid_result = None
         for i, (id, score, metadata) in enumerate(results):
             url = metadata["primary_photo"]
-            if is_valid_link(url):
+            if valid_link(url):
                 valid_result = {
                     **metadata,
                     "id": id,
