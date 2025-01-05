@@ -4,27 +4,27 @@ on:
 
 jobs:
   lint:
-    name: Lints with `ruff check`
+    name: "Lint: ruff check"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/ruff-action@v3
 
   test:                                                                                                                                                   
-    name: Tests python code with pytest
+    name:  Python tests
     runs-on: ubuntu-latest                                                                                                                                
     steps:                                                                                                                                                
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-
-      - name: "Set up Python"
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version-file: ".python-version"
-      - run: |                                                                                                                                            
-          uv pip install pytest pytest-cov                                                                                                                   
-          pytest --cov=src/ --cov-report=xml                                                                                                              
-      - uses: codecov/codecov-action@v3  
+          python-version-file: ".python-version" 
+      
+      - name: Install everything
+        run: uv sync --all-groups
+      - name: Run tests
+        run: uv run pytest tests --cov=src/ --cov-report=xml 
+      - uses: codecov/codecov-action@v3 
 
   docker-release:
     name: Tagged Docker release to Google Artifact Registry
