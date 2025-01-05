@@ -13,6 +13,7 @@ from litestar.params import Body
 from litestar.response import Response
 from litestar.status_codes import (
     HTTP_200_OK,
+    HTTP_400_BAD_REQUEST,
     HTTP_404_NOT_FOUND,
     HTTP_500_INTERNAL_SERVER_ERROR,
 )
@@ -106,7 +107,7 @@ async def embed_image(
 
         if valid_result is None:
             return Response(
-                content={"error": "No valid adoption links found"},
+                content={"error": "No valid links found"},
                 status_code=HTTP_404_NOT_FOUND,
             )
 

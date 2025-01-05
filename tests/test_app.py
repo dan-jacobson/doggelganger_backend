@@ -72,7 +72,7 @@ def test_invalid_file_type(test_client):
         files={"data": ("test.jpg", b"some data", None)}
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert "Invalid file type" in response.json()["error"]
+    assert "Could not process image file" in response.json()["error"]
 
 @patch("app.get_embedding")
 def test_embedding_error(mock_get_embedding, test_client, mock_image):
