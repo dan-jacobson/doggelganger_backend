@@ -1,7 +1,7 @@
-import argparse
 import io
 import logging
 import os
+from pathlib import Path
 from typing import Annotated
 
 import requests
@@ -26,7 +26,7 @@ from doggelganger.utils import load_model as load_embedding_pipeline
 load_dotenv()
 DOGGELGANGER_DB_CONNECTION = os.getenv("SUPABASE_DB")
 MODEL_CLASS = os.getenv("DOGGELGANGER_ALIGNMENT_MODEL")
-MODEL_WEIGHTS = os.getenv("DOGGELGANGER_ALIGNMENT_WEIGHTS")
+MODEL_WEIGHTS = Path(os.getenv("DOGGELGANGER_ALIGNMENT_WEIGHTS"))
 
 # Configure Logging -- I'm just using uvicorn's. I tried so many other things and they didn't work :(
 logger = logging.getLogger("uvicorn.error")
@@ -44,10 +44,6 @@ vx = vecs.create_client(DOGGELGANGER_DB_CONNECTION)
 dogs = vx.get_or_create_collection(name="dog_embeddings", dimension=pipe.model.config.hidden_size)
 
 
-def align_embedding(embedding):
-    return alignment_model.predict(embedding)
-
-
 def is_valid_link(url):
     try:
         response = requests.head(url, timeout=5)
@@ -58,7 +54,7 @@ def is_valid_link(url):
 
 @get(path="/")
 async def health_check() -> str:
-    return "healthy"
+    return Response(content="healthy", status_code=HTTP_200_OK)
 
 
 @post("/embed")
@@ -77,7 +73,7 @@ async def embed_image(
         embedding = get_embedding(img, pipe=pipe)
 
         # Align embedding
-        aligned_embedding = align_embedding(embedding)
+        aligned_embedding = alignment_model.predict(embedding)
 
         # Query similar images
         results = dogs.query(
@@ -124,43 +120,6 @@ async def embed_image(
 app = Litestar(
     route_handlers=[embed_image, health_check],
 )
-
-
-def main():
-    import uvicorn
-
-    parser = argparse.ArgumentParser(description="Serve the Doggelganger backend as a uvicorn app.")
-    parser.add_argument(
-        "--host",
-        type=str,
-        default="0.0.0.0",
-        help="Host to bind to",
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=8000,
-        help="Port to bind to",
-    )
-    parser.add_argument(
-        "--log-level",
-        type=str,
-        default="info",
-        choices=["debug", "info", "warning", "error", "critical"],
-        help="Logging level",
-    )
-    args = parser.parse_args()
-
-    uvicorn.run(
-        app,
-        host=args.host,
-        port=args.port,
-        log_level=args.log_level,
-    )
-
-
-if __name__ == "__main__":
-    main()
 
 # test via something like
 # curl -i -X POST \
