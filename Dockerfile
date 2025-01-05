@@ -20,6 +20,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
 FROM python:3.12-slim-bookworm
+WORKDIR /app
 
 COPY --from=builder --chown=app:app /app /app
 ENV PATH="/app/.venv/bin:$PATH"
@@ -28,11 +29,8 @@ ENV PATH="/app/.venv/bin:$PATH"
 ENV PORT=8000
 EXPOSE $PORT
 
-# Copy in alignment model
-COPY weights/prod /app/weights
-
 # Set HF cache dir and download weights
 ENV HF_HOME=/app/.cache/huggingface
 RUN /app/.venv/bin/python -c "from doggelganger.utils import download_model_weights; download_model_weights()"
 
-CMD ["litestar", "run", "--host", "0.0.0.0", "--port", "$PORT"]
+CMD litestar run --host 0.0.0.0 --port ${PORT}
