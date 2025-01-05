@@ -3,15 +3,24 @@ on:
   push:
 
 jobs:
-  lint:
+  lint-check:
     name: "Lint: ruff check"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/ruff-action@v3
 
+  lint-format:
+    name: "Lint: ruff format"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3
+        with:
+          args: format
+
   test:                                                                                                                                                   
-    name:  Python tests
+    name:  "Test: pytest"
     runs-on: ubuntu-latest                                                                                                                                
     steps:                                                                                                                                                
       - uses: actions/checkout@v4
