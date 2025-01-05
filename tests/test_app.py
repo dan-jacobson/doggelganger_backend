@@ -48,13 +48,31 @@ def test_app_initialization(mock_load_pipeline):
 
 def test_invalid_file_type(test_client):
     """Test handling of invalid file types"""
+    # Test with text file
     text_data = b"This is not an image"
     response = test_client.post(
         "/embed", 
         files={"data": ("test.txt", text_data, "text/plain")}
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert "error" in response.json()
+    assert "Invalid file type" in response.json()["error"]
+    
+    # Test with corrupted image data
+    corrupt_data = b"pretending to be a PNG\x89PNG but actually garbage"
+    response = test_client.post(
+        "/embed",
+        files={"data": ("fake.png", corrupt_data, "image/png")}
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert "Could not process image file" in response.json()["error"]
+    
+    # Test with missing content type
+    response = test_client.post(
+        "/embed",
+        files={"data": ("test.jpg", b"some data", None)}
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert "Invalid file type" in response.json()["error"]
 
 @patch("app.get_embedding")
 def test_embedding_error(mock_get_embedding, test_client, mock_image):

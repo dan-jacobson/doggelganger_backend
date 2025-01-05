@@ -54,10 +54,25 @@ async def embed_image(
 ) -> Response:
     try:
         logger.debug(f"Received file: {data.filename}")
+        
+        # Validate file type
+        if not data.content_type or not data.content_type.startswith('image/'):
+            return Response(
+                content={"error": "Invalid file type. Only images are accepted."},
+                status_code=HTTP_400_BAD_REQUEST,
+            )
+            
         # Read the image file
         contents = await data.read()
         logger.debug(f"File size: {len(contents)} bytes")
-        img = Image.open(io.BytesIO(contents))
+        
+        try:
+            img = Image.open(io.BytesIO(contents))
+        except Exception:
+            return Response(
+                content={"error": "Could not process image file. File may be corrupted or in an unsupported format."},
+                status_code=HTTP_400_BAD_REQUEST,
+            )
         logger.debug(f"Image size: {img.size}")
 
         # Extract features
