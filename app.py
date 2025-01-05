@@ -111,7 +111,7 @@ async def embed_image(
             else:
                 logger.debug(f"Invalid adoption link: {url}")
 
-        if valid_result is None:
+        if not valid_result:
             return Response(
                 content={"error": "No valid links found"},
                 status_code=HTTP_404_NOT_FOUND,
