@@ -35,4 +35,4 @@ COPY weights/prod /app/weights
 ENV HF_HOME=/app/.cache/huggingface
 RUN /app/.venv/bin/python -c "from doggelganger.utils import download_model_weights; download_model_weights()"
 
-CMD ["litestar", "--app", "api.app:app", "run", "--host", "0.0.0.0", "--port", "$PORT"]
+CMD ["litestar", "run", "--host", "0.0.0.0", "--port", "$PORT"]
