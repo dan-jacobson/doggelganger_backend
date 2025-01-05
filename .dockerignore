@@ -30,6 +30,6 @@ weights/
 notebooks/
 scripts/
 supabase/
-*.Dockerfile
+Dockerfile
 tests/
 ray_results/
