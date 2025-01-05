@@ -21,7 +21,10 @@ __pycache__/
 # data
 data/
 archive/
+
+# ignore all weights except prod
 weights/
+!weights/prod
 
 # non-source files
 notebooks/
