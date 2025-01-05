@@ -33,6 +33,8 @@ weights/*
 ray_results/
 
 # data files
+data/
+supabase/
 *.sql
 *.jsonl
 *.parquet
