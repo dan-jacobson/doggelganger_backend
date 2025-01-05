@@ -98,6 +98,7 @@ def test_empty_query_results(mock_query, mock_get_embedding, test_client, mock_i
         files={"data": ("test.png", mock_image, "image/png")}
     )
     assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "No matches found in database"
 
 @patch("app.get_embedding")
 @patch("app.dogs.query")

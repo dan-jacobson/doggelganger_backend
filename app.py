@@ -90,6 +90,12 @@ async def embed_image(
             include_value=True,
         )
 
+        if not results:
+            return Response(
+                content={"error": "No matches found in database"},
+                status_code=HTTP_404_NOT_FOUND,
+            )
+
         # Find the first result with a valid adoption link
         valid_result = None
         for i, (id, score, metadata) in enumerate(results):
