@@ -5,7 +5,8 @@ import pytest
 from litestar.testing import TestClient
 from PIL import Image
 
-from app import app, is_valid_link
+from app import app
+from doggelganger.utils import valid_link
 
 
 @pytest.fixture
