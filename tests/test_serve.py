@@ -5,6 +5,9 @@ import pytest
 from litestar.testing import TestClient
 from PIL import Image
 
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent))
 from app import app
 
 

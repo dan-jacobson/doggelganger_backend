@@ -1,11 +1,7 @@
 import numpy as np
 import pytest
 
-from doggelganger.train import (
-    align_animal_to_human_embeddings,
-    align_embedding,
-    make_embeddings,
-)
+from doggelganger.train import make_training_data
 
 
 @pytest.fixture
@@ -38,7 +34,7 @@ def mock_embeddings():
     }
 
 
-def test_make_embeddings(mock_data_dir, mocker):
+def test_make_training_data(mock_data_dir, mocker):
     mock_get_embedding = mocker.patch("doggelganger.utils.get_embedding")
     mock_get_embedding.side_effect = [
         np.array([0.1, 0.2, 0.3]),
@@ -47,32 +43,11 @@ def test_make_embeddings(mock_data_dir, mocker):
         np.array([1.0, 1.1, 1.2]),
     ]
 
-    human_embeddings, animal_embeddings = make_embeddings(mock_data_dir)
+    X, y = make_training_data(mock_data_dir)
 
-    assert len(human_embeddings) == 2
-    assert len(animal_embeddings) == 2
-    assert all(isinstance(emb, np.ndarray) for emb in human_embeddings.values())
-    assert all(isinstance(emb, np.ndarray) for emb in animal_embeddings.values())
-
-
-def test_align_animal_to_human_embeddings(mock_embeddings):
-    human_embeddings = mock_embeddings["human"]
-    animal_embeddings = mock_embeddings["animal"]
-
-    model, X, y = align_animal_to_human_embeddings(human_embeddings, animal_embeddings)
-
-    assert hasattr(model, "coef_")
-    assert hasattr(model, "intercept_")
-    assert X.shape == (2, 3)
-    assert y.shape == (2, 3)
+    assert len(X) == 2
+    assert len(y) == 2
+    assert all(isinstance(emb, np.ndarray) for emb in X)
+    assert all(isinstance(emb, np.ndarray) for emb in y)
 
 
-def test_align_embedding():
-    embedding = np.array([0.1, 0.2, 0.3])
-    coef = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
-    intercept = np.array([0.1, 0.2, 0.3])
-
-    aligned_embedding = align_embedding(embedding, coef, intercept)
-
-    assert aligned_embedding.shape == (3,)
-    assert np.allclose(aligned_embedding, np.array([1.4, 3.2, 5.0]))
