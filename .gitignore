@@ -36,3 +36,6 @@ ray_results/
 *.sql
 *.jsonl
 *.parquet
+
+# gonna go ahead and not commit this
+service.yaml

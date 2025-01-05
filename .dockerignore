@@ -33,3 +33,4 @@ supabase/
 Dockerfile
 tests/
 ray_results/
+service.yaml
