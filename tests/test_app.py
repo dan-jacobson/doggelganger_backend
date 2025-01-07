@@ -96,11 +96,10 @@ def test_embedding_error(mock_get_embedding, test_client, mock_image):
 
 @patch("app.get_embedding")
 @patch("app.dogs.query")
-def test_empty_query_results(mock_query, mock_get_embedding, test_client, mock_image, mock_embedding):
+@patch("app.alignment_model.predict")
+def test_empty_query_results(mock_query, mock_get_embedding, mock_predict, test_client, mock_image, mock_embedding):
     """Test handling of empty database query results"""
     mock_get_embedding.return_value = mock_embedding
-    mock_predict.return_value = mock_embedding  # The aligned embedding will be the same as input for testing
-    mock_predict.return_value = mock_embedding  # The aligned embedding will be the same as input for testing
     mock_predict.return_value = mock_embedding  # The aligned embedding will be the same as input for testing
     mock_query.return_value = []
 
