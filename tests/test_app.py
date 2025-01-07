@@ -1,18 +1,19 @@
 import io
-from unittest.mock import patch, MagicMock
-import numpy as np
-import pytest
-from litestar.testing import TestClient
-from PIL import Image
-from litestar.status_codes import (
-    HTTP_200_OK,
-    HTTP_404_NOT_FOUND,
-    HTTP_400_BAD_REQUEST,
-    HTTP_500_INTERNAL_SERVER_ERROR,
-)
-
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import numpy as np
+import pytest
+from litestar.status_codes import (
+    HTTP_200_OK,
+    HTTP_400_BAD_REQUEST,
+    HTTP_404_NOT_FOUND,
+    HTTP_500_INTERNAL_SERVER_ERROR,
+)
+from litestar.testing import TestClient
+from PIL import Image
+
 sys.path.append(str(Path(__file__).parent.parent))
 from app import app
 
@@ -21,6 +22,7 @@ from app import app
 def test_client():
     return TestClient(app)
 
+
 @pytest.fixture
 def mock_image():
     img = Image.new("RGB", (100, 100), color="red")
@@ -28,10 +30,12 @@ def mock_image():
     img.save(img_byte_arr, format="PNG")
     return img_byte_arr.getvalue()
 
+
 def test_health_check(test_client):
     response = test_client.get("/")
     assert response.status_code == HTTP_200_OK
     assert response.text == "healthy"
+
 
 @patch("app.load_embedding_pipeline")
 def test_app_initialization(mock_load_pipeline):
@@ -39,52 +43,44 @@ def test_app_initialization(mock_load_pipeline):
     mock_pipe = MagicMock()
     mock_pipe.model.config.hidden_size = 768
     mock_load_pipeline.return_value = mock_pipe
-    
+
     # Re-import to trigger initialization
     import app
+
     assert app.pipe is not None
     assert app.alignment_model is not None
     assert app.dogs is not None
+
 
 def test_invalid_file_type(test_client):
     """Test handling of invalid file types"""
     # Test with text file
     text_data = b"This is not an image"
-    response = test_client.post(
-        "/embed", 
-        files={"data": ("test.txt", text_data, "text/plain")}
-    )
+    response = test_client.post("/embed", files={"data": ("test.txt", text_data, "text/plain")})
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert "Invalid file type" in response.json()["error"]
-    
+
     # Test with corrupted image data
     corrupt_data = b"pretending to be a PNG\x89PNG but actually garbage"
-    response = test_client.post(
-        "/embed",
-        files={"data": ("fake.png", corrupt_data, "image/png")}
-    )
+    response = test_client.post("/embed", files={"data": ("fake.png", corrupt_data, "image/png")})
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert "Could not process image file" in response.json()["error"]
-    
+
     # Test with missing content type
-    response = test_client.post(
-        "/embed",
-        files={"data": ("test.jpg", b"some data", None)}
-    )
+    response = test_client.post("/embed", files={"data": ("test.jpg", b"some data", None)})
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert "Could not process image file" in response.json()["error"]
+
 
 @patch("app.get_embedding")
 def test_embedding_error(mock_get_embedding, test_client, mock_image):
     """Test handling of embedding generation errors"""
     mock_get_embedding.side_effect = Exception("Embedding failed")
-    
-    response = test_client.post(
-        "/embed",
-        files={"data": ("test.png", mock_image, "image/png")}
-    )
+
+    response = test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
     assert response.status_code == HTTP_500_INTERNAL_SERVER_ERROR
     assert "error" in response.json()
+
 
 @patch("app.get_embedding")
 @patch("app.dogs.query")
@@ -92,13 +88,11 @@ def test_empty_query_results(mock_query, mock_get_embedding, test_client, mock_i
     """Test handling of empty database query results"""
     mock_get_embedding.return_value = np.array([0.1, 0.2, 0.3])
     mock_query.return_value = []
-    
-    response = test_client.post(
-        "/embed",
-        files={"data": ("test.png", mock_image, "image/png")}
-    )
+
+    response = test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "No matches found in database"
+
 
 @patch("app.get_embedding")
 @patch("app.dogs.query")
@@ -112,13 +106,11 @@ def test_multiple_invalid_links(mock_valid_link, mock_query, mock_get_embedding,
         ("id3", 0.3, {"primary_photo": "http://invalid3.com"}),
     ]
     mock_valid_link.return_value = False
-    
-    response = test_client.post(
-        "/embed",
-        files={"data": ("test.png", mock_image, "image/png")}
-    )
+
+    response = test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
     assert response.status_code == HTTP_404_NOT_FOUND
     assert mock_valid_link.call_count == 3  # Ensures all links were checked
+
 
 @patch("app.get_embedding")
 @patch("app.dogs.query")
@@ -129,11 +121,8 @@ def test_alignment_model_integration(mock_valid_link, mock_query, mock_get_embed
     mock_get_embedding.return_value = initial_embedding
     mock_query.return_value = [("id1", 0.1, {"primary_photo": "http://valid.com"})]
     mock_valid_link.return_value = True
-    
-    response = test_client.post(
-        "/embed",
-        files={"data": ("test.png", mock_image, "image/png")}
-    )
+
+    response = test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
     assert response.status_code == HTTP_200_OK
     result = response.json()
     assert "embedding" in result
