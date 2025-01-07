@@ -86,7 +86,8 @@ def test_embedding_error(mock_get_embedding, test_client, mock_image):
 @patch("app.dogs.query")
 def test_empty_query_results(mock_query, mock_get_embedding, test_client, mock_image):
     """Test handling of empty database query results"""
-    mock_get_embedding.return_value = np.array([0.1, 0.2, 0.3])
+    # Create a random embedding vector of the correct dimension (768 for CLIP)
+    mock_get_embedding.return_value = np.random.randn(768)
     mock_query.return_value = []
 
     response = test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
