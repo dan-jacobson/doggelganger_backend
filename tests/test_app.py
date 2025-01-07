@@ -25,9 +25,15 @@ def test_client():
 
 
 @pytest.fixture
-def mock_embedding():
+def embedding_dim():
+    """Fixture to provide the model's embedding dimension"""
+    from app import pipe
+    return pipe.model.config.hidden_size
+
+@pytest.fixture
+def mock_embedding(embedding_dim):
     """Fixture to provide a consistent mock embedding of correct dimension"""
-    return np.random.randn(384)
+    return np.random.randn(embedding_dim)
 
 @pytest.fixture
 def mock_image():
