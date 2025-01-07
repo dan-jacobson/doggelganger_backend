@@ -1,4 +1,3 @@
-
 from doggelganger.utils import valid_link
 
 

@@ -4,7 +4,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import numpy as np
-from PIL import Image
 import pytest
 from litestar.status_codes import (
     HTTP_200_OK,
@@ -24,16 +23,19 @@ def test_client():
     return TestClient(app)
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def embedding_dim():
     """Fixture to provide the model's embedding dimension"""
     from app import pipe
+
     return pipe.model.config.hidden_size
+
 
 @pytest.fixture(scope="session")
 def mock_embedding(embedding_dim):
     """Fixture to provide a consistent mock embedding of correct dimension"""
     return np.random.randn(embedding_dim)
+
 
 @pytest.fixture
 def mock_image():
@@ -108,7 +110,9 @@ def test_empty_query_results(mock_query, test_client, mock_image):
 @patch("app.dogs.query")
 @patch("app.valid_link")
 @patch("app.alignment_model.predict")
-def test_multiple_invalid_links(mock_valid_link, mock_query, mock_get_embedding, test_client, mock_image, mock_embedding):
+def test_multiple_invalid_links(
+    mock_valid_link, mock_query, mock_get_embedding, test_client, mock_image, mock_embedding
+):
     """Test handling of multiple invalid adoption links"""
     mock_get_embedding.return_value = mock_embedding
     mock_query.return_value = [
@@ -120,13 +124,15 @@ def test_multiple_invalid_links(mock_valid_link, mock_query, mock_get_embedding,
 
     response = test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
     assert response.status_code == HTTP_404_NOT_FOUND
-    assert mock_valid_link.call_count == 3 
+    assert mock_valid_link.call_count == 3
 
 
 @patch("app.get_embedding")
 @patch("app.dogs.query")
 @patch("app.valid_link")
-def test_alignment_model_integration(mock_valid_link, mock_query, mock_get_embedding, mock_predict, test_client, mock_image, mock_embedding):
+def test_alignment_model_integration(
+    mock_valid_link, mock_query, mock_get_embedding, mock_predict, test_client, mock_image, mock_embedding
+):
     """Test the full pipeline including alignment model"""
     mock_get_embedding.return_value = mock_embedding
     mock_query.return_value = [("id1", 0.1, {"primary_photo": "http://valid.com"})]
@@ -145,7 +151,9 @@ def test_alignment_model_integration(mock_valid_link, mock_query, mock_get_embed
 @patch("app.dogs.query")
 @patch("app.valid_link")
 @patch("app.alignment_model.predict")
-def test_embed_image_success(mock_valid_link, mock_query, mock_get_embedding, mock_predict, test_client, mock_embedding):
+def test_embed_image_success(
+    mock_valid_link, mock_query, mock_get_embedding, mock_predict, test_client, mock_embedding
+):
     # Mock the embedding
     mock_get_embedding.return_value = mock_embedding
 
@@ -176,7 +184,9 @@ def test_embed_image_success(mock_valid_link, mock_query, mock_get_embedding, mo
 @patch("app.dogs.query")
 @patch("app.valid_link")
 @patch("app.alignment_model.predict")
-def test_embed_image_no_valid_links(mock_valid_link, mock_query, mock_get_embedding, mock_predict, test_client, mock_embedding):
+def test_embed_image_no_valid_links(
+    mock_valid_link, mock_query, mock_get_embedding, mock_predict, test_client, mock_embedding
+):
     # Mock the embedding
     mock_get_embedding.return_value = mock_embedding
 
