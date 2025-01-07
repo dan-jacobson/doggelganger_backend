@@ -113,7 +113,7 @@ async def embed_image(
 
         if not valid_result:
             return Response(
-                content={"error": "No valid links found"},
+                content={"error": "No valid adoption links found"},
                 status_code=HTTP_404_NOT_FOUND,
             )
 

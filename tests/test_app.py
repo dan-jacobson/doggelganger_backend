@@ -99,6 +99,9 @@ def test_embedding_error(mock_get_embedding, test_client, mock_image):
 def test_empty_query_results(mock_query, mock_get_embedding, test_client, mock_image, mock_embedding):
     """Test handling of empty database query results"""
     mock_get_embedding.return_value = mock_embedding
+    mock_predict.return_value = mock_embedding  # The aligned embedding will be the same as input for testing
+    mock_predict.return_value = mock_embedding  # The aligned embedding will be the same as input for testing
+    mock_predict.return_value = mock_embedding  # The aligned embedding will be the same as input for testing
     mock_query.return_value = []
 
     response = test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
@@ -109,6 +112,7 @@ def test_empty_query_results(mock_query, mock_get_embedding, test_client, mock_i
 @patch("app.get_embedding")
 @patch("app.dogs.query")
 @patch("app.valid_link")
+@patch("app.alignment_model.predict")
 def test_multiple_invalid_links(mock_valid_link, mock_query, mock_get_embedding, test_client, mock_image, mock_embedding):
     """Test handling of multiple invalid adoption links"""
     mock_get_embedding.return_value = mock_embedding
@@ -127,7 +131,7 @@ def test_multiple_invalid_links(mock_valid_link, mock_query, mock_get_embedding,
 @patch("app.get_embedding")
 @patch("app.dogs.query")
 @patch("app.valid_link")
-def test_alignment_model_integration(mock_valid_link, mock_query, mock_get_embedding, test_client, mock_image, mock_embedding):
+def test_alignment_model_integration(mock_valid_link, mock_query, mock_get_embedding, mock_predict, test_client, mock_image, mock_embedding):
     """Test the full pipeline including alignment model"""
     mock_get_embedding.return_value = mock_embedding
     mock_query.return_value = [("id1", 0.1, {"primary_photo": "http://valid.com"})]
@@ -145,7 +149,8 @@ def test_alignment_model_integration(mock_valid_link, mock_query, mock_get_embed
 @patch("app.get_embedding")
 @patch("app.dogs.query")
 @patch("app.valid_link")
-def test_embed_image_success(mock_valid_link, mock_query, mock_get_embedding, test_client, mock_embedding):
+@patch("app.alignment_model.predict")
+def test_embed_image_success(mock_valid_link, mock_query, mock_get_embedding, mock_predict, test_client, mock_embedding):
     # Mock the embedding
     mock_get_embedding.return_value = mock_embedding
 
@@ -175,7 +180,8 @@ def test_embed_image_success(mock_valid_link, mock_query, mock_get_embedding, te
 @patch("app.get_embedding")
 @patch("app.dogs.query")
 @patch("app.valid_link")
-def test_embed_image_no_valid_links(mock_valid_link, mock_query, mock_get_embedding, test_client, mock_embedding):
+@patch("app.alignment_model.predict")
+def test_embed_image_no_valid_links(mock_valid_link, mock_query, mock_get_embedding, mock_predict, test_client, mock_embedding):
     # Mock the embedding
     mock_get_embedding.return_value = mock_embedding
 
