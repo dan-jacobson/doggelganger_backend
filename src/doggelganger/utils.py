@@ -54,7 +54,7 @@ def get_embedding(img, pipe):
 
 def valid_link(url):
     try:
-        response = requests.head(url, timeout=5)
+        response = requests.head(url, timeout=5, allow_redirects=True)
         return response.status_code == 200
     except requests.RequestException:
         return False
