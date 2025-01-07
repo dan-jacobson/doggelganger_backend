@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import numpy as np
+from PIL import Image
 import pytest
 from litestar.status_codes import (
     HTTP_200_OK,
@@ -22,6 +23,11 @@ from app import app
 def test_client():
     return TestClient(app)
 
+
+@pytest.fixture
+def mock_embedding():
+    """Fixture to provide a consistent mock embedding of correct dimension"""
+    return np.random.randn(384)
 
 @pytest.fixture
 def mock_image():
@@ -84,10 +90,9 @@ def test_embedding_error(mock_get_embedding, test_client, mock_image):
 
 @patch("app.get_embedding")
 @patch("app.dogs.query")
-def test_empty_query_results(mock_query, mock_get_embedding, test_client, mock_image):
+def test_empty_query_results(mock_query, mock_get_embedding, test_client, mock_image, mock_embedding):
     """Test handling of empty database query results"""
-    # Create a random embedding vector of the correct dimension (384)
-    mock_get_embedding.return_value = np.random.randn(384)
+    mock_get_embedding.return_value = mock_embedding
     mock_query.return_value = []
 
     response = test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
@@ -98,9 +103,9 @@ def test_empty_query_results(mock_query, mock_get_embedding, test_client, mock_i
 @patch("app.get_embedding")
 @patch("app.dogs.query")
 @patch("app.valid_link")
-def test_multiple_invalid_links(mock_valid_link, mock_query, mock_get_embedding, test_client, mock_image):
+def test_multiple_invalid_links(mock_valid_link, mock_query, mock_get_embedding, test_client, mock_image, mock_embedding):
     """Test handling of multiple invalid adoption links"""
-    mock_get_embedding.return_value = np.random.randn(384)
+    mock_get_embedding.return_value = mock_embedding
     mock_query.return_value = [
         ("id1", 0.1, {"primary_photo": "http://invalid1.com"}),
         ("id2", 0.2, {"primary_photo": "http://invalid2.com"}),
@@ -116,10 +121,9 @@ def test_multiple_invalid_links(mock_valid_link, mock_query, mock_get_embedding,
 @patch("app.get_embedding")
 @patch("app.dogs.query")
 @patch("app.valid_link")
-def test_alignment_model_integration(mock_valid_link, mock_query, mock_get_embedding, test_client, mock_image):
+def test_alignment_model_integration(mock_valid_link, mock_query, mock_get_embedding, test_client, mock_image, mock_embedding):
     """Test the full pipeline including alignment model"""
-    initial_embedding = np.random.randn(384)
-    mock_get_embedding.return_value = initial_embedding
+    mock_get_embedding.return_value = mock_embedding
     mock_query.return_value = [("id1", 0.1, {"primary_photo": "http://valid.com"})]
     mock_valid_link.return_value = True
 
@@ -127,7 +131,7 @@ def test_alignment_model_integration(mock_valid_link, mock_query, mock_get_embed
     assert response.status_code == HTTP_200_OK
     result = response.json()
     assert "embedding" in result
-    assert np.array_equal(result["embedding"], initial_embedding.tolist())
+    assert np.array_equal(result["embedding"], mock_embedding.tolist())
     assert "similarity" in result["result"]
     assert 0 <= result["result"]["similarity"] <= 1
 
@@ -135,9 +139,9 @@ def test_alignment_model_integration(mock_valid_link, mock_query, mock_get_embed
 @patch("app.get_embedding")
 @patch("app.dogs.query")
 @patch("app.valid_link")
-def test_embed_image_success(mock_valid_link, mock_query, mock_get_embedding, test_client):
+def test_embed_image_success(mock_valid_link, mock_query, mock_get_embedding, test_client, mock_embedding):
     # Mock the embedding
-    mock_get_embedding.return_value = np.random.randn(384)
+    mock_get_embedding.return_value = mock_embedding
 
     # Mock the query results
     mock_query.return_value = [
@@ -165,9 +169,9 @@ def test_embed_image_success(mock_valid_link, mock_query, mock_get_embedding, te
 @patch("app.get_embedding")
 @patch("app.dogs.query")
 @patch("app.valid_link")
-def test_embed_image_no_valid_links(mock_valid_link, mock_query, mock_get_embedding, test_client):
+def test_embed_image_no_valid_links(mock_valid_link, mock_query, mock_get_embedding, test_client, mock_embedding):
     # Mock the embedding
-    mock_get_embedding.return_value = np.random.randn(384)
+    mock_get_embedding.return_value = mock_embedding
 
     # Mock the query results
     mock_query.return_value = [
