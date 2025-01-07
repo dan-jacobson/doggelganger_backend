@@ -36,12 +36,12 @@ def mock_embeddings():
 
 def test_make_training_data(mock_data_dir, mocker):
     # Mock both the model loading and embedding generation
-    mock_load_model = mocker.patch("doggelganger.utils.load_model")
+    # mock_load_model = mocker.patch("doggelganger.utils.load_model")
     mock_get_embedding = mocker.patch("doggelganger.utils.get_embedding")
-    
+
     # Mock PIL.Image.open to prevent actual file operations
-    mock_image = mocker.patch("PIL.Image.open")
-    
+    # mock_image = mocker.patch("PIL.Image.open")
+
     # Set up the embedding side effects
     mock_get_embedding.side_effect = [
         np.array([0.1, 0.2, 0.3]),
@@ -56,5 +56,3 @@ def test_make_training_data(mock_data_dir, mocker):
     assert len(y) == 2
     assert all(isinstance(emb, np.ndarray) for emb in X)
     assert all(isinstance(emb, np.ndarray) for emb in y)
-
-

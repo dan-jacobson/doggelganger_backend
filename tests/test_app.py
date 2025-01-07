@@ -24,13 +24,13 @@ def test_client():
     return TestClient(app)
 
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def embedding_dim():
     """Fixture to provide the model's embedding dimension"""
     from app import pipe
     return pipe.model.config.hidden_size
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def mock_embedding(embedding_dim):
     """Fixture to provide a consistent mock embedding of correct dimension"""
     return np.random.randn(embedding_dim)
@@ -50,10 +50,10 @@ def test_health_check(test_client):
 
 
 @patch("app.load_embedding_pipeline")
-def test_app_initialization(mock_load_pipeline):
+def test_app_initialization(mock_load_pipeline, embedding_dim):
     """Test that the app initializes correctly with all required components"""
     mock_pipe = MagicMock()
-    mock_pipe.model.config.hidden_size = 768
+    mock_pipe.model.config.hidden_size = embedding_dim
     mock_load_pipeline.return_value = mock_pipe
 
     # Re-import to trigger initialization
@@ -94,13 +94,9 @@ def test_embedding_error(mock_get_embedding, test_client, mock_image):
     assert "error" in response.json()
 
 
-@patch("app.get_embedding")
 @patch("app.dogs.query")
-@patch("app.alignment_model.predict")
-def test_empty_query_results(mock_query, mock_get_embedding, mock_predict, test_client, mock_image, mock_embedding):
+def test_empty_query_results(mock_query, test_client, mock_image):
     """Test handling of empty database query results"""
-    mock_get_embedding.return_value = mock_embedding
-    mock_predict.return_value = mock_embedding  # The aligned embedding will be the same as input for testing
     mock_query.return_value = []
 
     response = test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
