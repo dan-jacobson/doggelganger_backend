@@ -54,7 +54,7 @@ def load_metadata(metadata_path):
 
 
 def process_dogs(metadata_path, drop_existing: bool = False, N: int | bool = False, smoke_test: bool = False):
-    pipe = load_model()
+    pipe = load_model(device='cpu')
 
     # Load metadata
     metadata = load_metadata(metadata_path)

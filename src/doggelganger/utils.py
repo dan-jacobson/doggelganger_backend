@@ -34,9 +34,9 @@ def download_model_weights():
     )
 
 
-def load_model():
+def load_model(device=None):
     """Convenience function to load the image embedding model."""
-    pipe = pipeline(task="image-feature-extraction", model=HUGGINGFACE_MODEL, pool=True)
+    pipe = pipeline(task="image-feature-extraction", model=HUGGINGFACE_MODEL, pool=True, device=device)
 
     return pipe
 
