@@ -36,11 +36,11 @@ def mock_embeddings():
 
 def test_make_training_data(mock_data_dir, mocker):
     # Mock both the model loading and embedding generation
-    mock_load_model = mocker.patch("doggelganger.train.load_embedding_model")
+    # mock_load_model = mocker.patch("doggelganger.train.load_embedding_model")
     mock_get_embedding = mocker.patch("doggelganger.train.get_embedding")
 
     # Mock PIL.Image.open to prevent actual file operations
-    mock_image = mocker.patch("PIL.Image.open")
+    # mock_image = mocker.patch("PIL.Image.open")
 
     # Set up the embedding side effects
     mock_get_embedding.side_effect = [

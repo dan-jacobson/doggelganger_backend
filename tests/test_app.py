@@ -108,8 +108,7 @@ def test_empty_query_results(mock_query, test_client, mock_image):
 
 @patch("app.dogs.query")
 @patch("app.valid_link")
-def test_multiple_invalid_links(mock_valid_link, mock_query, test_client, mock_image
-):
+def test_multiple_invalid_links(mock_valid_link, mock_query, test_client, mock_image):
     """Test handling of multiple invalid adoption links"""
     mock_query.return_value = [
         ("id1", 0.1, {"primary_photo": "http://invalid1.com"}),
@@ -179,9 +178,7 @@ def test_embed_image_success(
 @patch("app.get_embedding")
 @patch("app.dogs.query")
 @patch("app.valid_link")
-def test_embed_image_no_valid_links(
-    mock_valid_link, mock_query, mock_get_embedding, test_client, mock_embedding
-):
+def test_embed_image_no_valid_links(mock_valid_link, mock_query, mock_get_embedding, test_client, mock_embedding):
     # Mock the embedding
     mock_get_embedding.return_value = mock_embedding
 
