@@ -26,7 +26,7 @@ from doggelganger.utils import load_model as load_embedding_pipeline
 load_dotenv()
 DOGGELGANGER_DB_CONNECTION = os.getenv("SUPABASE_DB")
 MODEL_CLASS = os.getenv("DOGGELGANGER_ALIGNMENT_MODEL")
-MODEL_WEIGHTS = Path("weights/prod") / os.getenv("DOGGELGANGER_ALIGNMENT_WEIGHTS")
+MODEL_WEIGHTS = Path("weights/prod") / os.getenv("DOGGELGANGER_ALIGNMENT_WEIGHTS", "")
 
 # Configure Logging -- I'm just using uvicorn's. I tried so many other things and they didn't work :(
 logger = logging.getLogger("uvicorn.error")
