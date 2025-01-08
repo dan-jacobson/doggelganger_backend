@@ -34,7 +34,7 @@ def embedding_dim():
 @pytest.fixture(scope="session")
 def mock_embedding(embedding_dim):
     """Fixture to provide a consistent mock embedding of correct dimension"""
-    return np.random.randn(embedding_dim)
+    return list(np.random.randn(embedding_dim))
 
 
 @pytest.fixture
@@ -106,15 +106,11 @@ def test_empty_query_results(mock_query, test_client, mock_image):
     assert response.json()["error"] == "No matches found in database"
 
 
-@patch("app.get_embedding")
 @patch("app.dogs.query")
 @patch("app.valid_link")
-@patch("app.alignment_model.predict")
-def test_multiple_invalid_links(
-    mock_valid_link, mock_query, mock_get_embedding, test_client, mock_image, mock_embedding
+def test_multiple_invalid_links(mock_valid_link, mock_query, test_client, mock_image
 ):
     """Test handling of multiple invalid adoption links"""
-    mock_get_embedding.return_value = mock_embedding
     mock_query.return_value = [
         ("id1", 0.1, {"primary_photo": "http://invalid1.com"}),
         ("id2", 0.2, {"primary_photo": "http://invalid2.com"}),
@@ -131,7 +127,7 @@ def test_multiple_invalid_links(
 @patch("app.dogs.query")
 @patch("app.valid_link")
 def test_alignment_model_integration(
-    mock_valid_link, mock_query, mock_get_embedding, mock_predict, test_client, mock_image, mock_embedding
+    mock_valid_link, mock_query, mock_get_embedding, test_client, mock_image, mock_embedding
 ):
     """Test the full pipeline including alignment model"""
     mock_get_embedding.return_value = mock_embedding
@@ -142,15 +138,15 @@ def test_alignment_model_integration(
     assert response.status_code == HTTP_200_OK
     result = response.json()
     assert "embedding" in result
-    assert np.array_equal(result["embedding"], mock_embedding.tolist())
+    assert np.array_equal(result["embedding"], mock_embedding)
     assert "similarity" in result["result"]
     assert 0 <= result["result"]["similarity"] <= 1
 
 
+@patch("app.alignment_model.predict")
 @patch("app.get_embedding")
 @patch("app.dogs.query")
 @patch("app.valid_link")
-@patch("app.alignment_model.predict")
 def test_embed_image_success(
     mock_valid_link, mock_query, mock_get_embedding, mock_predict, test_client, mock_embedding
 ):
@@ -183,9 +179,8 @@ def test_embed_image_success(
 @patch("app.get_embedding")
 @patch("app.dogs.query")
 @patch("app.valid_link")
-@patch("app.alignment_model.predict")
 def test_embed_image_no_valid_links(
-    mock_valid_link, mock_query, mock_get_embedding, mock_predict, test_client, mock_embedding
+    mock_valid_link, mock_query, mock_get_embedding, test_client, mock_embedding
 ):
     # Mock the embedding
     mock_get_embedding.return_value = mock_embedding
@@ -208,4 +203,4 @@ def test_embed_image_no_valid_links(
 
     assert response.status_code == 404
     assert "error" in response.json()
-    assert response.json()["error"] == "No valid adoption links found"
+    assert response.json()["error"] == "No valid adoption links found (ask Dan to refresh the database)"
