@@ -21,6 +21,7 @@ dev = [
     "ipykernel>=6.29.5",
     "pytest>=8.3.4",
     "pytest-cov>=6.0.0",
+    "pytest-env>=1.1.5",
     "pytest-mock>=3.14.0",
     "ruff>=0.8.5",
     "scikit-learn>=1.6.0",
@@ -75,4 +76,13 @@ select = [
     "SIM",
     # isort
     "I",
+]
+
+[tool.pytest.ini_options]
+# sets env vars for pytest if they don't exist, for example in CI
+# lmk if there's a better way to do this
+env = [
+    "D:SUPABASE_DB=postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+    "D:DOGGELGANGER_ALIGNMENT_MODEL=resnet",
+    "D:DOGGELGANGER_ALIGNMENT_WEIGHTS=prodv0.2.pt"
 ]
