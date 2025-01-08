@@ -52,11 +52,19 @@ def test_health_check(test_client):
 
 
 @patch("app.load_embedding_pipeline")
-def test_app_initialization(mock_load_pipeline, embedding_dim):
+@patch("vecs.create_client")
+def test_app_initialization(mock_create_client, mock_load_pipeline, embedding_dim):
     """Test that the app initializes correctly with all required components"""
+    # Mock the pipeline
     mock_pipe = MagicMock()
     mock_pipe.model.config.hidden_size = embedding_dim
     mock_load_pipeline.return_value = mock_pipe
+
+    # Mock vecs client and collection
+    mock_collection = MagicMock()
+    mock_client = MagicMock()
+    mock_client.get_or_create_collection.return_value = mock_collection
+    mock_create_client.return_value = mock_client
 
     # Re-import to trigger initialization
     import app
@@ -64,6 +72,13 @@ def test_app_initialization(mock_load_pipeline, embedding_dim):
     assert app.pipe is not None
     assert app.alignment_model is not None
     assert app.dogs is not None
+    
+    # Verify vecs mocking
+    mock_create_client.assert_called_once()
+    mock_client.get_or_create_collection.assert_called_once_with(
+        name="dog_embeddings", 
+        dimension=mock_pipe.model.config.hidden_size
+    )
 
 
 def test_invalid_file_type(test_client):
