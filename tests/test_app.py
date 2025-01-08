@@ -51,33 +51,35 @@ def test_health_check(test_client):
     assert response.text == "healthy"
 
 
-@patch("app.load_embedding_pipeline")
-@patch("vecs.create_client")
-def test_app_initialization(mock_create_client, mock_load_pipeline, embedding_dim):
-    """Test that the app initializes correctly with all required components"""
-    # Mock the pipeline
-    mock_pipe = MagicMock()
-    mock_pipe.model.config.hidden_size = embedding_dim
-    mock_load_pipeline.return_value = mock_pipe
-
-    # Mock vecs client and collection
-    mock_collection = MagicMock()
-    mock_client = MagicMock()
-    mock_client.get_or_create_collection.return_value = mock_collection
-    mock_create_client.return_value = mock_client
-
-    # Re-import to trigger initialization
-    import app
-
-    assert app.pipe is not None
-    assert app.alignment_model is not None
-    assert app.dogs is not None
-    
-    # Verify vecs mocking
-    mock_create_client.assert_called_once()
-    mock_client.get_or_create_collection.assert_called_once_with(
-        name="dog_embeddings", 
-        dimension=mock_pipe.model.config.hidden_size
+@patch("vecs.create_client")                                                                                                                              
+@patch("doggelganger.utils.load_model")                                                                                                                   
+def test_app_initialization(mock_load_pipeline, mock_create_client, embedding_dim):                                                                       
+    """Test that the app initializes correctly with all required components"""                                                                            
+    # Mock the pipeline                                                                                                                                   
+    mock_pipe = MagicMock()                                                                                                                               
+    mock_pipe.model.config.hidden_size = embedding_dim                                                                                                    
+    mock_load_pipeline.return_value = mock_pipe                                                                                                           
+                                                                                                                                                        
+    # Mock vecs client and collection                                                                                                                     
+    mock_collection = MagicMock()                                                                                                                         
+    mock_client = MagicMock()                                                                                                                             
+    mock_client.get_or_create_collection.return_value = mock_collection                                                                                   
+    mock_create_client.return_value = mock_client                                                                                                         
+                                                                                                                                                        
+    # Import app here, after mocks are in place                                                                                                           
+    import importlib                                                                                                                                      
+    import app                                                                                                                                            
+    importlib.reload(app)                                                                                                                                 
+                                                                                                                                                        
+    assert app.pipe is not None                                                                                                                           
+    assert app.alignment_model is not None                                                                                                                
+    assert app.dogs is not None                                                                                                                           
+                                                                                                                                                        
+    # Verify vecs mocking                                                                                                                                 
+    mock_create_client.assert_called_once()                                                                                                               
+    mock_client.get_or_create_collection.assert_called_once_with(                                                                                         
+        name="dog_embeddings",                                                                                                                            
+        dimension=mock_pipe.model.config.hidden_size                                                                                                      
     )
 
 
@@ -137,19 +139,14 @@ def test_multiple_invalid_links(mock_valid_link, mock_query, test_client, mock_i
     assert mock_valid_link.call_count == 3
 
 
-@patch("app.alignment_model.predict")
 @patch("app.get_embedding")
 @patch("app.dogs.query")
 @patch("app.valid_link")
-def test_embed_image_pipeline(
-    mock_valid_link, mock_query, mock_get_embedding, mock_predict, test_client, mock_image, mock_embedding
+def test_alignment_model_integration(
+    mock_valid_link, mock_query, mock_get_embedding, test_client, mock_image, mock_embedding
 ):
-    """Test the full embedding pipeline with different scenarios"""
-    # Setup base mocks
+    """Test the full pipeline including alignment model"""
     mock_get_embedding.return_value = mock_embedding
-    mock_predict.return_value = mock_embedding
-
-    # Test successful case
     mock_query.return_value = [("id1", 0.1, {"primary_photo": "http://valid.com"})]
     mock_valid_link.return_value = True
 
@@ -157,11 +154,67 @@ def test_embed_image_pipeline(
     assert response.status_code == HTTP_200_OK
     result = response.json()
     assert "embedding" in result
-    assert "result" in result
+    assert np.array_equal(result["embedding"], mock_embedding)
+    assert "similarity" in result["result"]
     assert 0 <= result["result"]["similarity"] <= 1
 
-    # Test case with no valid links
+
+@patch("app.alignment_model.predict")
+@patch("app.get_embedding")
+@patch("app.dogs.query")
+@patch("app.valid_link")
+def test_embed_image_success(
+    mock_valid_link, mock_query, mock_get_embedding, mock_predict, test_client, mock_embedding
+):
+    # Mock the embedding
+    mock_get_embedding.return_value = mock_embedding
+
+    # Mock the query results
+    mock_query.return_value = [
+        ("id1", 0.1, {"primary_photo": "http://valid.com"}),
+    ]
+
+    # Mock valid_link to return True
+    mock_valid_link.return_value = True
+
+    # Create a test image
+    img = Image.new("RGB", (100, 100), color="red")
+    img_byte_arr = io.BytesIO()
+    img.save(img_byte_arr, format="PNG")
+    img_byte_arr = img_byte_arr.getvalue()
+
+    response = test_client.post("/embed", files={"data": ("test.png", img_byte_arr, "image/png")})
+
+    print(f"Response content: {response.content}")
+    assert response.status_code == 200, f"Unexpected status code: {response.status_code}, content: {response.content}"
+    response_json = response.json()
+    assert "embedding" in response_json, f"'embedding' not found in response: {response_json}"
+    assert "result" in response_json, f"'result' not found in response: {response_json}"
+
+
+@patch("app.get_embedding")
+@patch("app.dogs.query")
+@patch("app.valid_link")
+def test_embed_image_no_valid_links(mock_valid_link, mock_query, mock_get_embedding, test_client, mock_embedding):
+    # Mock the embedding
+    mock_get_embedding.return_value = mock_embedding
+
+    # Mock the query results
+    mock_query.return_value = [
+        ("id1", 0.1, {"primary_photo": "http://invalid.com"}),
+    ]
+
+    # Mock valid_link to return False
     mock_valid_link.return_value = False
-    response = test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
-    assert response.status_code == HTTP_404_NOT_FOUND
+
+    # Create a test image
+    img = Image.new("RGB", (100, 100), color="red")
+    img_byte_arr = io.BytesIO()
+    img.save(img_byte_arr, format="PNG")
+    img_byte_arr = img_byte_arr.getvalue()
+
+    response = test_client.post("/embed", files={"data": ("test.png", img_byte_arr, "image/png")})
+
+    assert response.status_code == 404
+    assert "error" in response.json()
     assert response.json()["error"] == "No valid adoption links found (ask Dan to refresh the database)"
