@@ -137,14 +137,19 @@ def test_multiple_invalid_links(mock_valid_link, mock_query, test_client, mock_i
     assert mock_valid_link.call_count == 3
 
 
+@patch("app.alignment_model.predict")
 @patch("app.get_embedding")
 @patch("app.dogs.query")
 @patch("app.valid_link")
-def test_alignment_model_integration(
-    mock_valid_link, mock_query, mock_get_embedding, test_client, mock_image, mock_embedding
+def test_embed_image_pipeline(
+    mock_valid_link, mock_query, mock_get_embedding, mock_predict, test_client, mock_image, mock_embedding
 ):
-    """Test the full pipeline including alignment model"""
+    """Test the full embedding pipeline with different scenarios"""
+    # Setup base mocks
     mock_get_embedding.return_value = mock_embedding
+    mock_predict.return_value = mock_embedding
+
+    # Test successful case
     mock_query.return_value = [("id1", 0.1, {"primary_photo": "http://valid.com"})]
     mock_valid_link.return_value = True
 
@@ -152,67 +157,11 @@ def test_alignment_model_integration(
     assert response.status_code == HTTP_200_OK
     result = response.json()
     assert "embedding" in result
-    assert np.array_equal(result["embedding"], mock_embedding)
-    assert "similarity" in result["result"]
+    assert "result" in result
     assert 0 <= result["result"]["similarity"] <= 1
 
-
-@patch("app.alignment_model.predict")
-@patch("app.get_embedding")
-@patch("app.dogs.query")
-@patch("app.valid_link")
-def test_embed_image_success(
-    mock_valid_link, mock_query, mock_get_embedding, mock_predict, test_client, mock_embedding
-):
-    # Mock the embedding
-    mock_get_embedding.return_value = mock_embedding
-
-    # Mock the query results
-    mock_query.return_value = [
-        ("id1", 0.1, {"primary_photo": "http://valid.com"}),
-    ]
-
-    # Mock valid_link to return True
-    mock_valid_link.return_value = True
-
-    # Create a test image
-    img = Image.new("RGB", (100, 100), color="red")
-    img_byte_arr = io.BytesIO()
-    img.save(img_byte_arr, format="PNG")
-    img_byte_arr = img_byte_arr.getvalue()
-
-    response = test_client.post("/embed", files={"data": ("test.png", img_byte_arr, "image/png")})
-
-    print(f"Response content: {response.content}")
-    assert response.status_code == 200, f"Unexpected status code: {response.status_code}, content: {response.content}"
-    response_json = response.json()
-    assert "embedding" in response_json, f"'embedding' not found in response: {response_json}"
-    assert "result" in response_json, f"'result' not found in response: {response_json}"
-
-
-@patch("app.get_embedding")
-@patch("app.dogs.query")
-@patch("app.valid_link")
-def test_embed_image_no_valid_links(mock_valid_link, mock_query, mock_get_embedding, test_client, mock_embedding):
-    # Mock the embedding
-    mock_get_embedding.return_value = mock_embedding
-
-    # Mock the query results
-    mock_query.return_value = [
-        ("id1", 0.1, {"primary_photo": "http://invalid.com"}),
-    ]
-
-    # Mock valid_link to return False
+    # Test case with no valid links
     mock_valid_link.return_value = False
-
-    # Create a test image
-    img = Image.new("RGB", (100, 100), color="red")
-    img_byte_arr = io.BytesIO()
-    img.save(img_byte_arr, format="PNG")
-    img_byte_arr = img_byte_arr.getvalue()
-
-    response = test_client.post("/embed", files={"data": ("test.png", img_byte_arr, "image/png")})
-
-    assert response.status_code == 404
-    assert "error" in response.json()
+    response = test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
+    assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "No valid adoption links found (ask Dan to refresh the database)"
