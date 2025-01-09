@@ -6,7 +6,6 @@
 
 # pickle files
 *.pkl 
-.aider*
 
 # compressed files
 *.zip
@@ -21,6 +20,10 @@ __pycache__/
 *.ruff_cache
 *.egg-info
 .pytest_cache
+
+# tooling files 
+.aider*
+.coverage*
 
 # env vars
 .env
