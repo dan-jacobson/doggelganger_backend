@@ -1,7 +1,7 @@
 import io
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
 import pytest
@@ -14,14 +14,35 @@ from litestar.status_codes import (
 from litestar.testing import TestClient
 from PIL import Image
 
-# Not clean but we're just hacking this together
+# Add project root to Python path
 sys.path.append(str(Path(__file__).parent.parent))
+
+# Set up the vecs mock before importing app
+@pytest.fixture(scope="session", autouse=True)
+def mock_vecs_client():
+    mock_collection = MagicMock()
+    mock_client = MagicMock()
+    mock_client.get_or_create_collection.return_value = mock_collection
+    
+    with patch('vecs.create_client') as mock:
+        mock.return_value = mock_client
+        yield mock
+
+# Now we can safely import app
 from app import app
 
-
 @pytest.fixture
-def test_client():
-    return TestClient(app)
+async def test_client():
+    # Create mock DB connection
+    mock_collection = MagicMock()
+    mock_client = MagicMock()
+    mock_client.get_or_create_collection.return_value = mock_collection
+    
+    async with TestClient(app=app) as client:
+        # Set up app state
+        client.app.state.vx = mock_client
+        client.app.state.dogs = mock_collection
+        yield client
 
 
 @pytest.fixture(scope="session")
@@ -46,7 +67,7 @@ def mock_image():
     return img_byte_arr.getvalue()
 
 
-def test_health_check(test_client):
+async def test_health_check(test_client):
     response = test_client.get("/")
     assert response.status_code == HTTP_200_OK
     assert response.text == "healthy"
@@ -85,7 +106,7 @@ def test_app_initialization(mock_load_pipeline, mock_create_client, embedding_di
     )
 
 
-def test_invalid_file_type(test_client):
+async def test_invalid_file_type(test_client):
     """Test handling of invalid file types"""
     # Test with text file
     text_data = b"This is not an image"
@@ -106,7 +127,7 @@ def test_invalid_file_type(test_client):
 
 
 @patch("app.get_embedding")
-def test_embedding_error(mock_get_embedding, test_client, mock_image):
+async def test_embedding_error(mock_get_embedding, test_client, mock_image):
     """Test handling of embedding generation errors"""
     mock_get_embedding.side_effect = Exception("Embedding failed")
 
@@ -116,7 +137,7 @@ def test_embedding_error(mock_get_embedding, test_client, mock_image):
 
 
 @patch("app.dogs.query")
-def test_empty_query_results(mock_query, test_client, mock_image):
+async def test_empty_query_results(mock_query, test_client, mock_image):
     """Test handling of empty database query results"""
     mock_query.return_value = []
 
@@ -127,7 +148,7 @@ def test_empty_query_results(mock_query, test_client, mock_image):
 
 @patch("app.dogs.query")
 @patch("app.valid_link")
-def test_multiple_invalid_links(mock_valid_link, mock_query, test_client, mock_image):
+async def test_multiple_invalid_links(mock_valid_link, mock_query, test_client, mock_image):
     """Test handling of multiple invalid adoption links"""
     mock_query.return_value = [
         ("id1", 0.1, {"primary_photo": "http://invalid1.com"}),
@@ -144,7 +165,7 @@ def test_multiple_invalid_links(mock_valid_link, mock_query, test_client, mock_i
 @patch("app.get_embedding")
 @patch("app.dogs.query")
 @patch("app.valid_link")
-def test_alignment_model_integration(
+async def test_alignment_model_integration(
     mock_valid_link, mock_query, mock_get_embedding, test_client, mock_image, mock_embedding
 ):
     """Test the full pipeline including alignment model"""
@@ -165,7 +186,7 @@ def test_alignment_model_integration(
 @patch("app.get_embedding")
 @patch("app.dogs.query")
 @patch("app.valid_link")
-def test_embed_image_success(
+async def test_embed_image_success(
     mock_valid_link, mock_query, mock_get_embedding, mock_predict, test_client, mock_embedding
 ):
     # Mock the embedding
@@ -197,7 +218,7 @@ def test_embed_image_success(
 @patch("app.get_embedding")
 @patch("app.dogs.query")
 @patch("app.valid_link")
-def test_embed_image_no_valid_links(mock_valid_link, mock_query, mock_get_embedding, test_client, mock_embedding):
+async def test_embed_image_no_valid_links(mock_valid_link, mock_query, mock_get_embedding, test_client, mock_embedding):
     # Mock the embedding
     mock_get_embedding.return_value = mock_embedding
 
