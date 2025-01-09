@@ -53,7 +53,7 @@ def connect_to_db(app: Litestar):
 
 # Disconnect from vecs on app shutdown
 def disconnect_from_db(app: Litestar):
-    if not getattr(app.state, "vx, None"):
+    if not getattr(app.state, "vx", None):
         app.state.vx.disconnect()
 
 

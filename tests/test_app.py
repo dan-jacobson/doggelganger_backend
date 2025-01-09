@@ -17,28 +17,29 @@ from PIL import Image
 # Add project root to Python path
 sys.path.append(str(Path(__file__).parent.parent))
 
-# Set up the vecs mock before importing app
-@pytest.fixture(scope="session", autouse=True)
-def mock_vecs_client():
-    mock_collection = MagicMock()
-    mock_client = MagicMock()
-    mock_client.get_or_create_collection.return_value = mock_collection
+# # Set up the vecs mock before importing app
+# @pytest.fixture(scope="session", autouse=True)
+# def mock_vecs_client():
+#     mock_collection = MagicMock()
+#     mock_client = MagicMock()
+#     mock_client.get_or_create_collection.return_value = mock_collection
     
-    with patch('vecs.create_client') as mock:
-        mock.return_value = mock_client
-        yield mock
+#     with patch('vecs.create_client') as mock:
+#         mock.return_value = mock_client
+#         yield mock
 
 # Now we can safely import app
 from app import app
 
-@pytest.fixture
-def test_client(scope='session', autouse=True):
+@pytest.fixture(scope='session', autouse=True)
+def test_client():
     # Create mock DB connection
     mock_collection = MagicMock()
     mock_client = MagicMock()
     mock_client.get_or_create_collection.return_value = mock_collection
     
     with TestClient(app=app) as client:
+        client.app.on_startup[0](client.app)
         # Set up app state
         client.app.state.vx = mock_client
         client.app.state.dogs = mock_collection
@@ -96,7 +97,7 @@ def test_app_initialization(mock_load_pipeline, mock_create_client, embedding_di
 
     assert app.pipe is not None
     assert app.alignment_model is not None
-    assert app.dogs is not None
+    assert app.state.dogs is not None
 
     # Verify vecs mocking
     mock_create_client.assert_called_once()
@@ -134,21 +135,19 @@ def test_embedding_error(mock_get_embedding, test_client, mock_image):
     assert "error" in response.json()
 
 
-@patch("app.dogs.query")
-def test_empty_query_results(mock_query, test_client, mock_image):
+def test_empty_query_results(test_client, mock_image):
     """Test handling of empty database query results"""
-    mock_query.return_value = []
+    test_client.app.state.dogs.query.return_value = []
 
     response = test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "No matches found in database"
 
 
-@patch("app.dogs.query")
 @patch("app.valid_link")
-def test_multiple_invalid_links(mock_valid_link, mock_query, test_client, mock_image):
+def test_multiple_invalid_links(mock_valid_link, test_client, mock_image):
     """Test handling of multiple invalid adoption links"""
-    mock_query.return_value = [
+    test_client.app.state.dogs.query.return_value = [
         ("id1", 0.1, {"primary_photo": "http://invalid1.com"}),
         ("id2", 0.2, {"primary_photo": "http://invalid2.com"}),
         ("id3", 0.3, {"primary_photo": "http://invalid3.com"}),
@@ -161,14 +160,13 @@ def test_multiple_invalid_links(mock_valid_link, mock_query, test_client, mock_i
 
 
 @patch("app.get_embedding")
-@patch("app.dogs.query")
 @patch("app.valid_link")
 def test_alignment_model_integration(
-    mock_valid_link, mock_query, mock_get_embedding, test_client, mock_image, mock_embedding
+    mock_valid_link, mock_get_embedding, test_client, mock_image, mock_embedding
 ):
     """Test the full pipeline including alignment model"""
     mock_get_embedding.return_value = mock_embedding
-    mock_query.return_value = [("id1", 0.1, {"primary_photo": "http://valid.com"})]
+    test_client.app.state.dogs.query.return_value = [("id1", 0.1, {"primary_photo": "http://valid.com"})]
     mock_valid_link.return_value = True
 
     response = test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
@@ -180,18 +178,16 @@ def test_alignment_model_integration(
     assert 0 <= result["result"]["similarity"] <= 1
 
 
-@patch("app.alignment_model.predict")
 @patch("app.get_embedding")
-@patch("app.dogs.query")
 @patch("app.valid_link")
 def test_embed_image_success(
-    mock_valid_link, mock_query, mock_get_embedding, mock_predict, test_client, mock_embedding
+    mock_valid_link, mock_get_embedding, test_client, mock_embedding
 ):
     # Mock the embedding
     mock_get_embedding.return_value = mock_embedding
 
     # Mock the query results
-    mock_query.return_value = [
+    test_client.app.state.dogs.query.return_value = [
         ("id1", 0.1, {"primary_photo": "http://valid.com"}),
     ]
 
@@ -214,14 +210,13 @@ def test_embed_image_success(
 
 
 @patch("app.get_embedding")
-@patch("app.dogs.query")
 @patch("app.valid_link")
-def test_embed_image_no_valid_links(mock_valid_link, mock_query, mock_get_embedding, test_client, mock_embedding):
+def test_embed_image_no_valid_links(mock_valid_link, mock_get_embedding, test_client, mock_embedding):
     # Mock the embedding
     mock_get_embedding.return_value = mock_embedding
 
     # Mock the query results
-    mock_query.return_value = [
+    test_client.app.state.dogs.query.return_value = [
         ("id1", 0.1, {"primary_photo": "http://invalid.com"}),
     ]
 
