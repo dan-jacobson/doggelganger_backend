@@ -17,6 +17,7 @@ __pycache__/
 .pytest_cache
 .gitignore
 .github/
+.coverage*
 
 # data
 data/
