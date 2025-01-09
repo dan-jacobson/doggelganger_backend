@@ -14,8 +14,8 @@ from litestar.status_codes import (
 from litestar.testing import TestClient
 from PIL import Image
 
-sys.path.append(str(Path(__file__).parent.parent))
-from app import app
+# sys.path.append(str(Path(__file__).parent.parent))
+# from app import app
 
 
 @pytest.fixture
