@@ -14,8 +14,9 @@ from litestar.status_codes import (
 from litestar.testing import TestClient
 from PIL import Image
 
-# sys.path.append(str(Path(__file__).parent.parent))
-# from app import app
+# Not clean but we're just hacking this together
+sys.path.append(str(Path(__file__).parent.parent))
+from app import app
 
 
 @pytest.fixture
@@ -51,35 +52,36 @@ def test_health_check(test_client):
     assert response.text == "healthy"
 
 
-@patch("vecs.create_client")                                                                                                                              
-@patch("doggelganger.utils.load_model")                                                                                                                   
-def test_app_initialization(mock_load_pipeline, mock_create_client, embedding_dim):                                                                       
-    """Test that the app initializes correctly with all required components"""                                                                            
-    # Mock the pipeline                                                                                                                                   
-    mock_pipe = MagicMock()                                                                                                                               
-    mock_pipe.model.config.hidden_size = embedding_dim                                                                                                    
-    mock_load_pipeline.return_value = mock_pipe                                                                                                           
-                                                                                                                                                        
-    # Mock vecs client and collection                                                                                                                     
-    mock_collection = MagicMock()                                                                                                                         
-    mock_client = MagicMock()                                                                                                                             
-    mock_client.get_or_create_collection.return_value = mock_collection                                                                                   
-    mock_create_client.return_value = mock_client                                                                                                         
-                                                                                                                                                        
-    # Import app here, after mocks are in place                                                                                                           
-    import importlib                                                                                                                                      
-    import app                                                                                                                                            
-    importlib.reload(app)                                                                                                                                 
-                                                                                                                                                        
-    assert app.pipe is not None                                                                                                                           
-    assert app.alignment_model is not None                                                                                                                
-    assert app.dogs is not None                                                                                                                           
-                                                                                                                                                        
-    # Verify vecs mocking                                                                                                                                 
-    mock_create_client.assert_called_once()                                                                                                               
-    mock_client.get_or_create_collection.assert_called_once_with(                                                                                         
-        name="dog_embeddings",                                                                                                                            
-        dimension=mock_pipe.model.config.hidden_size                                                                                                      
+@patch("vecs.create_client")
+@patch("doggelganger.utils.load_model")
+def test_app_initialization(mock_load_pipeline, mock_create_client, embedding_dim):
+    """Test that the app initializes correctly with all required components"""
+    # Mock the pipeline
+    mock_pipe = MagicMock()
+    mock_pipe.model.config.hidden_size = embedding_dim
+    mock_load_pipeline.return_value = mock_pipe
+
+    # Mock vecs client and collection
+    mock_collection = MagicMock()
+    mock_client = MagicMock()
+    mock_client.get_or_create_collection.return_value = mock_collection
+    mock_create_client.return_value = mock_client
+
+    # Import app here, after mocks are in place
+    import importlib
+
+    import app
+
+    importlib.reload(app)
+
+    assert app.pipe is not None
+    assert app.alignment_model is not None
+    assert app.dogs is not None
+
+    # Verify vecs mocking
+    mock_create_client.assert_called_once()
+    mock_client.get_or_create_collection.assert_called_once_with(
+        name="dog_embeddings", dimension=mock_pipe.model.config.hidden_size
     )
 
 
