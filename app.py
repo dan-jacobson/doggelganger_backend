@@ -2,12 +2,12 @@ import io
 import logging
 import os
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, cast
 
 import vecs
 from dotenv import load_dotenv
 from litestar import Litestar, get, post
-from litestar.datastructures import UploadFile
+from litestar.datastructures import State, UploadFile
 from litestar.enums import RequestEncodingType
 from litestar.params import Body
 from litestar.response import Response
@@ -18,6 +18,7 @@ from litestar.status_codes import (
     HTTP_500_INTERNAL_SERVER_ERROR,
 )
 from PIL import Image
+from vecs import Client, Collection
 
 from doggelganger.models import model_classes
 from doggelganger.utils import get_embedding, valid_link
@@ -39,9 +40,21 @@ embedding_dim = pipe.model.config.hidden_size
 model_class = model_classes[MODEL_CLASS]
 alignment_model = model_class.load(path=MODEL_WEIGHTS, embedding_dim=embedding_dim)
 
-# Initialize vecs client
-vx = vecs.create_client(DOGGELGANGER_DB_CONNECTION)
-dogs = vx.get_or_create_collection(name="dog_embeddings", dimension=pipe.model.config.hidden_size)
+
+# This looks kinda ugly, but we basically just move the vx.create_client() and .get_collection() call into app startup
+def connect_to_db(app: Litestar):
+    if not getattr(app.state, "vx", None):
+        app.state.vx = vecs.create_client(DOGGELGANGER_DB_CONNECTION)
+        app.state.dogs = app.state.vx.get_or_create_collection(
+            name="dog_embeddings", dimension=pipe.model.config.hidden_size
+        )
+    return cast("Client", app.state.vx), cast("Collection", app.state.dogs)
+
+
+# Disconnect from vecs on app shutdown
+def disconnect_from_db(app: Litestar):
+    if not getattr(app.state, "vx, None"):
+        app.state.vx.disconnect()
 
 
 @get(path="/")
@@ -51,6 +64,7 @@ async def health_check() -> str:
 
 @post("/embed")
 async def embed_image(
+    state: State,
     data: Annotated[UploadFile, Body(media_type=RequestEncodingType.MULTI_PART)],
 ) -> Response:
     try:
@@ -83,7 +97,7 @@ async def embed_image(
         aligned_embedding = alignment_model.predict(embedding)
 
         # Query similar images
-        results = dogs.query(
+        results = app.state.dogs.query(
             data=aligned_embedding,
             limit=3,  # Increase limit to have more options to check
             include_metadata=True,
@@ -130,9 +144,7 @@ async def embed_image(
         return Response(content={"error": str(e)}, status_code=HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-app = Litestar(
-    route_handlers=[embed_image, health_check],
-)
+app = Litestar(route_handlers=[embed_image, health_check], on_startup=[connect_to_db], on_shutdown=[disconnect_from_db])
 
 # test via something like
 # curl -i -X POST \

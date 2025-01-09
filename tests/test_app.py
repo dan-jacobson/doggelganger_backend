@@ -32,13 +32,13 @@ def mock_vecs_client():
 from app import app
 
 @pytest.fixture
-async def test_client():
+def test_client(scope='session', autouse=True):
     # Create mock DB connection
     mock_collection = MagicMock()
     mock_client = MagicMock()
     mock_client.get_or_create_collection.return_value = mock_collection
     
-    async with TestClient(app=app) as client:
+    with TestClient(app=app) as client:
         # Set up app state
         client.app.state.vx = mock_client
         client.app.state.dogs = mock_collection
@@ -66,8 +66,7 @@ def mock_image():
     img.save(img_byte_arr, format="PNG")
     return img_byte_arr.getvalue()
 
-
-async def test_health_check(test_client):
+def test_health_check(test_client):
     response = test_client.get("/")
     assert response.status_code == HTTP_200_OK
     assert response.text == "healthy"
@@ -105,8 +104,7 @@ def test_app_initialization(mock_load_pipeline, mock_create_client, embedding_di
         name="dog_embeddings", dimension=mock_pipe.model.config.hidden_size
     )
 
-
-async def test_invalid_file_type(test_client):
+def test_invalid_file_type(test_client):
     """Test handling of invalid file types"""
     # Test with text file
     text_data = b"This is not an image"
@@ -127,7 +125,7 @@ async def test_invalid_file_type(test_client):
 
 
 @patch("app.get_embedding")
-async def test_embedding_error(mock_get_embedding, test_client, mock_image):
+def test_embedding_error(mock_get_embedding, test_client, mock_image):
     """Test handling of embedding generation errors"""
     mock_get_embedding.side_effect = Exception("Embedding failed")
 
@@ -137,7 +135,7 @@ async def test_embedding_error(mock_get_embedding, test_client, mock_image):
 
 
 @patch("app.dogs.query")
-async def test_empty_query_results(mock_query, test_client, mock_image):
+def test_empty_query_results(mock_query, test_client, mock_image):
     """Test handling of empty database query results"""
     mock_query.return_value = []
 
@@ -148,7 +146,7 @@ async def test_empty_query_results(mock_query, test_client, mock_image):
 
 @patch("app.dogs.query")
 @patch("app.valid_link")
-async def test_multiple_invalid_links(mock_valid_link, mock_query, test_client, mock_image):
+def test_multiple_invalid_links(mock_valid_link, mock_query, test_client, mock_image):
     """Test handling of multiple invalid adoption links"""
     mock_query.return_value = [
         ("id1", 0.1, {"primary_photo": "http://invalid1.com"}),
@@ -165,7 +163,7 @@ async def test_multiple_invalid_links(mock_valid_link, mock_query, test_client, 
 @patch("app.get_embedding")
 @patch("app.dogs.query")
 @patch("app.valid_link")
-async def test_alignment_model_integration(
+def test_alignment_model_integration(
     mock_valid_link, mock_query, mock_get_embedding, test_client, mock_image, mock_embedding
 ):
     """Test the full pipeline including alignment model"""
@@ -186,7 +184,7 @@ async def test_alignment_model_integration(
 @patch("app.get_embedding")
 @patch("app.dogs.query")
 @patch("app.valid_link")
-async def test_embed_image_success(
+def test_embed_image_success(
     mock_valid_link, mock_query, mock_get_embedding, mock_predict, test_client, mock_embedding
 ):
     # Mock the embedding
@@ -218,7 +216,7 @@ async def test_embed_image_success(
 @patch("app.get_embedding")
 @patch("app.dogs.query")
 @patch("app.valid_link")
-async def test_embed_image_no_valid_links(mock_valid_link, mock_query, mock_get_embedding, test_client, mock_embedding):
+def test_embed_image_no_valid_links(mock_valid_link, mock_query, mock_get_embedding, test_client, mock_embedding):
     # Mock the embedding
     mock_get_embedding.return_value = mock_embedding
 
