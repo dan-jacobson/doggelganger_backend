@@ -20,6 +20,7 @@ dev = [
     "aiohttp>=3.11.11",
     "ipykernel>=6.29.5",
     "pytest>=8.3.4",
+    "pytest-asyncio>=0.25.2",
     "pytest-cov>=6.0.0",
     "pytest-env>=1.1.5",
     "pytest-mock>=3.14.0",
@@ -86,3 +87,4 @@ env = [
     "D:DOGGELGANGER_ALIGNMENT_MODEL=resnet",
     "D:DOGGELGANGER_ALIGNMENT_WEIGHTS=prodv0.2.pt"
 ]
+asyncio_mode = "auto"
