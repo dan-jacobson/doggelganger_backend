@@ -42,7 +42,7 @@ alignment_model = model_class.load(path=MODEL_WEIGHTS, embedding_dim=embedding_d
 
 
 # This looks kinda ugly, but we basically just move the vx.create_client() and .get_collection() call into app startup
-def connect_to_db(app: Litestar):
+def connect_to_vecs(app: Litestar):
     if not getattr(app.state, "vx", None):
         app.state.vx = vecs.create_client(DOGGELGANGER_DB_CONNECTION)
         app.state.dogs = app.state.vx.get_or_create_collection(
@@ -52,8 +52,8 @@ def connect_to_db(app: Litestar):
 
 
 # Disconnect from vecs on app shutdown
-def disconnect_from_db(app: Litestar):
-    if not getattr(app.state, "vx", None):
+def disconnect_from_vecs(app: Litestar):
+    if getattr(app.state, "vx", None):
         app.state.vx.disconnect()
 
 
@@ -144,7 +144,7 @@ async def embed_image(
         return Response(content={"error": str(e)}, status_code=HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-app = Litestar(route_handlers=[embed_image, health_check], on_startup=[connect_to_db], on_shutdown=[disconnect_from_db])
+app = Litestar(route_handlers=[embed_image, health_check], on_startup=[connect_to_vecs], on_shutdown=[disconnect_from_vecs])
 
 # test via something like
 # curl -i -X POST \
