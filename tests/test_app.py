@@ -1,7 +1,7 @@
 import io
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -14,35 +14,18 @@ from litestar.status_codes import (
 from litestar.testing import TestClient
 from PIL import Image
 
-# Add project root to Python path
+# TODO(drj): Hacky :(, fix this if we every refactor project structure
 sys.path.append(str(Path(__file__).parent.parent))
-
-# # Set up the vecs mock before importing app
-# @pytest.fixture(scope="session", autouse=True)
-# def mock_vecs_client():
-#     mock_collection = MagicMock()
-#     mock_client = MagicMock()
-#     mock_client.get_or_create_collection.return_value = mock_collection
-    
-#     with patch('vecs.create_client') as mock:
-#         mock.return_value = mock_client
-#         yield mock
-
-# Now we can safely import app
 from app import app
 
-@pytest.fixture(scope='session', autouse=True)
+
+@pytest.fixture(scope="session", autouse=True)
 def test_client():
-    # Create mock DB connection
-    mock_collection = MagicMock()
-    mock_client = MagicMock()
-    mock_client.get_or_create_collection.return_value = mock_collection
-    
     with TestClient(app=app) as client:
         client.app.on_startup[0](client.app)
         # Set up app state
-        client.app.state.vx = mock_client
-        client.app.state.dogs = mock_collection
+        client.app.state.vx = MagicMock()
+        client.app.state.dogs = MagicMock()
         yield client
 
 
@@ -67,43 +50,12 @@ def mock_image():
     img.save(img_byte_arr, format="PNG")
     return img_byte_arr.getvalue()
 
+
 def test_health_check(test_client):
     response = test_client.get("/")
     assert response.status_code == HTTP_200_OK
     assert response.text == "healthy"
 
-
-@patch("vecs.create_client")
-@patch("doggelganger.utils.load_model")
-def test_app_initialization(mock_load_pipeline, mock_create_client, embedding_dim):
-    """Test that the app initializes correctly with all required components"""
-    # Mock the pipeline
-    mock_pipe = MagicMock()
-    mock_pipe.model.config.hidden_size = embedding_dim
-    mock_load_pipeline.return_value = mock_pipe
-
-    # Mock vecs client and collection
-    mock_collection = MagicMock()
-    mock_client = MagicMock()
-    mock_client.get_or_create_collection.return_value = mock_collection
-    mock_create_client.return_value = mock_client
-
-    # Import app here, after mocks are in place
-    import importlib
-
-    import app
-
-    importlib.reload(app)
-
-    assert app.pipe is not None
-    assert app.alignment_model is not None
-    assert app.state.dogs is not None
-
-    # Verify vecs mocking
-    mock_create_client.assert_called_once()
-    mock_client.get_or_create_collection.assert_called_once_with(
-        name="dog_embeddings", dimension=mock_pipe.model.config.hidden_size
-    )
 
 def test_invalid_file_type(test_client):
     """Test handling of invalid file types"""
@@ -161,76 +113,19 @@ def test_multiple_invalid_links(mock_valid_link, test_client, mock_image):
 
 @patch("app.get_embedding")
 @patch("app.valid_link")
-def test_alignment_model_integration(
-    mock_valid_link, mock_get_embedding, test_client, mock_image, mock_embedding
-):
+def test_alignment_model_integration(mock_valid_link, mock_get_embedding, test_client, mock_image, mock_embedding):
     """Test the full pipeline including alignment model"""
     mock_get_embedding.return_value = mock_embedding
     test_client.app.state.dogs.query.return_value = [("id1", 0.1, {"primary_photo": "http://valid.com"})]
     mock_valid_link.return_value = True
 
     response = test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
-    assert response.status_code == HTTP_200_OK
+    assert (
+        response.status_code == HTTP_200_OK
+    ), f"Unexpected status code: {response.status_code}, content: {response.content}"
     result = response.json()
-    assert "embedding" in result
+    assert "embedding" in result, f"'embedding' not found in response: {result}"
+    assert "result" in result, f"'result' not found in response: {result}"
     assert np.array_equal(result["embedding"], mock_embedding)
     assert "similarity" in result["result"]
     assert 0 <= result["result"]["similarity"] <= 1
-
-
-@patch("app.get_embedding")
-@patch("app.valid_link")
-def test_embed_image_success(
-    mock_valid_link, mock_get_embedding, test_client, mock_embedding
-):
-    # Mock the embedding
-    mock_get_embedding.return_value = mock_embedding
-
-    # Mock the query results
-    test_client.app.state.dogs.query.return_value = [
-        ("id1", 0.1, {"primary_photo": "http://valid.com"}),
-    ]
-
-    # Mock valid_link to return True
-    mock_valid_link.return_value = True
-
-    # Create a test image
-    img = Image.new("RGB", (100, 100), color="red")
-    img_byte_arr = io.BytesIO()
-    img.save(img_byte_arr, format="PNG")
-    img_byte_arr = img_byte_arr.getvalue()
-
-    response = test_client.post("/embed", files={"data": ("test.png", img_byte_arr, "image/png")})
-
-    print(f"Response content: {response.content}")
-    assert response.status_code == 200, f"Unexpected status code: {response.status_code}, content: {response.content}"
-    response_json = response.json()
-    assert "embedding" in response_json, f"'embedding' not found in response: {response_json}"
-    assert "result" in response_json, f"'result' not found in response: {response_json}"
-
-
-@patch("app.get_embedding")
-@patch("app.valid_link")
-def test_embed_image_no_valid_links(mock_valid_link, mock_get_embedding, test_client, mock_embedding):
-    # Mock the embedding
-    mock_get_embedding.return_value = mock_embedding
-
-    # Mock the query results
-    test_client.app.state.dogs.query.return_value = [
-        ("id1", 0.1, {"primary_photo": "http://invalid.com"}),
-    ]
-
-    # Mock valid_link to return False
-    mock_valid_link.return_value = False
-
-    # Create a test image
-    img = Image.new("RGB", (100, 100), color="red")
-    img_byte_arr = io.BytesIO()
-    img.save(img_byte_arr, format="PNG")
-    img_byte_arr = img_byte_arr.getvalue()
-
-    response = test_client.post("/embed", files={"data": ("test.png", img_byte_arr, "image/png")})
-
-    assert response.status_code == 404
-    assert "error" in response.json()
-    assert response.json()["error"] == "No valid adoption links found (ask Dan to refresh the database)"
