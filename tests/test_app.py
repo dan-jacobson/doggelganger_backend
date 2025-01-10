@@ -11,29 +11,36 @@ from litestar.status_codes import (
     HTTP_404_NOT_FOUND,
     HTTP_500_INTERNAL_SERVER_ERROR,
 )
-from litestar.testing import TestClient
+from litestar.testing import AsyncTestClient
 from PIL import Image
 
 # TODO(drj): Hacky :(, fix this if we every refactor project structure
 sys.path.append(str(Path(__file__).parent.parent))
-from app import app
+from app import app, pipe, connect_to_vecs
 
+app.debug = True
 
-@pytest.fixture(scope="session", autouse=True)
-def test_client():
-    with TestClient(app=app) as client:
-        client.app.on_startup[0](client.app)
-        # Set up app state
-        client.app.state.vx = MagicMock()
-        client.app.state.dogs = MagicMock()
+@pytest.fixture(scope="session")
+async def test_client():
+    mock_vx = MagicMock()
+    mock_dogs = MagicMock()
+
+    def mock_connect_to_vecs(app):
+        print("Mock connect_to_vecs called!")
+        app.state.vx = mock_vx
+        app.state.dogs = mock_dogs
+        return mock_vx, mock_dogs
+
+    connect_to_vecs_idx = app.on_startup.index(connect_to_vecs)
+    app.on_startup[connect_to_vecs_idx] = mock_connect_to_vecs
+
+    async with AsyncTestClient(app=app) as client:
         yield client
 
 
 @pytest.fixture(scope="session")
 def embedding_dim():
     """Fixture to provide the model's embedding dimension"""
-    from app import pipe
-
     return pipe.model.config.hidden_size
 
 
@@ -43,7 +50,7 @@ def mock_embedding(embedding_dim):
     return list(np.random.randn(embedding_dim))
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def mock_image():
     img = Image.new("RGB", (100, 100), color="red")
     img_byte_arr = io.BytesIO()
@@ -51,53 +58,53 @@ def mock_image():
     return img_byte_arr.getvalue()
 
 
-def test_health_check(test_client):
-    response = test_client.get("/")
+async def test_health_check(test_client):
+    response = await test_client.get("/")
     assert response.status_code == HTTP_200_OK
     assert response.text == "healthy"
 
 
-def test_invalid_file_type(test_client):
+async def test_invalid_file_type(test_client):
     """Test handling of invalid file types"""
     # Test with text file
     text_data = b"This is not an image"
-    response = test_client.post("/embed", files={"data": ("test.txt", text_data, "text/plain")})
+    response = await test_client.post("/embed", files={"data": ("test.txt", text_data, "text/plain")})
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert "Invalid file type" in response.json()["error"]
 
     # Test with corrupted image data
     corrupt_data = b"pretending to be a PNG\x89PNG but actually garbage"
-    response = test_client.post("/embed", files={"data": ("fake.png", corrupt_data, "image/png")})
+    response = await test_client.post("/embed", files={"data": ("fake.png", corrupt_data, "image/png")})
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert "Could not process image file" in response.json()["error"]
 
     # Test with missing content type
-    response = test_client.post("/embed", files={"data": ("test.jpg", b"some data", None)})
+    response = await test_client.post("/embed", files={"data": ("test.jpg", b"some data", None)})
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert "Could not process image file" in response.json()["error"]
 
 
 @patch("app.get_embedding")
-def test_embedding_error(mock_get_embedding, test_client, mock_image):
+async def test_embedding_error(mock_get_embedding, test_client, mock_image):
     """Test handling of embedding generation errors"""
     mock_get_embedding.side_effect = Exception("Embedding failed")
 
-    response = test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
+    response = await test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
     assert response.status_code == HTTP_500_INTERNAL_SERVER_ERROR
     assert "error" in response.json()
 
 
-def test_empty_query_results(test_client, mock_image):
+async def test_empty_query_results(test_client, mock_image):
     """Test handling of empty database query results"""
     test_client.app.state.dogs.query.return_value = []
 
-    response = test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
+    response = await test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "No matches found in database"
 
 
 @patch("app.valid_link")
-def test_multiple_invalid_links(mock_valid_link, test_client, mock_image):
+async def test_multiple_invalid_links(mock_valid_link, test_client, mock_image):
     """Test handling of multiple invalid adoption links"""
     test_client.app.state.dogs.query.return_value = [
         ("id1", 0.1, {"primary_photo": "http://invalid1.com"}),
@@ -106,20 +113,20 @@ def test_multiple_invalid_links(mock_valid_link, test_client, mock_image):
     ]
     mock_valid_link.return_value = False
 
-    response = test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
+    response = await test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
     assert response.status_code == HTTP_404_NOT_FOUND
     assert mock_valid_link.call_count == 3
 
 
 @patch("app.get_embedding")
 @patch("app.valid_link")
-def test_alignment_model_integration(mock_valid_link, mock_get_embedding, test_client, mock_image, mock_embedding):
+async def test_alignment_model_integration(mock_valid_link, mock_get_embedding, test_client, mock_image, mock_embedding):
     """Test the full pipeline including alignment model"""
     mock_get_embedding.return_value = mock_embedding
     test_client.app.state.dogs.query.return_value = [("id1", 0.1, {"primary_photo": "http://valid.com"})]
     mock_valid_link.return_value = True
 
-    response = test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
+    response = await test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
     assert (
         response.status_code == HTTP_200_OK
     ), f"Unexpected status code: {response.status_code}, content: {response.content}"
