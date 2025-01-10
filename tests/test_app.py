@@ -16,9 +16,10 @@ from PIL import Image
 
 # TODO(drj): Hacky :(, fix this if we every refactor project structure
 sys.path.append(str(Path(__file__).parent.parent))
-from app import app, pipe, connect_to_vecs
+from app import app, connect_to_vecs, pipe
 
 app.debug = True
+
 
 @pytest.fixture(scope="session")
 async def test_client():
@@ -120,7 +121,9 @@ async def test_multiple_invalid_links(mock_valid_link, test_client, mock_image):
 
 @patch("app.get_embedding")
 @patch("app.valid_link")
-async def test_alignment_model_integration(mock_valid_link, mock_get_embedding, test_client, mock_image, mock_embedding):
+async def test_alignment_model_integration(
+    mock_valid_link, mock_get_embedding, test_client, mock_image, mock_embedding
+):
     """Test the full pipeline including alignment model"""
     mock_get_embedding.return_value = mock_embedding
     test_client.app.state.dogs.query.return_value = [("id1", 0.1, {"primary_photo": "http://valid.com"})]
