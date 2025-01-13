@@ -36,4 +36,4 @@ RUN /app/.venv/bin/python -c "from doggelganger.utils import download_model_weig
 # Let's us easily override at runtime with other uvicorn args, like --log-level
 RUN chmod +x /app/entrypoint.sh
 ENTRYPOINT [ "/app/entrypoint.sh" ]
-CMD [""]
+CMD []
