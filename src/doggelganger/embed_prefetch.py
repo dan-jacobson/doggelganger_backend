@@ -17,8 +17,8 @@ from tqdm import tqdm
 from doggelganger.utils import load_model
 
 DATA_PATH = Path("data/dogs_20250106_105941.jsonl")
-BATCH_SIZE = 16
-NUM_WORKERS = 8
+BATCH_SIZE = 64
+NUM_WORKERS = 0
 N = 1000
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -105,11 +105,14 @@ def main():
     logging.info(f"Number of dogs found in file: {len(metadata)}")
 
     dogs = metadata[:N]
-    logging.info(f"Smoketest: Reducing number of dogs to: {len(dogs)}")
+    logging.info(f"Smoketest -- Reducing number of dogs to: {len(dogs)}")
 
     # Fetch all images first
     images_with_metadata = asyncio.run(fetch_images_for_metadata(dogs))
+
+    image_end_time = time.time()
     logging.info(f"Successfully downloaded {len(images_with_metadata)} images")
+    logging.info(f"Time to download {len(images_with_metadata)} images: {image_end_time - start_time}")
 
     # Create dataset with pre-fetched images
     dataset = DogDataset(images_with_metadata=images_with_metadata)
@@ -132,9 +135,9 @@ def main():
 
         emb = pipe(batch["images"], batch_size=BATCH_SIZE)
         embeddings.append(emb)
-
     end_time = time.time()
     duration = end_time - start_time
+    logging.info(f"Time to process {len(dataset)} images: {end_time - image_end_time}\n")
 
     logging.info("=== Benchmark Results ===")
     logging.info(f"Start time: {datetime.fromtimestamp(start_time).strftime('%Y-%m-%d %H:%M:%S')}")
@@ -150,6 +153,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-#
