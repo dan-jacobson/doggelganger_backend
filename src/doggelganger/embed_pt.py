@@ -1,23 +1,20 @@
 import logging
 import time
-from collections.abc import Callable
+import warnings
+from collections.abc import Callable, Sequence
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from typing import Sequence
 
 import jsonlines
 import requests
-from PIL import Image
-from transformers import ViTFeatureExtractor
 import torch
-from torchvision import transforms
+from PIL import Image
 from torch.utils.data import DataLoader, Dataset
+from torchvision import transforms
 from tqdm import tqdm
+from transformers import ViTFeatureExtractor
 
-from doggelganger.utils import load_model
-
-import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -27,13 +24,14 @@ BATCH_SIZE = 16
 NUM_WORKERS = 0
 N = 1000
 
-dinov2 = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
-dinov2.to('mps')
+dinov2 = torch.hub.load("facebookresearch/dinov2", "dinov2_vits14")
+dinov2.to("mps")
 
 IMAGENET_DEFAULT_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_DEFAULT_STD = (0.229, 0.224, 0.225)
 
-# https://github.com/facebookresearch/dinov2/blob/e1277af2ba9496fbadf7aec6eba56e8d882d1e35/dinov2/data/transforms.py#L24 
+
+# https://github.com/facebookresearch/dinov2/blob/e1277af2ba9496fbadf7aec6eba56e8d882d1e35/dinov2/data/transforms.py#L24
 class MaybeToTensor(transforms.ToTensor):
     """
     Convert a ``PIL Image`` or ``numpy.ndarray`` to tensor, or keep as is if already a tensor.
@@ -49,6 +47,7 @@ class MaybeToTensor(transforms.ToTensor):
         if isinstance(pic, torch.Tensor):
             return pic
         return super().__call__(pic)
+
 
 # https://github.com/facebookresearch/dinov2/blob/e1277af2ba9496fbadf7aec6eba56e8d882d1e35/dinov2/data/transforms.py#L55
 def make_dinov2_transforms(
@@ -66,6 +65,7 @@ def make_dinov2_transforms(
         transforms.Normalize(mean=mean, std=std),
     ]
     return transforms.Compose(transforms_list)
+
 
 class DogDataset(Dataset):
     def __init__(
@@ -134,8 +134,6 @@ def load_metadata(metadata_path):
 def main():
     start_time = time.time()
 
-
-
     # Load metadata
     metadata = load_metadata(DATA_PATH)
     logging.info(f"Processing metadata file: {DATA_PATH}")
@@ -145,17 +143,16 @@ def main():
     logging.info(f"Smoketest: Reducing number of dogs to: {len(dogs)}")
 
     # dinov2_transforms = make_dinov2_transforms()
-    feature_extractor = ViTFeatureExtractor.from_pretrained('facebook/dino-vits16')
-    dataset = DogDataset(jsonl_path=dogs) #, transform=dinov2_transforms)
+    feature_extractor = ViTFeatureExtractor.from_pretrained("facebook/dino-vits16")
+    dataset = DogDataset(jsonl_path=dogs)  # , transform=dinov2_transforms)
 
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, num_workers=NUM_WORKERS, collate_fn=collate_fn)
 
     embeddings = []
     with torch.inference_mode():
         for batch in tqdm(dataloader):
-
-            inputs = feature_extractor(images=batch['images'], return_tensors="pt")
-            emb = dinov2(inputs['pixel_values'])
+            inputs = feature_extractor(images=batch["images"], return_tensors="pt")
+            emb = dinov2(inputs["pixel_values"])
             embeddings.append(emb)
 
     end_time = time.time()
@@ -167,8 +164,8 @@ def main():
     logging.info(f"Total duration: {duration:.2f} seconds")
     logging.info(f"Total dogs processed: {len(dataloader)}")
     logging.info(f"Successfully processed: {len(embeddings)}")
-    logging.info(f"Average time per dog: {duration/len(dataloader):.2f} seconds")
-    logging.info(f"Dogs per second: {len(dataloader)/duration:.2f}")
+    logging.info(f"Average time per dog: {duration / len(dataloader):.2f} seconds")
+    logging.info(f"Dogs per second: {len(dataloader) / duration:.2f}")
 
     logging.info("Embeddings processing completed.")
 

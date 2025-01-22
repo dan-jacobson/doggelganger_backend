@@ -1,18 +1,18 @@
+import asyncio
 import logging
 import time
-import asyncio
-import aiohttp
 from collections.abc import Callable
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any
 
+import aiohttp
 import jsonlines
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
-from tqdm.asyncio import tqdm as async_tqdm
 from tqdm import tqdm
+from tqdm.asyncio import tqdm as async_tqdm
 
 from doggelganger.utils import load_model
 
@@ -23,23 +23,22 @@ N = 1000
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-async def fetch_image(session: aiohttp.ClientSession, url: str, semaphore: asyncio.Semaphore) -> Dict[str, Any]:
+
+async def fetch_image(session: aiohttp.ClientSession, url: str, semaphore: asyncio.Semaphore) -> dict[str, Any]:
     """Fetch a single image from a URL."""
     async with semaphore:
         try:
             async with session.get(url) as response:
                 if response.status == 200:
                     data = await response.read()
-                    return {
-                        "success": True,
-                        "image": Image.open(BytesIO(data))
-                    }
+                    return {"success": True, "image": Image.open(BytesIO(data))}
                 return {"success": False, "image": None}
         except Exception as e:
             logging.error(f"Error downloading {url}: {e}")
             return {"success": False, "image": None}
 
-async def fetch_all_images(urls: List[str], max_concurrent: int = 50) -> List[Dict[str, Any]]:
+
+async def fetch_all_images(urls: list[str], max_concurrent: int = 50) -> list[dict[str, Any]]:
     """Fetch multiple images concurrently."""
     semaphore = asyncio.Semaphore(max_concurrent)
     async with aiohttp.ClientSession() as session:
@@ -50,7 +49,7 @@ async def fetch_all_images(urls: List[str], max_concurrent: int = 50) -> List[Di
 class DogDataset(Dataset):
     def __init__(
         self,
-        images_with_metadata: List[Dict[str, Any]],
+        images_with_metadata: list[dict[str, Any]],
         transform: Callable | None = None,
     ):
         """
@@ -70,31 +69,28 @@ class DogDataset(Dataset):
 
 def collate_fn(batch):
     """Collate batch of images and metadata."""
-    return {
-        "images": [item["image"] for item in batch],
-        "metadata": [item["metadata"] for item in batch]
-    }
+    return {"images": [item["image"] for item in batch], "metadata": [item["metadata"] for item in batch]}
+
 
 def load_metadata(metadata_path):
     """Load metadata from either JSON or JSONL file."""
     with jsonlines.open(metadata_path) as reader:
         return list(reader)
 
+
 async def fetch_images_for_metadata(metadata, field_to_embed="primary_photo_cropped"):
     """Fetch all images for the given metadata."""
     urls = [item[field_to_embed] for item in metadata]
     results = await fetch_all_images(urls)
-    
+
     # Combine images with metadata
     images_with_metadata = []
-    for result, meta in zip(results, metadata):
+    for result, meta in zip(results, metadata, strict=False):
         if result["success"]:
-            images_with_metadata.append({
-                "image": result["image"],
-                "metadata": meta
-            })
-    
+            images_with_metadata.append({"image": result["image"], "metadata": meta})
+
     return images_with_metadata
+
 
 def main():
     start_time = time.time()
@@ -116,17 +112,12 @@ def main():
 
     # Create dataset with pre-fetched images
     dataset = DogDataset(images_with_metadata=images_with_metadata)
-    
+
     # Load model
     pipe = load_model(device="mps")
 
     # Process through model
-    dataloader = DataLoader(
-        dataset,
-        batch_size=BATCH_SIZE,
-        num_workers=NUM_WORKERS,
-        collate_fn=collate_fn
-    )
+    dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, num_workers=NUM_WORKERS, collate_fn=collate_fn)
 
     embeddings = []
     for batch in tqdm(dataloader, desc="Processing images"):
@@ -145,8 +136,8 @@ def main():
     logging.info(f"Total duration: {duration:.2f} seconds")
     logging.info(f"Total dogs processed: {len(dataset)}")
     logging.info(f"Successfully processed: {len(embeddings)}")
-    logging.info(f"Average time per dog: {duration/len(dataset):.2f} seconds")
-    logging.info(f"Dogs per second: {len(dataset)/duration:.2f}")
+    logging.info(f"Average time per dog: {duration / len(dataset):.2f} seconds")
+    logging.info(f"Dogs per second: {len(dataset) / duration:.2f}")
 
     logging.info("Embeddings processing completed.")
 
