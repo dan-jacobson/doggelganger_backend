@@ -317,7 +317,7 @@ async def main():
     parser = argparse.ArgumentParser(description="Scrape Petfinder for dogs")
     parser.add_argument("--smoke-test", action="store_true", help="Only scrape first page")
     parser.add_argument(
-        "--output-file", default=f'data/dogs_{datetime.now().strftime("%Y%m%d_%H%M%S")}.jsonl', help="Output file path"
+        "--output-file", default=f"data/dogs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl", help="Output file path"
     )
     parser.add_argument(
         "--log-level",
