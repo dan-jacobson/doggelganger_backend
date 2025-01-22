@@ -130,9 +130,9 @@ async def test_alignment_model_integration(
     mock_valid_link.return_value = True
 
     response = await test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
-    assert (
-        response.status_code == HTTP_200_OK
-    ), f"Unexpected status code: {response.status_code}, content: {response.content}"
+    assert response.status_code == HTTP_200_OK, (
+        f"Unexpected status code: {response.status_code}, content: {response.content}"
+    )
     result = response.json()
     assert "embedding" in result, f"'embedding' not found in response: {result}"
     assert "result" in result, f"'result' not found in response: {result}"
