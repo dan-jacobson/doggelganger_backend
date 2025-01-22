@@ -116,8 +116,8 @@ def main():
     logging.info(f"Total duration: {duration:.2f} seconds")
     logging.info(f"Total dogs processed: {len(dataloader)}")
     logging.info(f"Successfully processed: {len(embeddings)}")
-    logging.info(f"Average time per dog: {duration/len(dataloader):.2f} seconds")
-    logging.info(f"Dogs per second: {len(dataloader)/duration:.2f}")
+    logging.info(f"Average time per dog: {duration / len(dataloader):.2f} seconds")
+    logging.info(f"Dogs per second: {len(dataloader) / duration:.2f}")
 
     logging.info("Embeddings processing completed.")
 

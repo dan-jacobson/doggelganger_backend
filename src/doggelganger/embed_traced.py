@@ -2,18 +2,15 @@ import logging
 import time
 from collections.abc import Callable
 from datetime import datetime
-from io import BytesIO
 from pathlib import Path
 
 import jsonlines
 import requests
-from PIL import Image
 import torch
+from PIL import Image
 from torch.utils.data import DataLoader, Dataset
-from transformers import AutoImageProcessor, AutoModel
 from tqdm import tqdm
-
-from doggelganger.utils import load_model
+from transformers import AutoImageProcessor, AutoModel
 
 DATA_PATH = Path("data/dogs_20250106_105941.jsonl")
 BATCH_SIZE = 16
@@ -50,8 +47,8 @@ class DogDataset(Dataset):
         try:
             response = requests.get(url, stream=True)
             response.raise_for_status()
-            image = Image.open((response.raw))
-        
+            image = Image.open(response.raw)
+
             if self.transform:
                 image = self.transform(image)
 
@@ -63,22 +60,24 @@ class DogDataset(Dataset):
 
 def collate_fn(batch):
     # filter out the images that failed to fetch
-    batch = [b for b in batch if b['image'] is not None]
+    batch = [b for b in batch if b["image"] is not None]
 
     if not batch:
         return None
 
     return {"images": [item["image"] for item in batch], "metadata": [item["metadata"] for item in batch]}
 
+
 def load_metadata(metadata_path):
     """Load metadata from either JSON or JSONL file."""
     with jsonlines.open(metadata_path) as reader:
         return list(reader)
 
+
 def create_traced_model():
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-    processor = AutoImageProcessor.from_pretrained('facebook/dinov2-with-registers-small')
-    model = AutoModel.from_pretrained('facebook/dinov2-with-registers-small').to(device)
+    processor = AutoImageProcessor.from_pretrained("facebook/dinov2-with-registers-small")
+    model = AutoModel.from_pretrained("facebook/dinov2-with-registers-small").to(device)
 
     dummy_image = torch.randn(1, 3, 224, 224).to(device)
 
@@ -89,6 +88,7 @@ def create_traced_model():
         traced_model = torch.jit.trace(model, [dummy_image])
 
     return processor, traced_model, device
+
 
 def main():
     start_time = time.time()
@@ -110,8 +110,7 @@ def main():
     embeddings = []
     with torch.no_grad():
         for batch in tqdm(dataloader):
-
-            inputs = processor(images=batch['images'], return_tensors="pt")
+            inputs = processor(images=batch["images"], return_tensors="pt")
             # inputs = {k: v.to(device) for k,v in inputs.items()}
 
             outputs = traced_model(inputs.pixel_values.to(device))
@@ -130,8 +129,8 @@ def main():
     logging.info(f"Total duration: {duration:.2f} seconds")
     logging.info(f"Total dogs processed: {len(dataloader)}")
     logging.info(f"Successfully processed: {len(embeddings)}")
-    logging.info(f"Average time per dog: {duration/len(dataloader):.2f} seconds")
-    logging.info(f"Dogs per second: {len(dataloader)/duration:.2f}")
+    logging.info(f"Average time per dog: {duration / len(dataloader):.2f} seconds")
+    logging.info(f"Dogs per second: {len(dataloader) / duration:.2f}")
 
     logging.info("Embeddings processing completed.")
 
