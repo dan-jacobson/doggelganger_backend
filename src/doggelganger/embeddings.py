@@ -262,8 +262,8 @@ def process_dogs(metadata_path, drop_existing: bool = False, N: int | bool = Fal
     logging.info(f"Total duration: {duration:.2f} seconds")
     logging.info(f"Total dogs processed: {1000}")
     logging.info(f"Successfully processed: {len(embeddings)}")
-    logging.info(f"Average time per dog: {duration/1000:.2f} seconds")
-    logging.info(f"Dogs per second: {1000/duration:.2f}")
+    logging.info(f"Average time per dog: {duration / 1000:.2f} seconds")
+    logging.info(f"Dogs per second: {1000 / duration:.2f}")
 
     if smoke_test:
         logging.info("SMOKE TEST RESULTS:")
