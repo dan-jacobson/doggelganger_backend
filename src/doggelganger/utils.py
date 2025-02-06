@@ -5,7 +5,7 @@ from pathlib import Path
 import requests
 from huggingface_hub import snapshot_download
 from PIL import Image
-from transformers import pipeline
+from transformers import pipeline, ImageFeatureExtractionPipeline
 
 HUGGINGFACE_MODEL = os.getenv("DOGGELGANGER_HUGGINGFACE_MODEL", "facebook/dinov2-small")
 
@@ -36,7 +36,8 @@ def download_model_weights():
 
 def load_model(device=None):
     """Convenience function to load the image embedding model."""
-    pipe = pipeline(task="image-feature-extraction", model=HUGGINGFACE_MODEL, pool=True, device=device)
+    pipe = pipeline(task="image-feature-extraction", model=HUGGINGFACE_MODEL, pool=True, device=device, use_fast=True)
+    # pipe = ImageFeatureExtractionPipeline(model=HUGGINGFACE_MODEL, pool=True, device=device, use_fast)
 
     return pipe
 
