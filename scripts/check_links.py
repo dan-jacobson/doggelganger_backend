@@ -133,7 +133,7 @@ async def main():
 
     if args.file:
         if not args.file.endswith(".jsonl"):
-            raise ValueError(f"File must be .jsonl. Got: {args.file.split(".")[-1]}")
+            raise ValueError(f"File must be .jsonl. Got: {args.file.split('.')[-1]}")
         dogs = []
         with jsonlines.open(args.file) as reader:
             for dog in reader:

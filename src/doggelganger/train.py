@@ -143,7 +143,7 @@ def print_model_stats(model, X_train, y_train, X_test, y_test):
     )
     if isinstance(model.model, LinearRegression):
         logger.debug(
-            f"  Coefficient shape: {model.model.coef_.shape}\n" f"  Intercept shape: {model.model.intercept_.shape}"
+            f"  Coefficient shape: {model.model.coef_.shape}\n  Intercept shape: {model.model.intercept_.shape}"
         )
 
     # Accuracy check using cosine similarity
