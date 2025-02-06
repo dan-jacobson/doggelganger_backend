@@ -26,7 +26,6 @@ class AsyncDogDataset(Dataset):
     def __init__(
         self,
         metadata: list,
-        transform: Callable | None = None,
         field_to_embed: str = "primary_photo_cropped",
         batch_size: int = 32,
         queue_size: int = 1000,
@@ -38,10 +37,10 @@ class AsyncDogDataset(Dataset):
         self.image_queue = asyncio.Queue(maxsize=queue_size)
         self.processed_queue = Queue()
         self.num_fetchers = num_fetchers
-        # self.transform = transform or transforms.Compose([
-        #     transforms.Resize((224, 224)),
-        #     transforms.ToTensor(),
-        # ])
+        self.total_items = len(metadata)
+        self.fetch_pbar = tqdm(total=self.total_items, desc="Fetching images", position=0)
+        self.embed_pbar = tqdm(total=self.total_items, desc="Processing embeddings", position=1)
+        print("\n")
 
     async def fetch_image(self, session: aiohttp.ClientSession, item: dict) -> tuple[dict, bytes | None]:
         url = item[self.field_to_embed]
@@ -63,54 +62,43 @@ class AsyncDogDataset(Dataset):
                 chunk = self.metadata[i:i + chunk_size]
                 tasks = [self.fetch_image(session, item) for item in chunk]
 
-                for task in tqdm(asyncio.as_completed(tasks), total=len(tasks), desc="Fetching images"):
+                for task in asyncio.as_completed(tasks):
                     item, image_data = await task
                     if image_data:
                         try:
                             image = Image.open(BytesIO(image_data))
                             await self.image_queue.put((item, image))
+                            self.fetch_pbar.update(1)
                         except Exception as e:
                             logging.error(f"Error processing image: {e}")
 
         # stop signal for producer: we've processed all the images
         await self.image_queue.put(None)
-
-    # def process_batch(self, model: torch.nn.Module, batch: torch.Tensor) -> torch.Tensor:
-    #     with torch.no_grad():
-    #         return model(batch)
+        self.fetch_pbar.close()
 
     async def consumer(self, model: torch.nn.Module):
         current_batch_images = []
         current_batch_metadata = []
 
-        processed_count = 0
         while True:
             try:
                 item = await self.image_queue.get()
 
                 if item is None:
                     if current_batch_images:
-                        # batch_tensor = torch.stack(current_batch_images)
-                        # embeddings = self.process_batch(model, batch_tensor)
                         embeddings = model(current_batch_images, batch_size = len(current_batch_images))
                         self.processed_queue.put((embeddings, current_batch_metadata))
-                        processed_count += len(current_batch_images)
-                        logging.info(f"Processed final batch of {len(current_batch_images)} images. Total processed: {processed_count}")
+                        self.embed_pbar.update(len(current_batch_images))
                     break
 
                 metadata, image = item
-                # transformed_image = self.transform(image)
-                # current_batch_images.append(transformed_image)
                 current_batch_images.append(image)
                 current_batch_metadata.append(metadata)
 
                 if len(current_batch_images) >= self.batch_size:
-                    # batch_tensor = torch.stack(current_batch_images)
-                    # embeddings = self.process_batch(model, batch_tensor)
                     embeddings = model(current_batch_images, batch_size=len(current_batch_images))
                     self.processed_queue.put((embeddings, current_batch_metadata))
-                    processed_count += len(current_batch_images)
-                    logging.info(f"Processed batch of {len(current_batch_images)} images. Total processed: {processed_count}")
+                    self.embed_pbar.update(len(current_batch_images))
                     current_batch_images = []
                     current_batch_metadata = []
             
@@ -120,7 +108,7 @@ class AsyncDogDataset(Dataset):
 
         # stop signal for consumer
         self.processed_queue.put(None)
-        logging.info(f"Consumer finished. Total processed: {processed_count}")
+        self.embed_pbar.close()
 
     async def process_all(self, model: torch.nn.Module):
         producer_task = asyncio.create_task(self.producer())
@@ -138,8 +126,7 @@ class AsyncDogDataset(Dataset):
             emb, meta = result
             embeddings.append(emb)
             metadata_processed.extend(meta)
-            logging.info(f"Collected batch. Total embeddings so far: {len(metadata_processed)}")
-        
+
         return embeddings, metadata_processed
 
     def __call__(self, model: torch.nn.Module):
