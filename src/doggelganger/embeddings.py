@@ -1,25 +1,24 @@
 import argparse
 import asyncio
-from dataclasses import asdict
-import aiohttp
+import hashlib
 import logging
 import os
+from dataclasses import asdict
 from io import BytesIO
-from pathlib import Path
-from tqdm import tqdm
 from queue import Queue
 from typing import NamedTuple
-import hashlib
 
+import aiohttp
 import jsonlines
+import vecs
 from dotenv import load_dotenv
-from torch.utils.data import Dataset
 from PIL import Image
+from torch.utils.data import Dataset
 from tqdm import tqdm
 from transformers import Pipeline
-import vecs
 
-from doggelganger.utils import load_model, Animal
+from doggelganger.utils import Animal, load_model
+
 
 # I would've used a dataclass, but it doesn't play nicely with `vecs`
 class Record(NamedTuple):
@@ -102,7 +101,7 @@ class AsyncDogDataset(Dataset):
         ids = [generate_id(m) for m in metadata]
 
         # gotta un-nest the embeddings, and convert the Animal dataclass back to a dict
-        return [Record(id, e[0], asdict(m)) for id, e, m in zip(ids, embeddings, metadata)]
+        return [Record(id, e[0], asdict(m)) for id, e, m in zip(ids, embeddings, metadata, strict=False)]
         
     async def consumer(self, model: Pipeline, db: vecs.Collection = None):
         current_batch_images = []
