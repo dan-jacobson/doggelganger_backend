@@ -43,6 +43,7 @@ train = [
 [project.scripts]
 embed = "doggelganger.embeddings:main"
 train = "doggelganger.train:main"
+refresh-db = "doggelganger.refresh_db:refresh_db"
 
 [build-system]
 requires = ["hatchling"]
