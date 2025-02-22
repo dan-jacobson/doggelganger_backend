@@ -12,9 +12,8 @@ HUGGINGFACE_MODEL = os.getenv("DOGGELGANGER_HUGGINGFACE_MODEL", "facebook/dinov2
 
 @dataclass
 class Animal:
-    """Data class to store relevant animal fields"""
+    """Data class to store animal data"""
 
-    id: str
     name: str
     breed: str
     age: str
