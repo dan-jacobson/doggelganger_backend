@@ -56,6 +56,9 @@ metadata.allow-direct-references = true
 torch = [
   { index = "pytorch-cpu", marker = "platform_machine == 'x86_64'" },
 ]
+torchvision = [
+  { index = "pytorch-cpu", marker = "platform_machine == 'x86_64'" },
+]
 
 [[tool.uv.index]]
 name = "pytorch-cpu"

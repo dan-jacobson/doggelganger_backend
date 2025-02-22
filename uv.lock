@@ -362,7 +362,8 @@ dev = [
     { name = "ruff" },
     { name = "scikit-learn" },
     { name = "selenium" },
-    { name = "torchvision" },
+    { name = "torchvision", version = "0.21.0", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'x86_64'" },
+    { name = "torchvision", version = "0.21.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "platform_machine == 'x86_64'" },
 ]
 train = [
     { name = "llvmlite" },
@@ -399,7 +400,8 @@ dev = [
     { name = "ruff", specifier = ">=0.8.5" },
     { name = "scikit-learn", specifier = ">=1.6.0" },
     { name = "selenium", specifier = ">=4.27.1" },
-    { name = "torchvision", specifier = ">=0.20.1" },
+    { name = "torchvision", marker = "platform_machine != 'x86_64'", specifier = ">=0.20.1" },
+    { name = "torchvision", marker = "platform_machine == 'x86_64'", specifier = ">=0.20.1", index = "https://download.pytorch.org/whl/cpu" },
 ]
 train = [
     { name = "llvmlite", specifier = ">=0.43.0" },
@@ -2277,11 +2279,13 @@ wheels = [
 name = "torchvision"
 version = "0.21.0"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "platform_machine != 'x86_64'",
+]
 dependencies = [
-    { name = "numpy" },
-    { name = "pillow" },
+    { name = "numpy", marker = "platform_machine != 'x86_64'" },
+    { name = "pillow", marker = "platform_machine != 'x86_64'" },
     { name = "torch", version = "2.6.0", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'x86_64'" },
-    { name = "torch", version = "2.6.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "platform_machine == 'x86_64'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6e/1b/28f527b22d5e8800184d0bc847f801ae92c7573a8c15979d92b7091c0751/torchvision-0.21.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:97a5814a93c793aaf0179cfc7f916024f4b63218929aee977b645633d074a49f", size = 1784140 },
@@ -2292,6 +2296,26 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/cb/4c/99880813aa50e64447fb1c4c6c804a793d2d78f7f7c53e99ddee7fa175fa/torchvision-0.21.0-cp313-cp313-manylinux1_x86_64.whl", hash = "sha256:084ac3f5a1f50c70d630a488d19bf62f323018eae1b1c1232f2b7047d3a7b76d", size = 7238714 },
     { url = "https://files.pythonhosted.org/packages/0b/2d/3c3ee10608310a395594aac7da8640372ed79c6585910ccae6919658dcdc/torchvision-0.21.0-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:5045a3a5f21ec3eea6962fa5f2fa2d4283f854caec25ada493fcf4aab2925467", size = 2281252 },
     { url = "https://files.pythonhosted.org/packages/ed/b4/fc60e3bc003879d3de842baea258fffc3586f4b49cd435a5ba1e09c33315/torchvision-0.21.0-cp313-cp313-win_amd64.whl", hash = "sha256:9147f5e096a9270684e3befdee350f3cacafd48e0c54ab195f45790a9c146d67", size = 1560519 },
+]
+
+[[package]]
+name = "torchvision"
+version = "0.21.0+cpu"
+source = { registry = "https://download.pytorch.org/whl/cpu" }
+resolution-markers = [
+    "platform_machine == 'x86_64' and sys_platform == 'darwin'",
+    "platform_machine == 'x86_64' and sys_platform != 'darwin'",
+]
+dependencies = [
+    { name = "numpy", marker = "platform_machine == 'x86_64'" },
+    { name = "pillow", marker = "platform_machine == 'x86_64'" },
+    { name = "torch", version = "2.6.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "platform_machine == 'x86_64'" },
+]
+wheels = [
+    { url = "https://download.pytorch.org/whl/cpu/torchvision-0.21.0%2Bcpu-cp312-cp312-linux_x86_64.whl", hash = "sha256:d6874431e678ba107b60a83f255c33f3755f06bad587b1b919aa514ec325dcd8" },
+    { url = "https://download.pytorch.org/whl/cpu/torchvision-0.21.0%2Bcpu-cp312-cp312-win_amd64.whl", hash = "sha256:667f3d983240f41eaff5a3f78bdcbc144473978a37cd15a4db6dad92b1e8b6f0" },
+    { url = "https://download.pytorch.org/whl/cpu/torchvision-0.21.0%2Bcpu-cp313-cp313-linux_x86_64.whl", hash = "sha256:a76478c0f547e032116282d61a5a7d943142cf040f6c7d97941d7e96813c4c14" },
+    { url = "https://download.pytorch.org/whl/cpu/torchvision-0.21.0%2Bcpu-cp313-cp313-win_amd64.whl", hash = "sha256:883f8668b923781f1152a20d75e75ad94a4f1016328d86a7b889006a9156fb14" },
 ]
 
 [[package]]
