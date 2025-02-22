@@ -26,6 +26,7 @@ class Record(NamedTuple):
     embedding: list
     metadata: dict
 
+
 load_dotenv()
 DB_CONNECTION = os.getenv("SUPABASE_DB")
 DOG_EMBEDDINGS_TABLE = os.getenv("DOG_EMBEDDINGS_TABLE")
@@ -37,10 +38,12 @@ def load_metadata(metadata_path) -> list[Animal]:
     with jsonlines.open(metadata_path) as reader:
         return [Animal(**data) for data in reader]
 
+
 def generate_id(metadata: Animal):
     # Create a unique ID based on the dog's adoption link
     id_string = f"{metadata.url}"
     return hashlib.md5(id_string.encode()).hexdigest()
+
 
 class AsyncDogDataset(Dataset):
     def __init__(
@@ -49,7 +52,7 @@ class AsyncDogDataset(Dataset):
         field_to_embed: str = "primary_photo_cropped",
         batch_size: int = 32,
         queue_size: int = 1000,
-        num_fetchers: int = 8
+        num_fetchers: int = 8,
     ):
         self.metadata = metadata
         self.field_to_embed = field_to_embed
@@ -79,7 +82,7 @@ class AsyncDogDataset(Dataset):
         async with aiohttp.ClientSession() as session:
             chunk_size = 1000
             for i in range(0, len(self.metadata), chunk_size):
-                chunk = self.metadata[i:i + chunk_size]
+                chunk = self.metadata[i : i + chunk_size]
                 tasks = [self.fetch_image(session, item) for item in chunk]
 
                 for task in asyncio.as_completed(tasks):
@@ -97,12 +100,12 @@ class AsyncDogDataset(Dataset):
         self.fetch_pbar.close()
 
     def generate_records(self, model: Pipeline, images, metadata: list[Animal]) -> list[Record]:
-        embeddings = model(images, batch_size=len(images)) 
+        embeddings = model(images, batch_size=len(images))
         ids = [generate_id(m) for m in metadata]
 
         # gotta un-nest the embeddings, and convert the Animal dataclass back to a dict
         return [Record(id, e[0], asdict(m)) for id, e, m in zip(ids, embeddings, metadata, strict=False)]
-        
+
     async def consumer(self, model: Pipeline, db: vecs.Collection = None):
         current_batch_images = []
         current_batch_metadata = []
@@ -116,7 +119,7 @@ class AsyncDogDataset(Dataset):
                 except Exception as e:
                     logging.error(f"Failed to upsert records: {e}")
             self.embed_pbar.update(len(records))
-            return [],[]
+            return [], []
 
         while True:
             try:
@@ -134,11 +137,9 @@ class AsyncDogDataset(Dataset):
 
                 if len(current_batch_images) >= self.batch_size:
                     current_batch_images, current_batch_metadata = await handle_batch(
-                        current_batch_images,
-                        current_batch_metadata,
-                        db
+                        current_batch_images, current_batch_metadata, db
                     )
-            
+
             except Exception as e:
                 logging.error(f"Error in consumer: {e}")
                 continue
@@ -167,6 +168,7 @@ class AsyncDogDataset(Dataset):
         """Makes the dataset callable, trying to make this flow a bit more pythonic"""
         return asyncio.run(self.process_all(model, db))
 
+
 def process_dogs(metadata_path, drop_existing: bool = False, N: int | bool = False, smoke_test: bool = False):
     pipe = load_model(device="mps")
 
@@ -181,7 +183,7 @@ def process_dogs(metadata_path, drop_existing: bool = False, N: int | bool = Fal
         # we're not going to touch the DB so we set to None
         dogs = None
     else:
-        if N: 
+        if N:
             metadata = metadata[:N]
             logging.debug(f"--N flag set, number of dogs to process: {N}")
         vx = vecs.create_client(DB_CONNECTION)
@@ -198,7 +200,6 @@ def process_dogs(metadata_path, drop_existing: bool = False, N: int | bool = Fal
         # because it's currently the best performing, and we can create the index *before* adding records.
         if not dogs.index:
             dogs.create_index(method=vecs.IndexMethod.hnsw)
-
 
     # I was tryna make this feel pythonic, and dataset(model) was as good as I could come up with
     dataset = AsyncDogDataset(metadata=metadata, batch_size=BATCH_SIZE)

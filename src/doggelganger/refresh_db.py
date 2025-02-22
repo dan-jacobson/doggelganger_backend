@@ -1,10 +1,11 @@
 import asyncio
 import logging
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
-from doggelganger.scrape import PetfinderScraper
 from doggelganger.embeddings import process_dogs
+from doggelganger.scrape import PetfinderScraper
+
 
 def refresh_db():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -20,6 +21,7 @@ def refresh_db():
     process_dogs(output_file, drop_existing=True, N=50_000)
 
     logging.fino("Dog database update complete!")
+
 
 if __name__ == "__main__":
     refresh_db()
