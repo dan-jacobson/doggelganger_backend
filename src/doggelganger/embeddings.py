@@ -1,60 +1,176 @@
 import argparse
+import asyncio
 import hashlib
-import json
 import logging
 import os
-from concurrent.futures import ProcessPoolExecutor, as_completed
-from functools import partial
-from pathlib import Path
+from dataclasses import asdict
+from io import BytesIO
+from queue import Queue
+from typing import NamedTuple
 
+import aiohttp
 import jsonlines
 import vecs
 from dotenv import load_dotenv
+from PIL import Image
+from torch.utils.data import Dataset
 from tqdm import tqdm
+from transformers import Pipeline
 
-from doggelganger.utils import get_embedding, load_model
+from doggelganger.utils import Animal, load_model
+
+
+# I would've used a dataclass, but it doesn't play nicely with `vecs`
+class Record(NamedTuple):
+    id: str
+    embedding: list
+    metadata: dict
+
 
 load_dotenv()
 DB_CONNECTION = os.getenv("SUPABASE_DB")
 DOG_EMBEDDINGS_TABLE = os.getenv("DOG_EMBEDDINGS_TABLE")
+BATCH_SIZE = 32
 
 
-def generate_id(metadata):
+def load_metadata(metadata_path) -> list[Animal]:
+    """Load metadata from either JSON or JSONL file."""
+    with jsonlines.open(metadata_path) as reader:
+        return [Animal(**data) for data in reader]
+
+
+def generate_id(metadata: Animal):
     # Create a unique ID based on the dog's adoption link
-    id_string = f"{metadata['url']}"
+    id_string = f"{metadata.url}"
     return hashlib.md5(id_string.encode()).hexdigest()
 
 
-def process_dog(dog, pipe):
-    try:
-        # Get embedding from primary photo
-        embedding = get_embedding(dog["primary_photo_cropped"], pipe)
+class AsyncDogDataset(Dataset):
+    def __init__(
+        self,
+        metadata: list,
+        field_to_embed: str = "primary_photo_cropped",
+        batch_size: int = 32,
+        queue_size: int = 1000,
+        num_fetchers: int = 8,
+    ):
+        self.metadata = metadata
+        self.field_to_embed = field_to_embed
+        self.batch_size = batch_size
+        self.image_queue = asyncio.Queue(maxsize=queue_size)
+        self.processed_queue = Queue()
+        self.num_fetchers = num_fetchers
+        self.total_items = len(metadata)
+        self.fetch_pbar = tqdm(total=self.total_items, desc="Fetching images", position=0)
+        self.embed_pbar = tqdm(total=self.total_items, desc="Processing embeddings", position=1)
+        print("\n")
 
-        if embedding is not None:
-            # Generate ID
-            dog_id = generate_id(dog)
-            return dog_id, embedding, dog
-        else:
-            logging.error(f"Failed to get embedding for dog: {dog['name']}")
-            return None
-    except Exception as e:
-        logging.error(f"Error processing dog {dog['name']}: {str(e)}")
-        return None
+    async def fetch_image(self, session: aiohttp.ClientSession, item: Animal) -> tuple[dict, bytes | None]:
+        url = getattr(item, self.field_to_embed)
+        try:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.read()
+                    return item, data
+                logging.warning(f"Failed to fetch {url}: Status {response.status}")
+                return item, None
+        except Exception as e:
+            logging.error(f"Error fetching {url}: {e}")
+            return item, None
 
+    async def producer(self):
+        async with aiohttp.ClientSession() as session:
+            chunk_size = 1000
+            for i in range(0, len(self.metadata), chunk_size):
+                chunk = self.metadata[i : i + chunk_size]
+                tasks = [self.fetch_image(session, item) for item in chunk]
 
-def load_metadata(metadata_path):
-    """Load metadata from either JSON or JSONL file."""
-    suffix = Path(metadata_path).suffix.lower()
-    if suffix == ".jsonl":
-        with jsonlines.open(metadata_path) as reader:
-            return list(reader)
-    else:  # Assume .json for all other cases
-        with open(metadata_path) as f:
-            return json.load(f)
+                for task in asyncio.as_completed(tasks):
+                    item, image_data = await task
+                    if image_data:
+                        try:
+                            image = Image.open(BytesIO(image_data))
+                            await self.image_queue.put((item, image))
+                            self.fetch_pbar.update(1)
+                        except Exception as e:
+                            logging.error(f"Error processing image: {e}")
+
+        # stop signal for producer: we've processed all the images
+        await self.image_queue.put(None)
+        self.fetch_pbar.close()
+
+    def generate_records(self, model: Pipeline, images, metadata: list[Animal]) -> list[Record]:
+        embeddings = model(images, batch_size=len(images))
+        ids = [generate_id(m) for m in metadata]
+
+        # gotta un-nest the embeddings, and convert the Animal dataclass back to a dict
+        return [Record(id, e[0], asdict(m)) for id, e, m in zip(ids, embeddings, metadata, strict=False)]
+
+    async def consumer(self, model: Pipeline, db: vecs.Collection = None):
+        current_batch_images = []
+        current_batch_metadata = []
+
+        async def handle_batch(images, metadata, db):
+            records = self.generate_records(model, images, metadata)
+            self.processed_queue.put(records)
+            if db is not None:
+                try:
+                    db.upsert(records)
+                except Exception as e:
+                    logging.error(f"Failed to upsert records: {e}")
+            self.embed_pbar.update(len(records))
+            return [], []
+
+        while True:
+            try:
+                item = await self.image_queue.get()
+
+                # Stop signal, process whatever we have left
+                if item is None:
+                    if current_batch_images:
+                        await handle_batch(current_batch_images, current_batch_metadata, db)
+                    break
+
+                metadata, image = item
+                current_batch_images.append(image)
+                current_batch_metadata.append(metadata)
+
+                if len(current_batch_images) >= self.batch_size:
+                    current_batch_images, current_batch_metadata = await handle_batch(
+                        current_batch_images, current_batch_metadata, db
+                    )
+
+            except Exception as e:
+                logging.error(f"Error in consumer: {e}")
+                continue
+
+        # stop signal for consumer
+        self.processed_queue.put(None)
+        self.embed_pbar.close()
+
+    async def process_all(self, model: Pipeline, db: vecs.Collection = None):
+        producer_task = asyncio.create_task(self.producer())
+        consumer_task = asyncio.create_task(self.consumer(model, db))
+
+        await asyncio.gather(producer_task, consumer_task)
+
+        records = []
+
+        while True:
+            result = self.processed_queue.get()
+            if result is None:
+                break
+            records += result
+
+        return records
+
+    def __call__(self, model: Pipeline, db: vecs.Collection = None):
+        """Makes the dataset callable, trying to make this flow a bit more pythonic"""
+        return asyncio.run(self.process_all(model, db))
 
 
 def process_dogs(metadata_path, drop_existing: bool = False, N: int | bool = False, smoke_test: bool = False):
-    pipe = load_model(device="cpu")
+    pipe = load_model(device="mps")
 
     # Load metadata
     metadata = load_metadata(metadata_path)
@@ -62,67 +178,41 @@ def process_dogs(metadata_path, drop_existing: bool = False, N: int | bool = Fal
     logging.debug(f"Number of dogs found in file: {len(metadata)}")
 
     if smoke_test:
-        metadata = metadata[:10]
+        metadata = metadata[:1000]
         logging.info(f"SMOKE TEST: Processing first {len(metadata)} dogs only")
+        # we're not going to touch the DB so we set to None
+        dogs = None
+    else:
+        if N:
+            metadata = metadata[:N]
+            logging.debug(f"--N flag set, number of dogs to process: {N}")
+        vx = vecs.create_client(DB_CONNECTION)
 
-    vx = vecs.create_client(DB_CONNECTION)
+        if drop_existing:
+            vx.delete_collection(DOG_EMBEDDINGS_TABLE)
+            logging.info(f"Existing '{DOG_EMBEDDINGS_TABLE}' collection dropped.")
 
-    if drop_existing:
-        vx.delete_collection(DOG_EMBEDDINGS_TABLE)
-        logging.info(f"Existing '{DOG_EMBEDDINGS_TABLE}' collection dropped.")
-
-    dogs = vx.get_or_create_collection(
-        name=DOG_EMBEDDINGS_TABLE,
-        dimension=pipe.model.config.hidden_size,
-    )
-    # if we dropped and recreated the table, we need to make an index. we choose ivfflat
-    # because it's currently the best performing, and we can create the index *before* adding records.
-    if not dogs.index:
-        dogs.create_index(method=vecs.IndexMethod.hnsw)
-
-    # Process dogs in parallel
-    process_dog_partial = partial(process_dog, pipe=pipe)
-
-    batch_size = 100
-    total_processed = 0
-    successfully_pushed = 0
-
-    if len(metadata) < N:
-        N = len(metadata)
-        logging.warning(
-            f"--N flag set to {N}, but only {len(metadata)} dogs found in file. Processing {len(metadata)} dogs."
+        dogs = vx.get_or_create_collection(
+            name=DOG_EMBEDDINGS_TABLE,
+            dimension=pipe.model.config.hidden_size,
         )
+        # if we dropped and recreated the table, we need to make an index. we choose ivfflat
+        # because it's currently the best performing, and we can create the index *before* adding records.
+        if not dogs.index:
+            dogs.create_index(method=vecs.IndexMethod.hnsw)
 
-    if not N:
-        N = len(metadata)
-
-    with ProcessPoolExecutor() as executor:
-        progress_bar = tqdm(range(0, N, batch_size), desc="Processing dogs")
-        for i in progress_bar:
-            batch = metadata[i : i + batch_size]
-            futures = [executor.submit(process_dog_partial, dog) for dog in batch]
-
-            records = []
-            for future in as_completed(futures):
-                result = future.result()
-                if result:
-                    records.append(result)
-                    successfully_pushed += 1
-                total_processed += 1
-
-            if records and not smoke_test:
-                dogs.upsert(records)
-
-            progress_bar.set_postfix({"success": successfully_pushed, "total": total_processed})
+    # I was tryna make this feel pythonic, and dataset(model) was as good as I could come up with
+    dataset = AsyncDogDataset(metadata=metadata, batch_size=BATCH_SIZE)
+    records = dataset(pipe, db=dogs)
 
     if smoke_test:
         logging.info("SMOKE TEST RESULTS:")
-        logging.info(f"Total dogs processed: {total_processed}")
-        logging.info(f"Successfully generated embeddings: {successfully_pushed}")
+        logging.info(f"Total dogs processed: {len(metadata)}")
+        logging.info(f"Successfully generated embeddings: {len(records)}")
         logging.info("No data was written to the database")
     else:
-        logging.info(f"Total dogs processed: {total_processed}")
-        logging.info(f"Successfully pushed to Supabase: {successfully_pushed}")
+        logging.info(f"Total dogs processed: {len(metadata)}")
+        logging.info(f"Successfully pushed to Supabase: {len(records)}")
 
 
 def main():
@@ -135,7 +225,6 @@ def main():
     )
     args = parser.parse_args()
 
-    # Set up logging
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
     process_dogs(args.file, drop_existing=args.drop, smoke_test=args.smoke_test, N=int(args.N))

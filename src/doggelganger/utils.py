@@ -12,9 +12,8 @@ HUGGINGFACE_MODEL = os.getenv("DOGGELGANGER_HUGGINGFACE_MODEL", "facebook/dinov2
 
 @dataclass
 class Animal:
-    """Data class to store relevant animal fields"""
+    """Data class to store animal data"""
 
-    id: str
     name: str
     breed: str
     age: str
@@ -36,7 +35,8 @@ def download_model_weights():
 
 def load_model(device=None):
     """Convenience function to load the image embedding model."""
-    pipe = pipeline(task="image-feature-extraction", model=HUGGINGFACE_MODEL, pool=True, device=device)
+    pipe = pipeline(task="image-feature-extraction", model=HUGGINGFACE_MODEL, pool=True, device=device, use_fast=True)
+    # pipe = ImageFeatureExtractionPipeline(model=HUGGINGFACE_MODEL, pool=True, device=device, use_fast)
 
     return pipe
 

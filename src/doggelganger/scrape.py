@@ -130,7 +130,6 @@ class PetfinderScraper:
         animal = result.get("animal")
         location = result.get("location")
         return Animal(
-            id=animal.get("id", ""),
             name=animal.get("name", ""),
             breed=animal.get("breeds_label", "Unknown"),
             age=animal.get("age", ""),

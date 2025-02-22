@@ -18,6 +18,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "aiohttp>=3.11.11",
+    "hatchling>=1.27.0",
     "ipykernel>=6.29.5",
     "pytest>=8.3.4",
     "pytest-asyncio>=0.25.2",
@@ -27,7 +28,8 @@ dev = [
     "ruff>=0.8.5",
     "scikit-learn>=1.6.0",
     "selenium>=4.27.1",
-    "xgboost>=2.1.3",
+    "torchvision>=0.20.1",
+#    "xgboost>=2.1.3",
 ]
 train = [
     "llvmlite>=0.43.0",
@@ -41,6 +43,7 @@ train = [
 [project.scripts]
 embed = "doggelganger.embeddings:main"
 train = "doggelganger.train:main"
+refresh-db = "doggelganger.refresh_db:refresh_db"
 
 [build-system]
 requires = ["hatchling"]
@@ -51,6 +54,9 @@ metadata.allow-direct-references = true
 
 [tool.uv.sources]
 torch = [
+  { index = "pytorch-cpu", marker = "platform_machine == 'x86_64'" },
+]
+torchvision = [
   { index = "pytorch-cpu", marker = "platform_machine == 'x86_64'" },
 ]
 
