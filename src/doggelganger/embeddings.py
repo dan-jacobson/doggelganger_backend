@@ -32,7 +32,6 @@ DB_CONNECTION = os.getenv("SUPABASE_DB")
 DOG_EMBEDDINGS_TABLE = os.getenv("DOG_EMBEDDINGS_TABLE")
 BATCH_SIZE = 32
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 def load_metadata(metadata_path) -> list[Animal]:
     """Load metadata from either JSON or JSONL file."""
@@ -98,7 +97,7 @@ class AsyncDogDataset(Dataset):
         await self.image_queue.put(None)
         self.fetch_pbar.close()
 
-    def process_batch(self, model: Pipeline, images, metadata: list[Animal]) -> list[Record]:
+    def generate_records(self, model: Pipeline, images, metadata: list[Animal]) -> list[Record]:
         embeddings = model(images, batch_size=len(images)) 
         ids = [generate_id(m) for m in metadata]
 
@@ -109,6 +108,17 @@ class AsyncDogDataset(Dataset):
         current_batch_images = []
         current_batch_metadata = []
 
+        async def handle_batch(images, metadata, db):
+            records = self.generate_records(model, images, metadata)
+            self.processed_queue.put(records)
+            if db is not None:
+                try:
+                    db.upsert(records)
+                except Exception as e:
+                    logging.error(f"Failed to upsert records: {e}")
+            self.embed_pbar.update(len(records))
+            return [],[]
+
         while True:
             try:
                 item = await self.image_queue.get()
@@ -116,11 +126,7 @@ class AsyncDogDataset(Dataset):
                 # Stop signal, process whatever we have left
                 if item is None:
                     if current_batch_images:
-                        records = self.process_batch(model, current_batch_images, current_batch_metadata)
-                        self.processed_queue.put(records)
-                        if db:
-                            db.upsert(records)
-                        self.embed_pbar.update(len(records))
+                        await handle_batch(current_batch_images, current_batch_metadata, db)
                     break
 
                 metadata, image = item
@@ -128,13 +134,11 @@ class AsyncDogDataset(Dataset):
                 current_batch_metadata.append(metadata)
 
                 if len(current_batch_images) >= self.batch_size:
-                    records = self.process_batch(model, current_batch_images, current_batch_metadata)
-                    self.processed_queue.put(records)
-                    if db:
-                        db.upsert(records)
-                    self.embed_pbar.update(len(records))
-                    current_batch_images = []
-                    current_batch_metadata = []
+                    current_batch_images, current_batch_metadata = await handle_batch(
+                        current_batch_images,
+                        current_batch_metadata,
+                        db
+                    )
             
             except Exception as e:
                 logging.error(f"Error in consumer: {e}")
@@ -220,6 +224,8 @@ def main():
         "--smoke-test", action="store_true", help="Process first 10 dogs only and print results without writing to DB"
     )
     args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
     process_dogs(args.file, drop_existing=args.drop, smoke_test=args.smoke_test, N=int(args.N))
     logging.info("Embeddings processing completed.")
