@@ -1,10 +1,9 @@
-import asyncio
 import json
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
-from aiohttp import ClientResponse, ClientSession
+from aiohttp import ClientSession
 
 from doggelganger.scrape import Animal, PaginationInfo, PetfinderScraper
 
@@ -96,8 +95,11 @@ async def test_parse_animal_data(mock_animal_data):
 
 
 @pytest.mark.asyncio
-async def test_fetch_page():
+@patch('doggelganger.scrape.PetfinderScraper.check_token')
+async def test_fetch_page(mock_check_token):
     """Test fetching a page of results"""
+    mock_check_token.return_value = None
+
     scraper = PetfinderScraper()
     scraper.token = "test_token"
     scraper.token_timestamp = 1000000000  # Set a timestamp that won't expire
@@ -161,10 +163,12 @@ async def test_fetch_page():
 
 
 @pytest.mark.asyncio
-async def test_fetch_page_error():
+@patch('doggelganger.scrape.PetfinderScraper.get_new_token')
+async def test_fetch_page_error(mock_get_token):
     """Test handling errors when fetching a page"""
+    mock_get_token.return_value = "test_token"
+
     scraper = PetfinderScraper()
-    scraper.token = "test_token"
     scraper.token_timestamp = 1000000000
     
     # Create a mock session that returns an error
