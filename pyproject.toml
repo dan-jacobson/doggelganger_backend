@@ -94,3 +94,4 @@ env = [
     "D:DOGGELGANGER_ALIGNMENT_WEIGHTS=prodv0.2.pt"
 ]
 asyncio_mode = "auto"
+aysncio_timeout = 10
