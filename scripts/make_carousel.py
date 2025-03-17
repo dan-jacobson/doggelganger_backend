@@ -2,10 +2,19 @@
 
 import argparse
 import json
+import logging
 import random
 import re
 import urllib.request
 from pathlib import Path
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
 
 def create_safe_filename(entry):
@@ -67,7 +76,7 @@ def download_image(url: str, output_dir: Path, entry: dict) -> Path:
 
 def main():
     args = parse_args()
-    print(f"Starting process with N={args.N}")
+    logger.info(f"Starting process with N={args.N}")
 
     # Delete and recreate output directory
     output_dir = Path("data/carousel")
@@ -79,7 +88,7 @@ def main():
 
     # Read entries
     entries = read_jsonl(args.file)
-    print(f"Read {len(entries)} entries from {args.file}")
+    logger.info(f"Read {len(entries)} entries from {args.file}")
     random.shuffle(entries)  # Shuffle in place
 
     # Process entries until we get N successful downloads
@@ -90,21 +99,21 @@ def main():
         entry = entries[entry_index]
         entry_index += 1
 
-        print(f"Processing entry {entry_index}/{len(entries)}")
+        logger.info(f"Processing entry {entry_index}/{len(entries)}")
         if "primary_photo" in entry:
             url = entry["primary_photo"]
-            print(f"Found photo URL: {url}")
+            logger.debug(f"Found photo URL: {url}")
             try:
                 # Download the image with entry data
                 local_path = download_image(url, output_dir, entry)
-                print(f"Successfully downloaded to {local_path}")
+                logger.info(f"Successfully downloaded to {local_path}")
 
                 # Update the entry with local path
                 entry["primary_photo"] = local_path.name
                 processed_entries.append(entry)
-                print(f"Progress: {len(processed_entries)}/{args.N} images")
+                logger.info(f"Progress: {len(processed_entries)}/{args.N} images")
             except Exception as e:
-                print(f"Error processing {url}: {e}")
+                logger.error(f"Error processing {url}: {e}")
                 continue
 
     # Save processed entries
