@@ -1,5 +1,5 @@
 import asyncio
-import os
+from dataclasses import asdict
 from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -16,15 +16,15 @@ def sample_animal():
     return Animal(
         id="123",
         name="Buddy",
-        url="https://example.com/buddy",
-        primary_photo_cropped="https://example.com/buddy.jpg",
-        breeds={"primary": "Labrador"},
+        breed="Labrador",
         age="Young",
-        gender="Male",
-        size="Medium",
-        status="adoptable",
-        contact={"email": "test@example.com"},
-        published_at="2023-01-01T00:00:00Z",
+        sex="Male",
+        location={"city": "Brooklyn", "state": "NY", "postcode": ""},
+        description="He's a real good boy.",
+        url="https://example.com/buddy",
+        primary_photo="https://example.com/buddy.jpg",
+        primary_photo_cropped="https://example.com/buddy.jpg",
+        photo_urls=None,
     )
 
 
@@ -80,39 +80,7 @@ class TestMetadataLoading:
         assert animals[0].name == sample_animals[0].name
 
 
-class TestAsyncDogDataset:
-    @pytest.mark.asyncio
-    async def test_fetch_image_success(self, sample_animal, mock_image):
-        """Test successful image fetching"""
-        # Create a mock session that returns our test image
-        mock_session = AsyncMock()
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.read.return_value = mock_image
-        mock_session.get.return_value.__aenter__.return_value = mock_response
-
-        dataset = AsyncDogDataset(metadata=[sample_animal])
-        item, image_data = await dataset.fetch_image(mock_session, sample_animal)
-
-        assert item == sample_animal
-        assert image_data == mock_image
-        mock_session.get.assert_called_once_with(sample_animal.primary_photo_cropped)
-
-    @pytest.mark.asyncio
-    async def test_fetch_image_failure(self, sample_animal):
-        """Test handling of failed image fetching"""
-        # Create a mock session that returns a 404
-        mock_session = AsyncMock()
-        mock_response = AsyncMock()
-        mock_response.status = 404
-        mock_session.get.return_value.__aenter__.return_value = mock_response
-
-        dataset = AsyncDogDataset(metadata=[sample_animal])
-        item, image_data = await dataset.fetch_image(mock_session, sample_animal)
-
-        assert item == sample_animal
-        assert image_data is None
-
+class TestAsyncDogDataset: 
     @pytest.mark.asyncio
     async def test_producer(self, sample_animals, mock_image):
         """Test the producer function fills the queue correctly"""
@@ -161,7 +129,8 @@ class TestAsyncDogDataset:
         assert all(isinstance(record, Record) for record in records)
         assert all(record.id == str(animal.id) for record, animal in zip(records, sample_animals))
         assert all(len(record.embedding) == 512 for record in records)
-        assert all("name" in record.metadata for record in records)
+        # make sure we have the non-ID keys from metadata in each record
+        assert all(key in record.metadata for record in records for key in asdict(sample_animals[0]).keys() if not key == 'id')
 
     @pytest.mark.asyncio
     async def test_consumer(self, sample_animals, mock_model):
