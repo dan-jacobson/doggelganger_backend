@@ -39,12 +39,6 @@ def load_metadata(metadata_path) -> list[Animal]:
         return [Animal(**data) for data in reader]
 
 
-def generate_id(metadata: Animal):
-    # Create a unique ID based on the dog's adoption link
-    id_string = f"{metadata.url}"
-    return hashlib.md5(id_string.encode()).hexdigest()
-
-
 class AsyncDogDataset(Dataset):
     def __init__(
         self,
@@ -101,10 +95,16 @@ class AsyncDogDataset(Dataset):
 
     def generate_records(self, model: Pipeline, images, metadata: list[Animal]) -> list[Record]:
         embeddings = model(images, batch_size=len(images))
-        ids = [generate_id(m) for m in metadata]
 
-        # gotta un-nest the embeddings, and convert the Animal dataclass back to a dict
-        return [Record(id, e[0], asdict(m)) for id, e, m in zip(ids, embeddings, metadata, strict=False)]
+        # gotta un-nest the embeddings
+        embeddings = [e[0] for e in embeddings]
+
+        metadata = [asdict(m) for m in metadata]
+
+        # pop out ids, make them strings for `vecs`
+        ids = [str(m.pop('id')) for m in metadata] 
+
+        return [Record(id, e, m) for id, e, m in zip(ids, embeddings, metadata, strict=False)]
 
     async def consumer(self, model: Pipeline, db: vecs.Collection = None):
         current_batch_images = []

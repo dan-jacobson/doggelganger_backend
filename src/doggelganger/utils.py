@@ -14,7 +14,7 @@ HUGGINGFACE_MODEL = os.getenv("DOGGELGANGER_HUGGINGFACE_MODEL", "facebook/dinov2
 class Animal:
     """Data class to store animal data"""
 
-    id: int
+    id: str #Petfinder assigns int IDs. Unfortunately our database client `vecs` coerces them to varchar. So we store as str for consistency
     name: str
     breed: str
     age: str
