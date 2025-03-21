@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import io
 import logging
 import os
@@ -21,8 +22,17 @@ from PIL import Image
 from vecs import Client, Collection
 
 from doggelganger.models import model_classes
-from doggelganger.utils import get_embedding, valid_link
+from doggelganger.utils import get_embedding, valid_link, HUGGINGFACE_MODEL
 from doggelganger.utils import load_model as load_embedding_pipeline
+
+@dataclass
+class Match:
+    dog_id: str
+    dog_embedding: list[float]
+    selfie_embedding: list[float]
+    embedding_model: str
+    # timestamp:
+
 
 load_dotenv()
 DOGGELGANGER_DB_CONNECTION = os.getenv("SUPABASE_DB")
@@ -90,14 +100,10 @@ async def embed_image(
             )
         logger.debug(f"Image size: {img.size}")
 
-        # Extract features
         embedding = get_embedding(img, pipe=pipe)
-
-        # Align embedding
         aligned_embedding = alignment_model.predict(embedding)
 
-        # Query similar images
-        results = app.state.dogs.query(
+        results = state.dogs.query(
             data=aligned_embedding,
             limit=3,  # Increase limit to have more options to check
             include_metadata=True,
@@ -110,7 +116,7 @@ async def embed_image(
                 status_code=HTTP_404_NOT_FOUND,
             )
 
-        # Find the first result with a valid adoption link
+        # Find the first result with an image that works 
         valid_result = None
         for i, (id, score, metadata) in enumerate(results):
             url = metadata["primary_photo"]
@@ -142,6 +148,20 @@ async def embed_image(
 
     except Exception as e:
         return Response(content={"error": str(e)}, status_code=HTTP_500_INTERNAL_SERVER_ERROR)
+
+@post('/log-match')
+async def log_match(data: dict):
+    data = data.read()
+    dog_id, user_embedding = data['dogId'], data['userEmbedding']
+
+    # look up dog image using ID
+    # dog = psychopg2(dog_id)
+    dog_embedding = pipe(dog['primary_photo'])
+
+    # write to db
+    # db.write(dog_embedding, user_embedding)
+    
+    
 
 
 app = Litestar(

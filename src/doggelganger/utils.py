@@ -7,8 +7,7 @@ from huggingface_hub import snapshot_download
 from PIL import Image
 from transformers import pipeline
 
-HUGGINGFACE_MODEL = os.getenv("DOGGELGANGER_HUGGINGFACE_MODEL", "facebook/dinov2-small")
-
+HUGGINGFACE_MODEL = "facebook/dinov2-small"
 
 @dataclass
 class Animal:
