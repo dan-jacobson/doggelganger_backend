@@ -59,6 +59,7 @@ torch = [
 torchvision = [
   { index = "pytorch-cpu", marker = "platform_machine == 'x86_64'" },
 ]
+vecs = { git = "https://github.com/supabase/vecs", branch = "main" }
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
