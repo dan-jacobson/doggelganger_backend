@@ -17,7 +17,8 @@ def refresh_db():
     scraper = PetfinderScraper()
     asyncio.run(scraper.scrape_all_pets(output_path=str(output_file)))
 
-    # Empirically, each 10_000 dog embeddings consumes 50 Mb on-disk on postgres. Supabase caps us at 0.5 Gb, so we target about 80% util
+    # Empirically, each 10_000 dog embeddings consumes 50 Mb on-disk on postgres.
+    # Supabase caps us at 0.5 Gb, so we target about 80% util.
     logging.info("Starting embedding process...")
     process_dogs(output_file, drop_existing=True, N=80_000)
 

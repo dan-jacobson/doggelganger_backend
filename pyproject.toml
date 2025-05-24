@@ -9,6 +9,7 @@ dependencies = [
     "litestar[standard]>=2.13.0",
     "pillow>=11.1.0",
     "python-dotenv>=1.0.1",
+    "supabase>=2.15.1",
     "torch>=2.5.1",
     "tqdm>=4.67.1",
     "transformers[torch]>=4.47.1",

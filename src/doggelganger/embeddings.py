@@ -1,6 +1,5 @@
 import argparse
 import asyncio
-import hashlib
 import logging
 import os
 from dataclasses import asdict
@@ -102,7 +101,7 @@ class AsyncDogDataset(Dataset):
         metadata = [asdict(m) for m in metadata]
 
         # pop out ids, make them strings for `vecs`
-        ids = [str(m.pop('id')) for m in metadata] 
+        ids = [str(m.pop("id")) for m in metadata]
 
         return [Record(id, e, m) for id, e, m in zip(ids, embeddings, metadata, strict=False)]
 

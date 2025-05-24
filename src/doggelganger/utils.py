@@ -1,4 +1,3 @@
-import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -9,11 +8,14 @@ from transformers import pipeline
 
 HUGGINGFACE_MODEL = "facebook/dinov2-small"
 
+
 @dataclass
 class Animal:
     """Data class to store animal data"""
 
-    id: str #Petfinder assigns int IDs. Unfortunately our database client `vecs` coerces them to varchar. So we store as str for consistency
+    # Petfinder assigns int IDs. Unfortunately our database client `vecs` coerces them to varchar.
+    # So we store as str for consistency.
+    id: str
     name: str
     breed: str
     age: str
