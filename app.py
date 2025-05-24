@@ -20,8 +20,8 @@ from litestar.status_codes import (
     HTTP_500_INTERNAL_SERVER_ERROR,
 )
 from PIL import Image
-from vecs import Client, Collection
 
+import supabase
 from doggelganger.models import model_classes
 from doggelganger.utils import HUGGINGFACE_MODEL, get_embedding, valid_link
 from doggelganger.utils import load_model as load_embedding_pipeline
@@ -37,9 +37,14 @@ class Match:
 
 
 load_dotenv()
-DOGGELGANGER_DB_CONNECTION = os.getenv("SUPABASE_DB")
+# Unfortunately `vecs` and `supabase` use different cxn strings
+SUPABASE_FULL_URI = os.getenv("SUPABASE_DB")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_PW = os.getenv("SUPABASE_PW")
+
 MODEL_CLASS = os.getenv("DOGGELGANGER_ALIGNMENT_MODEL")
-MODEL_WEIGHTS = Path("weights/prod") / os.getenv("DOGGELGANGER_ALIGNMENT_WEIGHTS", "")
+MODEL_VERSION = os.getenv("DOGGELGANGER_ALIGNMENT_WEIGHTS")
+MODEL_WEIGHTS = Path("weights/prod") / MODEL_VERSION
 
 # Configure Logging -- I'm just using uvicorn's. I tried so many other things and they didn't work :(
 logger = logging.getLogger("uvicorn.error")
@@ -56,17 +61,28 @@ alignment_model = model_class.load(path=MODEL_WEIGHTS, embedding_dim=embedding_d
 # This looks kinda ugly, but we basically just move the vx.create_client() and .get_collection() call into app startup
 def connect_to_vecs(app: Litestar):
     if not getattr(app.state, "vx", None):
-        app.state.vx = vecs.create_client(DOGGELGANGER_DB_CONNECTION)
+        app.state.vx = vecs.create_client(SUPABASE_FULL_URI)
         app.state.dogs = app.state.vx.get_or_create_collection(
             name="dog_embeddings", dimension=pipe.model.config.hidden_size
         )
-    return cast("Client", app.state.vx), cast("Collection", app.state.dogs)
+    return cast(vecs.Client, app.state.vx), cast(vecs.Collection, app.state.dogs)
+
+
+def connect_to_supabase(app: Litestar):
+    if not getattr(app.state, "supabase", None):
+        app.state.supabase = supabase.create_client(SUPABASE_URL, SUPABASE_PW)
+    return cast(supabase.Client, app.state.supabase)
 
 
 # Disconnect from vecs on app shutdown
 def disconnect_from_vecs(app: Litestar):
     if getattr(app.state, "vx", None):
         app.state.vx.disconnect()
+
+
+def disconnect_from_supabase(app: Litestar):
+    if getattr(app.state, "supabase", None):
+        app.state.supabase.disconnect()
 
 
 @get(path="/")
@@ -157,7 +173,7 @@ async def embed_image(
 
 
 @post("/log-match")
-async def log_match(state: State, data: dict):
+async def log_match(state: State, data: dict) -> Response:
     try:
         dog_id = data.get("dogId")
         dog_embedding = data.get("dogEmbedding")
@@ -169,7 +185,8 @@ async def log_match(state: State, data: dict):
                 field
                 for field, value in zip(
                     ["dogId", "dogEmbedding", "userEmbedding"],
-                    [dog_id, dog_embedding, user_embedding], strict=False,
+                    [dog_id, dog_embedding, user_embedding],
+                    strict=False,
                 )
                 if not value
             ]
@@ -183,7 +200,7 @@ async def log_match(state: State, data: dict):
             dog_embedding=dog_embedding,
             selfie_embedding=user_embedding,
             embedding_model=HUGGINGFACE_MODEL,
-            alignment_model=f"{MODEL_CLASS} / {MODEL_WEIGHTS}",
+            alignment_model=f"{MODEL_CLASS} | {MODEL_VERSION}",
         )
 
         _ = (
@@ -213,7 +230,9 @@ async def log_match(state: State, data: dict):
 
 
 app = Litestar(
-    route_handlers=[embed_image, health_check], on_startup=[connect_to_vecs], on_shutdown=[disconnect_from_vecs]
+    route_handlers=[embed_image, health_check, log_match],
+    on_startup=[connect_to_vecs, connect_to_supabase],
+    on_shutdown=[disconnect_from_vecs, disconnect_from_supabase],
 )
 
 # test via something like
@@ -221,8 +240,6 @@ app = Litestar(
 #   http://0.0.0.0:8000/embed \
 #   -F "image=@/path/to/your/image.jpg"
 
-# curl -i -X POST \
-#   http://127.0.0.1:8000/embed \
-#   -F "image=@.mint/example.jpg"
+# curl -iX POST http://0.0.0.0:8000/embed -F "image=@.mint/example.jpg"
 
-# curl -i -X POST http://0.0.0.0:8000/embed -F "image=@.mint/example.jpg"
+# curl -iX POST http://0.0.0.0:8000/log-match -d '{"dogId": "1234", "userEmbedding": [1,2,3], "dogEmbedding": [4,5,6]}'
