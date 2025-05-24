@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from typing import Annotated, cast
 
+import numpy as np
 import vecs
 from dotenv import load_dotenv
 from litestar import Litestar, get, post
@@ -31,7 +32,7 @@ class Match:
     dog_embedding: list[float]
     selfie_embedding: list[float]
     embedding_model: str
-    # timestamp:
+    # timestamp: 
 
 
 load_dotenv()
@@ -108,6 +109,7 @@ async def embed_image(
             limit=3,  # Increase limit to have more options to check
             include_metadata=True,
             include_value=True,
+            include_vector=True,
         )
 
         if not results:
@@ -118,13 +120,22 @@ async def embed_image(
 
         # Find the first result with an image that works 
         valid_result = None
-        for i, (id, score, metadata) in enumerate(results):
+
+        for i, (id, score, dog_embedding, metadata) in enumerate(results):
             url = metadata["primary_photo"]
-            if valid_link(url):
+            if valid_link(metadata["primary_photo"]):
+
+                # for some reason we have to force each element to a float64 before it can be serialized back to a python object
+                dog_embedding = np.array(dog_embedding, dtype=np.float64).tolist()
+
+                # converts cosine distance to similarity
+                similarity = 1 - score
+
                 valid_result = {
                     **metadata,
                     "id": id,
-                    "similarity": 1 - score,  # converts cosine distance to similarity
+                    "dog_embedding": dog_embedding,
+                    "similarity": similarity
                 }
                 logger.debug(f"Valid link after {i + 1} tries: {url}")
                 break
@@ -154,15 +165,8 @@ async def log_match(data: dict):
     data = data.read()
     dog_id, user_embedding = data['dogId'], data['userEmbedding']
 
-    # look up dog image using ID
-    # dog = psychopg2(dog_id)
-    dog_embedding = pipe(dog['primary_photo'])
-
     # write to db
     # db.write(dog_embedding, user_embedding)
-    
-    
-
 
 app = Litestar(
     route_handlers=[embed_image, health_check], on_startup=[connect_to_vecs], on_shutdown=[disconnect_from_vecs]
