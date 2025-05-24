@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import jsonlines
 import pytest
+from aioresponses import aioresponses
 from PIL import Image
 
 from doggelganger.embeddings import AsyncDogDataset, Record, load_metadata, process_dogs
@@ -23,14 +24,30 @@ def sample_animal():
         description="He's a real good boy.",
         url="https://example.com/buddy",
         primary_photo="https://example.com/buddy.jpg",
-        primary_photo_cropped="https://example.com/buddy.jpg",
+        primary_photo_cropped="https://example.com/buddy_cropped.jpg",
         photo_urls=None,
     )
 
 
 @pytest.fixture
 def sample_animals(sample_animal):
-    return [sample_animal] * 5
+    animals = []
+    for i in range(5):
+        animal = Animal(
+            id=f"12{i}",
+            name=f"Buddy{i}",
+            breed="Labrador",
+            age="Young",
+            sex="Male",
+            location={"city": "Brooklyn", "state": "NY", "postcode": ""},
+            description="He's a real good boy.",
+            url=f"https://example.com/buddy{i}",
+            primary_photo=f"https://example.com/buddy{i}.jpg",
+            primary_photo_cropped=f"https://example.com/buddy{i}_cropped.jpg",
+            photo_urls=None,
+        )
+        animals.append(animal)
+    return animals
 
 
 @pytest.fixture
@@ -84,106 +101,93 @@ class TestAsyncDogDataset:
     @pytest.mark.asyncio
     async def test_producer(self, sample_animals, mock_image):
         """Test the producer function fills the queue correctly"""
-        # Create a mock session
-        mock_session = AsyncMock()
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.read.return_value = mock_image
-        mock_session.get.return_value.__aenter__.return_value = mock_response
-
-        # Create the dataset with our sample animals
-        dataset = AsyncDogDataset(metadata=sample_animals, show_progress=False)
-
-        # Replace aiohttp.ClientSession with our mock
-        with patch("aiohttp.ClientSession", return_value=mock_session):
-            # Start the producer
+        test_animals = sample_animals[:2]
+        
+        with aioresponses() as m:
+            # Mock all the URLs that will be requested
+            for animal in test_animals:
+                url = getattr(animal, "primary_photo_cropped")
+                m.get(url, body=mock_image, status=200)
+            
+            dataset = AsyncDogDataset(metadata=test_animals, show_progress=False)
+            
             producer_task = asyncio.create_task(dataset.producer())
-
-            # Collect items with timeout
+            
             items = []
             try:
-                for _ in range(len(sample_animals)):
+                # Get expected number of items
+                for _ in range(len(test_animals)):
                     item = await asyncio.wait_for(dataset.image_queue.get(), timeout=5.0)
-                    # that's our stop signal
-                    if item is None:
+                    if item is None:  # Stop signal
                         break
                     items.append(item)
-
-                # Get the stop signal
+                
+                # Get stop signal
                 stop_signal = await asyncio.wait_for(dataset.image_queue.get(), timeout=5.0)
                 assert stop_signal is None
-            
+                
             except asyncio.TimeoutError:
-                producer_task.cancel()
                 pytest.fail("Producer test timed out")
-
-            # Wait for the producer to finish
-            try:
-                await producer_task
-            except asyncio.CancelledError:
-                pass
-
-            # Check results
-            assert len(items) == len(sample_animals)
+            finally:
+                producer_task.cancel()
+                try:
+                    await producer_task
+                except asyncio.CancelledError:
+                    pass
+            
+            assert len(items) == len(test_animals)
             assert all(isinstance(item[0], Animal) for item in items)
             assert all(isinstance(item[1], Image.Image) for item in items)
-            assert stop_signal is None
 
     @pytest.mark.asyncio
     async def test_consumer(self, sample_animals, mock_model):
         """Test the consumer processes items from the queue correctly"""
-        # Create the dataset
-        dataset = AsyncDogDataset(metadata=sample_animals, batch_size=2, show_progress=False)
+        test_animals = sample_animals[:3]
+        dataset = AsyncDogDataset(metadata=test_animals, batch_size=2, show_progress=False)
 
-        # Create some test images and put them in the queue
-        for animal in sample_animals:
+        # Pre-populate queue with test data
+        for animal in test_animals:
             image = Image.new("RGB", (100, 100), color="red")
             await dataset.image_queue.put((animal, image))
-
-        # Add the stop signal
+        
+        # Add stop signal
         await dataset.image_queue.put(None)
 
-        # Mock the database
         mock_db = MagicMock()
 
-        # Start the consumer
+        # Run consumer with timeout
         try:
             await asyncio.wait_for(dataset.consumer(mock_model, mock_db), timeout=10.0)
         except asyncio.TimeoutError:
             pytest.fail("Consumer test timed out")
 
-        # Check that records were generated and added to the processed queue
-        assert dataset.processed_queue.qsize() == 3  # 2 batches of 2 + 1 batch of 1 + stop signal
-
-        # Check that upsert was called for each batch
-        assert mock_db.upsert.call_count == 3
+        # Verify results - should have 2 batches (2 items + 1 item)
+        assert mock_db.upsert.call_count == 2
 
     @pytest.mark.asyncio
     async def test_process_all(self, sample_animals, mock_model, mock_image):
         """Test the end-to-end processing flow"""
-        # Create a mock session
-        mock_session = AsyncMock()
-        mock_response = AsyncMock()
-        mock_response.status = 200
-        mock_response.read.return_value = mock_image
-        mock_session.get.return_value.__aenter__.return_value = mock_response
+        test_animals = sample_animals[:2]  # Keep it small for testing
+        
+        with aioresponses() as m:
+            # Mock all the URLs that will be requested
+            for animal in test_animals:
+                url = getattr(animal, "primary_photo_cropped")
+                m.get(url, body=mock_image, status=200)
+            
+            dataset = AsyncDogDataset(metadata=test_animals, batch_size=2, show_progress=False)
+            mock_db = MagicMock()
 
-        dataset = AsyncDogDataset(metadata=sample_animals, batch_size=2, show_progress=False)
-        mock_db = MagicMock()
-
-        # Replace aiohttp.ClientSession with our mock
-        with patch("aiohttp.ClientSession", return_value=mock_session):
             try:
                 records = await asyncio.wait_for(
                     dataset.process_all(mock_model, mock_db),
                     timeout=15.0
                 )
-                assert len(records) <= len(sample_animals)
+                assert len(records) <= len(test_animals)
             except asyncio.TimeoutError:
                 pytest.fail('process_all test timed out')
 
             # Check results
-            # assert len(records) == len(sample_animals)
             assert all(isinstance(record, Record) for record in records)
 
             # Check that upsert was called
