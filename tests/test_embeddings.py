@@ -130,9 +130,7 @@ class TestAsyncDogDataset:
         assert all(record.id == str(animal.id) for record, animal in zip(records, sample_animals, strict=False))
         assert all(len(record.embedding) == 512 for record in records)
         # make sure we have the non-ID keys from metadata in each record
-        assert all(
-            key in record.metadata for record in records for key in asdict(sample_animals[0]) if key != "id"
-        )
+        assert all(key in record.metadata for record in records for key in asdict(sample_animals[0]) if key != "id")
 
     @pytest.mark.asyncio
     async def test_consumer(self, sample_animals, mock_model):
