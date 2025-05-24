@@ -1,7 +1,7 @@
-from dataclasses import dataclass
 import io
 import logging
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, cast
 
@@ -23,8 +23,9 @@ from PIL import Image
 from vecs import Client, Collection
 
 from doggelganger.models import model_classes
-from doggelganger.utils import get_embedding, valid_link, HUGGINGFACE_MODEL
+from doggelganger.utils import HUGGINGFACE_MODEL, get_embedding, valid_link
 from doggelganger.utils import load_model as load_embedding_pipeline
+
 
 @dataclass
 class Match:
@@ -32,7 +33,7 @@ class Match:
     dog_embedding: list[float]
     selfie_embedding: list[float]
     embedding_model: str
-    # timestamp: 
+    alignment_model: str
 
 
 load_dotenv()
@@ -118,25 +119,19 @@ async def embed_image(
                 status_code=HTTP_404_NOT_FOUND,
             )
 
-        # Find the first result with an image that works 
+        # Find the first result with an image that works
         valid_result = None
 
         for i, (id, score, dog_embedding, metadata) in enumerate(results):
             url = metadata["primary_photo"]
             if valid_link(metadata["primary_photo"]):
-
-                # for some reason we have to force each element to a float64 before it can be serialized back to a python object
+                # for some reason we have to coerce to a float64 before it can be serialized back to a python object
                 dog_embedding = np.array(dog_embedding, dtype=np.float64).tolist()
 
                 # converts cosine distance to similarity
                 similarity = 1 - score
 
-                valid_result = {
-                    **metadata,
-                    "id": id,
-                    "dog_embedding": dog_embedding,
-                    "similarity": similarity
-                }
+                valid_result = {**metadata, "id": id, "dog_embedding": dog_embedding, "similarity": similarity}
                 logger.debug(f"Valid link after {i + 1} tries: {url}")
                 break
             else:
@@ -160,13 +155,62 @@ async def embed_image(
     except Exception as e:
         return Response(content={"error": str(e)}, status_code=HTTP_500_INTERNAL_SERVER_ERROR)
 
-@post('/log-match')
-async def log_match(data: dict):
-    data = data.read()
-    dog_id, user_embedding = data['dogId'], data['userEmbedding']
 
-    # write to db
-    # db.write(dog_embedding, user_embedding)
+@post("/log-match")
+async def log_match(state: State, data: dict):
+    try:
+        dog_id = data.get("dogId")
+        dog_embedding = data.get("dogEmbedding")
+        user_embedding = data.get("userEmbedding")
+
+        if not all([dog_id, dog_embedding, user_embedding]):
+            # figure out which field is missing
+            missing_fields = [
+                field
+                for field, value in zip(
+                    ["dogId", "dogEmbedding", "userEmbedding"],
+                    [dog_id, dog_embedding, user_embedding], strict=False,
+                )
+                if not value
+            ]
+            return Response(
+                content={"error": f"Missing required field(s): {', '.join(missing_fields)}"},
+                status_code=HTTP_400_BAD_REQUEST,
+            )
+
+        match = Match(
+            dog_id=dog_id,
+            dog_embedding=dog_embedding,
+            selfie_embedding=user_embedding,
+            embedding_model=HUGGINGFACE_MODEL,
+            alignment_model=f"{MODEL_CLASS} / {MODEL_WEIGHTS}",
+        )
+
+        _ = (
+            state.supabase.table("matches")
+            .insert(
+                {
+                    "dog_id": match.dog_id,
+                    "dog_embedding": match.dog_embedding,
+                    "selfie_embedding": match.selfie_embedding,
+                    "embedding_model": match.embedding_model,
+                    "alignment_model": match.alignment_model,
+                }
+            )
+            .execute()
+        )
+
+        return Response(
+            content={"messages": "Match logged successfully!"},
+            status_code=HTTP_200_OK,
+        )
+    except Exception as e:
+        logger.error(f"Error logging match {str(e)}")
+        return Response(
+            content={"error": f"Failed to log match: {str(e)}"},
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
 
 app = Litestar(
     route_handlers=[embed_image, health_check], on_startup=[connect_to_vecs], on_shutdown=[disconnect_from_vecs]
