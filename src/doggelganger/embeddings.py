@@ -46,6 +46,7 @@ class AsyncDogDataset(Dataset):
         batch_size: int = 32,
         queue_size: int = 1000,
         num_fetchers: int = 8,
+        show_progress: bool = True,
     ):
         self.metadata = metadata
         self.field_to_embed = field_to_embed
@@ -54,9 +55,16 @@ class AsyncDogDataset(Dataset):
         self.processed_queue = Queue()
         self.num_fetchers = num_fetchers
         self.total_items = len(metadata)
-        self.fetch_pbar = tqdm(total=self.total_items, desc="Fetching images", position=0)
-        self.embed_pbar = tqdm(total=self.total_items, desc="Processing embeddings", position=1)
-        print("\n")
+        self.show_progess = show_progress
+
+        # Useful for preventing bad behavior in CI and testing
+        if self.show_progess:
+            self.fetch_pbar = tqdm(total=self.total_items, desc="Fetching images", position=0)
+            self.embed_pbar = tqdm(total=self.total_items, desc="Processing embeddings", position=1)
+            print("\n")
+        else:
+            self.fetch_pbar = None
+            self.embed_pbar = None
 
     async def fetch_image(self, session: aiohttp.ClientSession, item: Animal) -> tuple[dict, bytes | None]:
         url = getattr(item, self.field_to_embed)
@@ -84,13 +92,15 @@ class AsyncDogDataset(Dataset):
                         try:
                             image = Image.open(BytesIO(image_data))
                             await self.image_queue.put((item, image))
-                            self.fetch_pbar.update(1)
+                            if self.fetch_pbar:
+                                self.fetch_pbar.update(1)
                         except Exception as e:
                             logging.error(f"Error processing image: {e}")
 
         # stop signal for producer: we've processed all the images
         await self.image_queue.put(None)
-        self.fetch_pbar.close()
+        if self.fetch_pbar:
+            self.fetch_pbar.close()
 
     def generate_records(self, model: Pipeline, images, metadata: list[Animal]) -> list[Record]:
         embeddings = model(images, batch_size=len(images))
@@ -117,7 +127,8 @@ class AsyncDogDataset(Dataset):
                     db.upsert(records)
                 except Exception as e:
                     logging.error(f"Failed to upsert records: {e}")
-            self.embed_pbar.update(len(records))
+            if self.embed_pbar:
+                self.embed_pbar.update(len(records))
             return [], []
 
         while True:
@@ -145,7 +156,8 @@ class AsyncDogDataset(Dataset):
 
         # stop signal for consumer
         self.processed_queue.put(None)
-        self.embed_pbar.close()
+        if self.embed_pbar:
+            self.embed_pbar.close()
 
     async def process_all(self, model: Pipeline, db: vecs.Collection = None):
         producer_task = asyncio.create_task(self.producer())
