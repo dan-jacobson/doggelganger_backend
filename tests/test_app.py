@@ -1,4 +1,5 @@
 import io
+import os
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -16,15 +17,32 @@ from PIL import Image
 
 # TODO(drj): Hacky :(, fix this if we every refactor project structure
 sys.path.append(str(Path(__file__).parent.parent))
-from app import app, connect_to_vecs, pipe
+from app import app, connect_to_vecs, connect_to_supabase, pipe
 
 app.debug = True
+
+
+# Mock environment variables for testing
+@pytest.fixture(scope="session", autouse=True)
+def mock_env_vars():
+    """Mock environment variables needed for the app"""
+    env_vars = {
+        "SUPABASE_DB": "postgresql://mock:mock@localhost:5432/mock",
+        "SUPABASE_URL": "https://mock.supabase.co",
+        "SUPABASE_PW": "mock_password",
+        "DOGGELGANGER_ALIGNMENT_MODEL": "ResNetModel",
+        "DOGGELGANGER_ALIGNMENT_WEIGHTS": "prodv0.2.pt",
+    }
+    
+    with patch.dict(os.environ, env_vars):
+        yield
 
 
 @pytest.fixture(scope="session")
 async def test_client():
     mock_vx = MagicMock()
     mock_dogs = MagicMock()
+    mock_supabase = MagicMock()
 
     def mock_connect_to_vecs(app):
         print("Mock connect_to_vecs called!")
@@ -32,10 +50,21 @@ async def test_client():
         app.state.dogs = mock_dogs
         return mock_vx, mock_dogs
 
+    def mock_connect_to_supabase(app):
+        print("Mock connect_to_supabase called!")
+        app.state.supabase = mock_supabase
+        return mock_supabase
+
+    # Replace both startup functions
     connect_to_vecs_idx = app.on_startup.index(connect_to_vecs)
+    connect_to_supabase_idx = app.on_startup.index(connect_to_supabase)
+    
     app.on_startup[connect_to_vecs_idx] = mock_connect_to_vecs
+    app.on_startup[connect_to_supabase_idx] = mock_connect_to_supabase
 
     async with AsyncTestClient(app=app) as client:
+        # Make the mock supabase accessible in tests
+        client.app.state.supabase = mock_supabase
         yield client
 
 
@@ -141,3 +170,115 @@ async def test_alignment_model_integration(
     assert np.array_equal(result["embedding"], mock_embedding)
     assert "similarity" in result["result"]
     assert 0 <= result["result"]["similarity"] <= 1
+
+
+async def test_log_match_success(test_client):
+    """Test successful match logging"""
+    # Setup mock response
+    mock_table = MagicMock()
+    mock_insert = MagicMock()
+    mock_execute = MagicMock()
+    
+    test_client.app.state.supabase.table.return_value = mock_table
+    mock_table.insert.return_value = mock_insert
+    mock_insert.execute.return_value = {"data": [{"id": 1}]}
+
+    payload = {
+        "dogId": "test-dog-123",
+        "dogEmbedding": [0.1, 0.2, 0.3],
+        "userEmbedding": [0.4, 0.5, 0.6]
+    }
+
+    response = await test_client.post("/log-match", json=payload)
+    
+    assert response.status_code == HTTP_200_OK
+    assert "Match logged successfully" in response.json()["messages"]
+    
+    # Verify the database was called correctly
+    test_client.app.state.supabase.table.assert_called_once_with("matches")
+    mock_table.insert.assert_called_once()
+    
+    # Check the inserted data structure
+    inserted_data = mock_table.insert.call_args[0][0]
+    assert inserted_data["dog_id"] == "test-dog-123"
+    assert inserted_data["dog_embedding"] == [0.1, 0.2, 0.3]
+    assert inserted_data["selfie_embedding"] == [0.4, 0.5, 0.6]
+    assert "facebook/dinov2-small" in inserted_data["embedding_model"]
+    assert inserted_data["alignment_model"]  # Should contain model class and version
+
+
+async def test_log_match_missing_fields(test_client):
+    """Test log match with missing required fields"""
+    # Test missing dogId
+    payload = {
+        "dogEmbedding": [0.1, 0.2, 0.3],
+        "userEmbedding": [0.4, 0.5, 0.6]
+    }
+    response = await test_client.post("/log-match", json=payload)
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert "Missing required field(s): dogId" in response.json()["error"]
+
+    # Test missing multiple fields
+    payload = {"dogId": "test-123"}
+    response = await test_client.post("/log-match", json=payload)
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    error_msg = response.json()["error"]
+    assert "Missing required field(s)" in error_msg
+    assert "dogEmbedding" in error_msg
+    assert "userEmbedding" in error_msg
+
+
+async def test_log_match_database_error(test_client):
+    """Test log match when database operation fails"""
+    # Setup mock to raise an exception
+    test_client.app.state.supabase.table.side_effect = Exception("Database connection failed")
+
+    payload = {
+        "dogId": "test-dog-123",
+        "dogEmbedding": [0.1, 0.2, 0.3],
+        "userEmbedding": [0.4, 0.5, 0.6]
+    }
+
+    response = await test_client.post("/log-match", json=payload)
+    
+    assert response.status_code == HTTP_500_INTERNAL_SERVER_ERROR
+    assert "Failed to log match" in response.json()["error"]
+
+
+async def test_log_match_empty_payload(test_client):
+    """Test log match with empty payload"""
+    response = await test_client.post("/log-match", json={})
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    error_msg = response.json()["error"]
+    assert "Missing required field(s)" in error_msg
+    assert "dogId" in error_msg
+    assert "dogEmbedding" in error_msg
+    assert "userEmbedding" in error_msg
+
+
+@patch("app.get_embedding")
+@patch("app.valid_link")
+async def test_full_pipeline_with_match_logging(
+    mock_valid_link, mock_get_embedding, test_client, mock_image, mock_embedding
+):
+    """Test the full pipeline and then log the match"""
+    mock_get_embedding.return_value = mock_embedding
+    test_client.app.state.dogs.query.return_value = [
+        ("test-dog-123", 0.1, [0.1, 0.1, 0.1], {"primary_photo": "http://valid.com"})
+    ]
+    mock_valid_link.return_value = True
+
+    # First, get a match
+    response = await test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
+    assert response.status_code == HTTP_200_OK
+    result = response.json()
+
+    # Then log the match
+    match_payload = {
+        "dogId": result["result"]["id"],
+        "dogEmbedding": result["result"]["dog_embedding"],
+        "userEmbedding": result["embedding"]
+    }
+    
+    log_response = await test_client.post("/log-match", json=match_payload)
+    assert log_response.status_code == HTTP_200_OK
