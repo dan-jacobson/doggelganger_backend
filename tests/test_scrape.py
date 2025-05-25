@@ -64,7 +64,7 @@ async def test_parse_animal_data(mock_animal_data):
     animal = scraper.parse_animal_data(mock_animal_data)
 
     assert isinstance(animal, Animal)
-    assert animal.id == 12345
+    assert animal.id == '12345'
     assert animal.name == "Buddy"
     assert animal.breed == "Labrador Retriever"
     assert animal.age == "Young"
