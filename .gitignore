@@ -39,6 +39,7 @@ ray_results/
 # data files
 data/
 supabase/
+.supabase/
 *.sql
 *.jsonl
 *.parquet
