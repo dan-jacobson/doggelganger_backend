@@ -80,11 +80,6 @@ def disconnect_from_vecs(app: Litestar):
         app.state.vx.disconnect()
 
 
-def disconnect_from_supabase(app: Litestar):
-    if getattr(app.state, "supabase", None):
-        app.state.supabase.disconnect()
-
-
 @get(path="/")
 async def health_check() -> str:
     return Response(content="healthy", status_code=HTTP_200_OK)
@@ -232,7 +227,7 @@ async def log_match(state: State, data: dict) -> Response:
 app = Litestar(
     route_handlers=[embed_image, health_check, log_match],
     on_startup=[connect_to_vecs, connect_to_supabase],
-    on_shutdown=[disconnect_from_vecs, disconnect_from_supabase],
+    on_shutdown=[disconnect_from_vecs],
 )
 
 # test via something like
