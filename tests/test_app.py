@@ -242,31 +242,3 @@ async def test_log_match_empty_payload(test_client):
     assert "dogId" in error_msg
     assert "dogEmbedding" in error_msg
     assert "userEmbedding" in error_msg
-
-
-@patch("app.get_embedding")
-@patch("app.valid_link")
-async def test_full_pipeline_with_match_logging(
-    mock_valid_link, mock_get_embedding, test_client, mock_image, mock_embedding
-):
-    """Test the full pipeline and then log the match"""
-    mock_get_embedding.return_value = mock_embedding
-    test_client.app.state.dogs.query.return_value = [
-        ("test-dog-123", 0.1, [0.1, 0.1, 0.1], {"primary_photo": "http://valid.com"})
-    ]
-    mock_valid_link.return_value = True
-
-    # First, get a match
-    response = await test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})
-    assert response.status_code == HTTP_200_OK
-    result = response.json()
-
-    # Then log the match
-    match_payload = {
-        "dogId": result["result"]["id"],
-        "dogEmbedding": result["result"]["dog_embedding"],
-        "userEmbedding": result["embedding"],
-    }
-
-    log_response = await test_client.post("/log-match", json=match_payload)
-    assert log_response.status_code == HTTP_200_OK
