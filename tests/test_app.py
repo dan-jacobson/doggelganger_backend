@@ -126,7 +126,9 @@ async def test_alignment_model_integration(
 ):
     """Test the full pipeline including alignment model"""
     mock_get_embedding.return_value = mock_embedding
-    test_client.app.state.dogs.query.return_value = [("id1", 0.1, [0.1, 0.1, 0.1], {"primary_photo": "http://valid.com"})]
+    test_client.app.state.dogs.query.return_value = [
+        ("id1", 0.1, [0.1, 0.1, 0.1], {"primary_photo": "http://valid.com"})
+    ]
     mock_valid_link.return_value = True
 
     response = await test_client.post("/embed", files={"data": ("test.png", mock_image, "image/png")})

@@ -1,7 +1,8 @@
 import asyncio
+from contextlib import suppress
 from dataclasses import asdict
 from io import BytesIO
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import jsonlines
 import pytest
@@ -102,17 +103,17 @@ class TestAsyncDogDataset:
     async def test_producer(self, sample_animals, mock_image):
         """Test the producer function fills the queue correctly"""
         test_animals = sample_animals[:2]
-        
+
         with aioresponses() as m:
             # Mock all the URLs that will be requested
             for animal in test_animals:
-                url = getattr(animal, "primary_photo_cropped")
+                url = animal.primary_photo_cropped
                 m.get(url, body=mock_image, status=200)
-            
+
             dataset = AsyncDogDataset(metadata=test_animals, show_progress=False)
-            
+
             producer_task = asyncio.create_task(dataset.producer())
-            
+
             items = []
             try:
                 # Get expected number of items
@@ -121,20 +122,18 @@ class TestAsyncDogDataset:
                     if item is None:  # Stop signal
                         break
                     items.append(item)
-                
+
                 # Get stop signal
                 stop_signal = await asyncio.wait_for(dataset.image_queue.get(), timeout=5.0)
                 assert stop_signal is None
-                
-            except asyncio.TimeoutError:
+
+            except TimeoutError:
                 pytest.fail("Producer test timed out")
             finally:
                 producer_task.cancel()
-                try:
+                with suppress(asyncio.CancelledError):
                     await producer_task
-                except asyncio.CancelledError:
-                    pass
-            
+
             assert len(items) == len(test_animals)
             assert all(isinstance(item[0], Animal) for item in items)
             assert all(isinstance(item[1], Image.Image) for item in items)
@@ -149,7 +148,7 @@ class TestAsyncDogDataset:
         for animal in test_animals:
             image = Image.new("RGB", (100, 100), color="red")
             await dataset.image_queue.put((animal, image))
-        
+
         # Add stop signal
         await dataset.image_queue.put(None)
 
@@ -158,7 +157,7 @@ class TestAsyncDogDataset:
         # Run consumer with timeout
         try:
             await asyncio.wait_for(dataset.consumer(mock_model, mock_db), timeout=10.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pytest.fail("Consumer test timed out")
 
         # Verify results - should have 2 batches (2 items + 1 item)
@@ -168,24 +167,21 @@ class TestAsyncDogDataset:
     async def test_process_all(self, sample_animals, mock_model, mock_image):
         """Test the end-to-end processing flow"""
         test_animals = sample_animals[:2]  # Keep it small for testing
-        
+
         with aioresponses() as m:
             # Mock all the URLs that will be requested
             for animal in test_animals:
-                url = getattr(animal, "primary_photo_cropped")
+                url = animal.primary_photo_cropped
                 m.get(url, body=mock_image, status=200)
-            
+
             dataset = AsyncDogDataset(metadata=test_animals, batch_size=2, show_progress=False)
             mock_db = MagicMock()
 
             try:
-                records = await asyncio.wait_for(
-                    dataset.process_all(mock_model, mock_db),
-                    timeout=15.0
-                )
+                records = await asyncio.wait_for(dataset.process_all(mock_model, mock_db), timeout=15.0)
                 assert len(records) <= len(test_animals)
-            except asyncio.TimeoutError:
-                pytest.fail('process_all test timed out')
+            except TimeoutError:
+                pytest.fail("process_all test timed out")
 
             # Check results
             assert all(isinstance(record, Record) for record in records)
