@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Annotated, cast
 
 import numpy as np
+import supabase
 import vecs
 from dotenv import load_dotenv
 from litestar import Litestar, get, post
@@ -21,7 +22,6 @@ from litestar.status_codes import (
 )
 from PIL import Image
 
-import supabase
 from doggelganger.models import model_classes
 from doggelganger.utils import HUGGINGFACE_MODEL, get_embedding, valid_link
 from doggelganger.utils import load_model as load_embedding_pipeline
